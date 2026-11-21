@@ -92,9 +92,7 @@ should not exist, or not without an approval that is missing".
    pipeline builds already-reviewed code, so that is the intended scope rather than a
    hole — but do not describe it as "every pipeline" (platform-reviewer, 2026-08-06). (It was `.github/workflows/security-secrets.yml` with `gitleaks-action@v2`
    until the 2026-08 GitLab migration; GitHub Actions now run nothing, so citing that
-   workflow as live cover would be false — corrected 2026-08-06.) `check_no_secrets.py` and
-   `detect-private-key` are a LOCAL-ONLY second layer via
-   `.pre-commit-config.yaml`, which no workflow invokes. You are the third layer,
+   workflow as live cover would be false — corrected 2026-08-06.). You are the third layer,
    and your value is what a pattern matcher cannot see: a credential that is not
    shaped like one, a permission quietly widened, a token committed as an example.
    An earlier draft of this item claimed "nothing catches a secret in CI", which
