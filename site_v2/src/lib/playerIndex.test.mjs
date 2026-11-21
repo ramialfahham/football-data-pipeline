@@ -85,3 +85,21 @@ test("the committed sample: no nation slug is a player slug, every player slug e
   for (const slug of players) assert.match(slug, /(^|-)\d+$/);
   assert.doesNotThrow(() => nationPages(data, players));
 });
+
+test("a nation page's h1 is never the bare nation name, which is its national team page's h1, in EN, DE and FI", async () => {
+  const dataDir = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
+  const file = join(dataDir, "players_index.json");
+  if (!existsSync(file)) return;
+  const { t } = await import("../i18n/strings.ts");
+  const data = JSON.parse(readFileSync(file, "utf8"));
+  const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "pages", "[lang]", "[players]", "[nation].astro"), "utf8");
+  assert.match(template, /const title = t\(lang, "seoNationTitle", \{ nation \}\);/);
+  assert.match(template, /<h1>\{title\}<\/h1>/);
+  const pages = nationPages(data, []);
+  assert.ok(pages.length > 0, "the sample must hold nation pages");
+  for (const page of pages) {
+    for (const lang of ["en", "de", "fi"]) {
+      assert.notEqual(t(lang, "seoNationTitle", { nation: page.nation }), page.nation, `${lang} ${page.slug}`);
+    }
+  }
+});

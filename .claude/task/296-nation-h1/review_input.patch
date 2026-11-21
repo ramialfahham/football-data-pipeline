@@ -1,0 +1,130 @@
+diff --git a/.claude/task/296-nation-h1/contract.md b/.claude/task/296-nation-h1/contract.md
+new file mode 100644
+index 00000000..b12cfab9
+--- /dev/null
++++ b/.claude/task/296-nation-h1/contract.md
+@@ -0,0 +1,67 @@
++# Task contract — Nation pages: an h1 of their own
++
++objective: >
++  Issue #296: a nation page (/{lang}/{players word}/{nation}/) gets an h1 that differs from its
++  national team page's h1 (the bare team name) in EN, DE and FI, so audit-seo reports no
++  "h1 is not unique" on a nation page. A unit test fails when a nation page's h1 equals the bare
++  nation name in any of the three languages; the nightly's audit-seo on the full build refuses the
++  deploy if any h1 repeats.
++
++refs: >
++  #296; #290 go-live; #135 Players page design (nation pages came with its build); #233 country
++  names in the page's language (not in scope).
++
++depends_on:
++  - none: the nation page and audit-seo are on main (7bcb1db2); no open MR changes them
++
++shared_files:
++  - none: no design baseline, component registry or chart screenshot changes
++
++scope_paths:
++  - .claude/task/296-nation-h1/
++  - site_v2/src/pages/[[]lang[]]/[[]players[]]/[[]nation[]].astro
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/playerIndex.test.mjs
++
++impact_map: >
++  writers: none; the h1 is template text, no dbt model, export or ingestion change.
++  consumption: the nation page template only, `grep -rn "seoNation" site_v2/src` shows the two
++  readers of its strings, the page's title and description in the same file; every other page keeps
++  its h1. The committed sample, the design baselines and the data README do not change.
++  layer_rules: no dbt layer touched; audit-seo's h1 uniqueness check is unchanged and is the gate.
++  deploy_order: none; the nightly's export and build read the same template.
++  blast_radius: 101 nation pages per locale on a full build change their h1 text; the sample's 27
++  nation pages likewise; no number changes.
++
++approved_design:
++  - players: #135
++
++decisions_taken: >
++  The nation page h1 reuses the page's own title string, seoNationTitle ("{nation} players",
++  "Spieler aus {nation}", "{nation}: pelaajat"), so no new copy is created. Fan wording before
++  go-live: the coordinating session's call of 21 Nov 2026, an engineering call that reuses existing
++  copy.
++  The sample holds no national team page: the design inventory's Team page glob measures a
++  national team page as a club page, and the national-team design work owns that and adds the
++  sample pair with its own pins. The guard is the unit test in three languages plus the nightly's
++  audit-seo on the full build. This changes #296's criterion "the sample holds a nation page and a
++  national team page of one nation"; the coordinating session's call of 21 Nov 2026, an
++  engineering decision.
++
++decisions_reserved:
++  - none: the wording is the coordinating session's call, not a CPO-class decision, and the country
++    names in the page's language are #233
++
++acceptance_criteria:
++  - On the built sample, every nation page's h1 differs from the bare nation name in EN, DE and FI.
++  - audit-seo reports no "h1 is not unique" finding on any nation page of the sample build.
++  - A unit test fails when a nation page's h1 equals the bare nation name in EN, DE or FI.
++  - audit-seo reports no "h1 is not unique" finding on a nation page of the live build the #156 session leaves locally, if it is still there.
++
++done_when:
++  - python scripts/ci_local.py --mr is green
++  - node --test site_v2/src/lib/playerIndex.test.mjs passes
++  - audit-seo on the built sample reports 0 violations
++
++amendments:
++  - 21 Nov 2026: the sample national team (teams/1104.json, README, .gitignore) leaves scope and the acceptance criteria 1 and 3 are reworded to the unit-test guard; authority: the coordinating session's call of 21 Nov 2026 (engineering decision).
+diff --git a/site_v2/src/lib/playerIndex.test.mjs b/site_v2/src/lib/playerIndex.test.mjs
+index 6d039b79..475b10de 100644
+--- a/site_v2/src/lib/playerIndex.test.mjs
++++ b/site_v2/src/lib/playerIndex.test.mjs
+@@ -85,3 +85,21 @@ test("the committed sample: no nation slug is a player slug, every player slug e
+   for (const slug of players) assert.match(slug, /(^|-)\d+$/);
+   assert.doesNotThrow(() => nationPages(data, players));
+ });
++
++test("a nation page's h1 is never the bare nation name, which is its national team page's h1, in EN, DE and FI", async () => {
++  const dataDir = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
++  const file = join(dataDir, "players_index.json");
++  if (!existsSync(file)) return;
++  const { t } = await import("../i18n/strings.ts");
++  const data = JSON.parse(readFileSync(file, "utf8"));
++  const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "pages", "[lang]", "[players]", "[nation].astro"), "utf8");
++  assert.match(template, /const title = t\(lang, "seoNationTitle", \{ nation \}\);/);
++  assert.match(template, /<h1>\{title\}<\/h1>/);
++  const pages = nationPages(data, []);
++  assert.ok(pages.length > 0, "the sample must hold nation pages");
++  for (const page of pages) {
++    for (const lang of ["en", "de", "fi"]) {
++      assert.notEqual(t(lang, "seoNationTitle", { nation: page.nation }), page.nation, `${lang} ${page.slug}`);
++    }
++  }
++});
+diff --git a/site_v2/src/pages/[lang]/[players]/[nation].astro b/site_v2/src/pages/[lang]/[players]/[nation].astro
+index 3e1dd391..cac1a7b7 100644
+--- a/site_v2/src/pages/[lang]/[players]/[nation].astro
++++ b/site_v2/src/pages/[lang]/[players]/[nation].astro
+@@ -53,7 +53,7 @@ const crumbs = [
+   <div class="inner">
+     <Breadcrumb items={crumbs.map((c) => ({ label: c.name, href: c.href }))} lang={lang} />
+ 
+-    <h1>{nation}</h1>
++    <h1>{title}</h1>
+ 
+     <section class="teamindex">
+       <FilterRows
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/296-nation-h1/acceptance_evidence.md |   7 ++
+#    .claude/task/296-nation-h1/review.md              |  22 ++++
+#    .claude/task/296-nation-h1/review_input.patch     | 127 ++++++++++++++++++++++
+#    3 files changed, 156 insertions(+)
+# ============================================================================
