@@ -28,6 +28,7 @@
             "type": "command",
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git_discipline.py\"",
+            "timeout": 600,
             "statusMessage": "Checking git discipline..."
           },
           {

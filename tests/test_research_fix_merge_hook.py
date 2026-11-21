@@ -475,3 +475,10 @@ def test_a_step_that_never_returns_is_denied_inside_the_deadline():
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30)
     assert time.monotonic() - started < 20
     assert denied(r.stdout) and "deadline" in r.stdout
+
+
+def test_the_harness_timeout_of_the_merge_hook_is_above_its_deadline_and_watchdog():
+    settings = json.load(open(os.path.join(ROOT, ".claude", "settings.json"), encoding="utf-8"))
+    entries = [h for m in settings["hooks"]["PreToolUse"] for h in m["hooks"] if "git_discipline.py" in h["command"]]
+    assert len(entries) == 1
+    assert entries[0].get("timeout", 0) > gd.MERGE_DEADLINE_SECONDS + gd._WATCHDOG_GRACE_SECONDS

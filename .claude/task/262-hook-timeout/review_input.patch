@@ -1,0 +1,140 @@
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index d8351fcb..05cedd43 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -92,9 +92,7 @@ should not exist, or not without an approval that is missing".
+    pipeline builds already-reviewed code, so that is the intended scope rather than a
+    hole — but do not describe it as "every pipeline" (platform-reviewer, 2026-08-06). (It was `.github/workflows/security-secrets.yml` with `gitleaks-action@v2`
+    until the 2026-08 GitLab migration; GitHub Actions now run nothing, so citing that
+-   workflow as live cover would be false — corrected 2026-08-06.) `check_no_secrets.py` and
+-   `detect-private-key` are a LOCAL-ONLY second layer via
+-   `.pre-commit-config.yaml`, which no workflow invokes. You are the third layer,
++   workflow as live cover would be false — corrected 2026-08-06.). You are the third layer,
+    and your value is what a pattern matcher cannot see: a credential that is not
+    shaped like one, a permission quietly widened, a token committed as an example.
+    An earlier draft of this item claimed "nothing catches a secret in CI", which
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 2c0913ff..8a4daa22 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -28,6 +28,7 @@
+             "type": "command",
+             "shell": "bash",
+             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git_discipline.py\"",
++            "timeout": 600,
+             "statusMessage": "Checking git discipline..."
+           },
+           {
+diff --git a/.claude/task/262-hook-timeout/contract.md b/.claude/task/262-hook-timeout/contract.md
+new file mode 100644
+index 00000000..bcd90c7a
+--- /dev/null
++++ b/.claude/task/262-hook-timeout/contract.md
+@@ -0,0 +1,63 @@
++# Task contract — the merge hook has an explicit timeout, and a stale reviewer sentence goes
++
++objective: >
++  Issue #262, follow-up to the agent-merge MR: `.claude/settings.json` sets `"timeout": 600` on the
++  `git_discipline.py` hook, so the hook's own 480 s deadline and 500 s watchdog sit under a limit the
++  repo states, not under the harness default. `.claude/agents/cto-reviewer.md` item 6 loses the
++  sentence that calls the secret-scan config local-only, which `lint:python` makes false.
++
++refs: >
++  #262.
++
++scope_paths:
++  - .claude/task/262-hook-timeout/
++  - .claude/settings.json
++  - .claude/agents/cto-reviewer.md
++  - tests/test_sentence_length_in_docs.py
++  - tests/test_research_fix_merge_hook.py
++
++protected_override: >
++  The explicit hook timeout in .claude/settings.json and the cut in .claude/agents/cto-reviewer.md:
++  approved in chat, 2026-11-20, as the follow-ups of the agent-merge MR.
++
++impact_map: >
++  writers: none; no table, model or page output changes.
++  guard: the PreToolUse Bash entry for `.claude/hooks/git_discipline.py` in `.claude/settings.json`
++  gains `"timeout": 600` (seconds). That hook is the merge guard, the commit gate and the branch
++  nudge. The merge allowance in the hook stops its own work at 480 s and prints a deny at 500 s, so a
++  harness limit of 600 s lets that deny arrive first. Every other event and hook entry is unchanged.
++  readers: the harness reads `timeout` on a command hook; no repo script parses the key. The
++  reviewer file is read by the cto-reviewer subagent at spawn.
++  failure: if the key were ignored, the harness default applies, which is the state before this
++  change. A timeout below 500 s would cancel the hook before its deny. 600 is the value of the
++  default. The cut removes one sentence and leaves item 6 correct: the CI secret scan and pre-commit
++  both run in CI.
++  tests: tests/test_sentence_length_in_docs.py pins the count of long sentences per document, and the
++  cut removes one from cto-reviewer.md, so its pin moves from 17 to 16 (the pin only moves down).
++  tests: tests/test_research_fix_merge_hook.py gains one test that reads the merge hook's deadline
++  and watchdog constants and the timeout in .claude/settings.json, and fails if the timeout is
++  missing or not above deadline plus grace: a harness that cancels the hook first prints no deny.
++  blast_radius: one hook setting, one sentence in a reviewer brief and the two tests that pin them.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - !497
++
++shared_files:
++  - none: no design, registry, font or chart baseline changes
++
++decisions_taken: >
++  The timeout value and the cut are the follow-ups listed with the agent-merge MR, approved in chat,
++  2026-11-20. No new dependency, no recurring cost.
++
++decisions_reserved:
++  - none: the value and the cut are the approved follow-ups.
++
++done_when:
++  - .claude/settings.json parses as JSON and the git_discipline.py entry carries "timeout": 600.
++  - python scripts/ci_local.py --job test:python and --job lint:python are green.
++  - the MR pipeline is green and python scripts/merge_ready.py <iid> says ready.
++
++amendments: (none)
+diff --git a/tests/test_research_fix_merge_hook.py b/tests/test_research_fix_merge_hook.py
+index d7012f68..8c6737d1 100644
+--- a/tests/test_research_fix_merge_hook.py
++++ b/tests/test_research_fix_merge_hook.py
+@@ -475,3 +475,10 @@ def test_a_step_that_never_returns_is_denied_inside_the_deadline():
+     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30)
+     assert time.monotonic() - started < 20
+     assert denied(r.stdout) and "deadline" in r.stdout
++
++
++def test_the_harness_timeout_of_the_merge_hook_is_above_its_deadline_and_watchdog():
++    settings = json.load(open(os.path.join(ROOT, ".claude", "settings.json"), encoding="utf-8"))
++    entries = [h for m in settings["hooks"]["PreToolUse"] for h in m["hooks"] if "git_discipline.py" in h["command"]]
++    assert len(entries) == 1
++    assert entries[0].get("timeout", 0) > gd.MERGE_DEADLINE_SECONDS + gd._WATCHDOG_GRACE_SECONDS
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index b012bef2..1abd7dca 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -19,7 +19,7 @@ import sentence_length_gate as gate  # noqa: E402
+ PINNED = {
+     ".claude/agents/analytics-engineer-reviewer.md": 5,
+     ".claude/agents/bi-analyst-reviewer.md": 16,
+-    ".claude/agents/cto-reviewer.md": 17,
++    ".claude/agents/cto-reviewer.md": 16,
+     ".claude/agents/data-engineer-reviewer.md": 7,
+     ".claude/agents/football-analytics-expert-reviewer.md": 5,
+     ".claude/agents/platform-reviewer.md": 10,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-hook-timeout/review_input.patch | 121 +++++++++++++++++++++++
+#    1 file changed, 121 insertions(+)
+# ============================================================================
