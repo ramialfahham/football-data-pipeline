@@ -1,0 +1,34 @@
+# The build context of the nightly site image. `build:site-image` copies this file over the checkout's
+# `.dockerignore` before kaniko runs (kaniko reads no other ignore file), because the shared
+# `.dockerignore` excludes site_v2/, which the nightly image must not carry and this one must.
+#
+# What the build and its prebuild tests read is site_v2/, scripts/, docs/ and dbt_project/seeds, so only
+# secrets, build output and what no step reads are left out.
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*-key.json
+*credentials*.json
+.gcp-oidc-token
+.gcp-credentials.json
+
+site
+site_v2/node_modules
+site_v2/dist
+site_v2/export_data
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.venv
+venv
+dbt_project/target
+dbt_project/dbt_packages
+dbt_project/logs
+.git
+.claude
+.cursor

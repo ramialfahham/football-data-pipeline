@@ -39,6 +39,25 @@ DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
                 "competition_index", "matches", "teams_index", "players_index")
+# What each entity writes under the output folder, by top-level name (a folder ends in "/").
+ENTITY_OUTPUTS = {
+    "teams": ("teams/",),
+    "players": ("players/", "player_pages.json", "player_peers/"),
+    "fixtures": ("fixtures/",),
+    "competitions": ("competitions/",),
+    "nav": ("nav.json",),
+    "leaderboards": ("leaderboards/",),
+    "glossary": ("metrics.json",),
+    "metric_groups": ("metric_groups.json",),
+    "metric_rows": ("metric_rows.json", "player_metric_rows.json"),
+    "landing": ("landing.json",),
+    "competition_index": ("competition_index.json",),
+    "matches": ("matches/",),
+    "teams_index": ("teams_index.json",),
+    "players_index": ("players_index.json",),
+}
+# The entities the built pages read: the deploy export and the nightly site job take exactly these.
+DEPLOY_ENTITIES = tuple(e for e in ENTITY_TYPES if e not in ("nav", "leaderboards", "glossary"))
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
@@ -2804,17 +2823,29 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
     return manifest
 
 
+def parse_entities(text: str) -> tuple[str, ...]:
+    """The entity list of `--entities`: names split on commas, `deploy` expanding to DEPLOY_ENTITIES."""
+    names: list[str] = []
+    for name in (n.strip() for n in text.split(",")):
+        if not name:
+            continue
+        for entity in (DEPLOY_ENTITIES if name == "deploy" else (name,)):
+            if entity not in names:
+                names.append(entity)
+    return tuple(names)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Per-entity site export (#365)")
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--entities", default=",".join(ENTITY_TYPES),
-                    help="comma-separated: teams,players")
+                    help="comma-separated: teams,players; `deploy` is every entity the built pages read")
     ap.add_argument("--sample", type=int, default=0,
                     help="cap entities per type (0 = all; for quick checks)")
     ap.add_argument("--played-ids", default="",
                     help="comma-separated fixture ids: the played matches to export (the unplayed ones are exported in full)")
     args = ap.parse_args()
-    entities = tuple(e.strip() for e in args.entities.split(",") if e.strip())
+    entities = parse_entities(args.entities)
     played_ids = tuple(int(i) for i in args.played_ids.split(",") if i.strip())
     out_root = pathlib.Path(args.out)
     out_root.mkdir(parents=True, exist_ok=True)
