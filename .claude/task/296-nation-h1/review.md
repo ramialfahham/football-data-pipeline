@@ -1,22 +1,24 @@
 # Review — claude/296-nation-h1 — 2026-11-21
 
-diff_sha256: 1a08897ae3623452e121f4e238d079d5c4df085ae6145f2e26681011719b307c
+diff_sha256: 897adbece39bd0b00fb802ab30cfbf505cc07967a923d3b5644a62b52b65537d
 
-rounds: 2
+rounds: 4
 
-Round 1: scope-auditor and bi-analyst-reviewer passed; the scope auditor noted that the contract still called the wording pending. Round 2 is the delta: that one contract sentence now records the coordinating session's call; the scope auditor passed it, the bi analyst's pass concerns code and sample that did not change.
+rounds_cap_override: approved in chat, 21 Nov 2026 (one test-file change, bi-analyst delta only)
+
+Round 1: scope-auditor and bi-analyst-reviewer passed. Round 2: one contract sentence; scope auditor passed. Round 3: the sample national team page was removed and the guard became a unit test; the scope auditor passed, the bi analyst failed because the test did not read the page template. Round 4 is the delta: the test now also asserts the template binds the h1 to the title string; the bi analyst passed.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is inside scope_paths; the h1 reuses the existing seoNationTitle strings in EN, DE and FI, so no new fan copy and no CPO-class decision; no new mechanism or recurring cost; the impact_map matches the diff.
-- Round 2: the "pending" sentence in decisions_taken is replaced by the coordinating session's call of 21 Nov 2026 as an engineering call that reuses existing copy; it agrees with decisions_reserved; the residual item is closed.
+- Round 3: the cumulative patch touches only the nation page, its test and the task folder, all in scope_paths; the amended acceptance criteria are recorded in contract.md with their authority and narrow the task; the h1 reuses the existing seoNationTitle strings, so no new wording.
+- Round 4 changes a test file only; nothing outside scope_paths and no decision-rights item is touched.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Built sample: the Georgia nation page h1 is "Georgia players", "Spieler aus Georgia", "Georgia: pelaajat" against "Georgia" on the team page in each locale; seoNationTitle already exists in all three; no new field, metric or number.
-- teams/1104.json has the same top-level keys as the existing team payloads; teams/ holds 40 files, matching the README; the .gitignore entry is present; the new test fails when the pair is missing.
+- Round 3 finding closed: playerIndex.test.mjs reads the nation page template and asserts the title binding and the h1 line before the three-language string check, so reverting the h1 to the bare nation name fails the test.
+- The template path resolves to the real file, the assertions are not skipped by the early return, and the delta changes no markup or CSS.
 
 ## escalations
 (none)

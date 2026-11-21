@@ -52,9 +52,8 @@ their peer files.
   competitions. The file flagged `is_opening_day` is the page at `/{locale}/{matches word}/`; every
   other day has its own dated page. Days drop off as rounds are played, so the whole directory is
   replaced on a refresh, never appended to.
-- `teams/*.json` — **40** real exported teams: `33` (Manchester United), the team-page sample; the
-  teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table; `1104`
-  (Georgia), the one national team, whose nation page is in the sample too. These 40 can
+- `teams/*.json` — **39** real exported teams: `33` (Manchester United), the team-page sample; the
+  teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table. These 39 can
   be refreshed alone, from `fetch_team_payloads` written by `write_entity`. Every slug must stay the
   same, because the Home and Bundesliga pages link to them.
 - `players/*.json` and `player_pages.json` — **72** real exported players from the Home and

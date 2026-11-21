@@ -324,9 +324,6 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/536.json
 !site_v2/src/data/teams/895.json
 !site_v2/src/data/teams/1660.json
-# 1104 (Georgia) is the one national team in the sample: its team page and the Georgia nation page
-# are a pair the build's h1 uniqueness check can catch.
-!site_v2/src/data/teams/1104.json
 # The 18 clubs of the Bundesliga table on the committed competition page sample (GitLab #149):
 # every table row and deserved-points row links to its team page. 157 is listed above.
 # Refresh with the competition sample: the clubs change when the sample season does.
