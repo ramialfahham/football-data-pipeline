@@ -1,0 +1,1571 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index be99272b..3464da95 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -67,8 +67,7 @@ and pass.
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+-- Unclear which layer owns a piece of logic? That classification is a CPO
+-  decision (§10 meta-rule) — ESCALATE.
++- Unclear which layer owns a piece of logic? ESCALATE.
+ 
+ ## Output format (exact; machine-parsed)
+ 
+diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
+index a6b7aa6d..7abb7ca6 100644
+--- a/.claude/agents/bi-analyst-reviewer.md
++++ b/.claude/agents/bi-analyst-reviewer.md
+@@ -103,7 +103,7 @@ the CTO.
+   including the evidence artifacts; `contract.md` and `escalations.log` are NOT,
+   because they carry authority. Read `rendered_page_evidence.md` from the working
+   tree as EVIDENCE about the built page; do not review its prose.
+-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
++- Ambiguous which §10 class a decision falls in → ESCALATE.
+ 
+ **When the diff has a rendering-affecting `site_v2/src/**` change in scope, at
+ least one `risks_checked:` entry must come from the built output or the rendered
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index e85bdccf..d8351fcb 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -129,7 +129,7 @@ should not exist, or not without an approval that is missing".
+   The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT. Your authority
+   questions are answered from `contract.md`, which you DO see.
+-- Ambiguous classification → ESCALATE (§10 meta-rule).
++- Ambiguous classification → ESCALATE.
+ 
+ ## Output format (exact; machine-parsed)
+ 
+diff --git a/.claude/agents/data-engineer-reviewer.md b/.claude/agents/data-engineer-reviewer.md
+index 98eb8717..67ce5317 100644
+--- a/.claude/agents/data-engineer-reviewer.md
++++ b/.claude/agents/data-engineer-reviewer.md
+@@ -79,7 +79,7 @@ diff here as the next incident until proven otherwise.
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
++- Ambiguous which §10 class a decision falls in → ESCALATE.
+ 
+ ## Output format (exact; machine-parsed)
+ 
+diff --git a/.claude/agents/football-analytics-expert-reviewer.md b/.claude/agents/football-analytics-expert-reviewer.md
+index 489a1d43..92dc66d6 100644
+--- a/.claude/agents/football-analytics-expert-reviewer.md
++++ b/.claude/agents/football-analytics-expert-reviewer.md
+@@ -53,7 +53,7 @@ column, not a FAIL.
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
++- Ambiguous which §10 class a decision falls in → ESCALATE.
+ 
+ ## Output format (exact; machine-parsed)
+ 
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+index 1d0ffc52..97d09cd0 100644
+--- a/.claude/agents/platform-reviewer.md
++++ b/.claude/agents/platform-reviewer.md
+@@ -97,7 +97,7 @@ page displays (`bi-analyst-reviewer`), what a number means
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+-- Ambiguous classification → ESCALATE (§10 meta-rule). "Should this exist" is
++- Ambiguous classification → ESCALATE. "Should this exist" is
+   never ambiguity for you — it is the CTO's.
+ 
+ ## Output format (exact; machine-parsed)
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 671b5e49..bc9ffb70 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -102,8 +102,7 @@ pass. Do not convert an absence of findings into a finding.
+   line names the same approval. A §10 decision with no named approval is still FAIL.
+ - You can never approve a §10 decision — finding one means FAIL (if taken
+   silently) or ESCALATE (if genuinely ambiguous).
+-- Uncertain whether a written rule covers a case? The classification itself is
+-  a CPO decision (§10 meta-rule) — ESCALATE, never analogize.
++- Uncertain whether a written rule covers a case? ESCALATE, never analogize.
+ 
+ ## Output format (exact; the commit gate machine-parses it)
+ 
+diff --git a/.claude/agents/seo-expert-reviewer.md b/.claude/agents/seo-expert-reviewer.md
+index 1331bf33..1fc55845 100644
+--- a/.claude/agents/seo-expert-reviewer.md
++++ b/.claude/agents/seo-expert-reviewer.md
+@@ -80,7 +80,7 @@ no such thing as a small SEO bug here.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+   The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT, because they carry authority.
+-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
++- Ambiguous which §10 class a decision falls in → ESCALATE.
+ 
+ **No `risks_checked:` entry may be a presence check.** At programmatic scale "the
+ tag is there" is trivially true and tells you nothing — reason about the generated
+diff --git a/.claude/hooks/dbt_layer_gate.py b/.claude/hooks/dbt_layer_gate.py
+index e1c4cd81..068ef430 100644
+--- a/.claude/hooks/dbt_layer_gate.py
++++ b/.claude/hooks/dbt_layer_gate.py
+@@ -35,7 +35,7 @@ _CONSUMPTION_RULE = (
+     "value deserve a DQ test, or need to be byte-identical across two frontends? -> dbt. If no "
+     "mart serves what the page needs, that is a DATA GAP (register it, ship the mart first) — "
+     "never bridge it here. See dbt_project/docs/layering.md §Consumption layer. "
+-    "Unsure how to classify a case? That classification is a CPO decision — escalate blinded "
++    "Unsure how to classify a case? Escalate blinded "
+     "(working_agreement.md §10/§11, anti-pattern A3)."
+ )
+ 
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index 45f418a8..c1432434 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -2,7 +2,7 @@
+ """PreToolUse(Bash) guardrail — git discipline (project-specific wording).
+ 
+ Checks, self-gated against the *actual* command (see _command_utils):
+-  1. Block agent-initiated `glab mr merge` — merging is the user's call.
++  1. Block `glab mr merge` unless the MR is one the agent may merge (see _agent_merge_denial).
+   2. Block `git commit --amend` / `--no-verify` / `-n` — history integrity and
+      the governance hash-chain depend on append-only, hook-verified commits
+      (governance G2; flags matched on quote-stripped text so commit-message
+@@ -93,6 +93,147 @@ def _repo_root() -> str:
+     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+ 
+ 
++_MERGE_ALLOWED_FLAGS = {"-y", "--yes", "-d", "--remove-source-branch"}
++_REMOTE = "gitlab"
++_READY_SCRIPT = os.path.join("scripts", "merge_ready.py")
++_CORRECTION_SEEDS = "dbt_project/seeds/*_corrections.csv"
++_RESEARCH_BRANCH = "research-fix/"
++# Under the harness's hook timeout (600 s): a hook the harness cancels prints no deny, and the merge runs.
++MERGE_DEADLINE_SECONDS = 480
++_WATCHDOG_GRACE_SECONDS = 20
++_SHA = re.compile(r"[0-9a-f]{40}")
++
++
++def _matching(paths: list[str], patterns: list[str]) -> list[str]:
++    """The paths that match a pattern of the list. fnmatch, so `*` crosses `/`."""
++    import fnmatch
++
++    return [p for p in paths if any(fnmatch.fnmatch(p, pat) for pat in patterns)]
++
++
++def _outside_allowlist(paths: list[str], allowed: list[str], excluded: list[str]) -> list[str]:
++    """The paths the allowlist does not clear: every path not listed, and every excluded path."""
++    cleared = set(_matching(paths, allowed)) - set(_matching(paths, excluded))
++    return [p for p in paths if p not in cleared]
++
++
++def _agent_merge_form(cmd: str) -> tuple[str, str] | None:
++    """(MR number, head commit) when `cmd` is exactly `glab mr merge <digits> --sha <40 hex>` plus
++    only the allowed flags. The whole command is read, so an env prefix or wrapper fails the form."""
++    try:
++        tokens = shlex.split(cmd.strip())
++    except ValueError:
++        return None
++    if len(tokens) < 6 or tokens[:2] != ["glab", "mr"] or tokens[2] not in ("merge", "accept"):
++        return None
++    if not tokens[3].isdigit():
++        return None
++    sha = None
++    rest = tokens[4:]
++    while rest:
++        tok = rest.pop(0)
++        if tok == "--sha" and rest and sha is None:
++            sha = rest.pop(0)
++        elif tok.startswith("--sha=") and sha is None:
++            sha = tok[len("--sha="):]
++        elif tok not in _MERGE_ALLOWED_FLAGS:
++            return None
++    if not sha or not _SHA.fullmatch(sha):
++        return None
++    return tokens[3], sha
++
++
++def _agent_merge_denial(iid: str, sha: str, root: str) -> str | None:
++    """Why the agent may not merge this MR itself, or None when it may.
++
++    A condition that cannot be checked counts as not met. The path list and merge_ready.py both
++    come from the target branch, never from the MR, so an MR cannot change what judges it.
++    """
++    import json
++    import shutil
++    import subprocess
++    import tempfile
++    import threading
++    import time
++
++    deadline = time.monotonic() + MERGE_DEADLINE_SECONDS
++
++    def expire() -> None:
++        emit_deny("MERGE BLOCKED: the merge conditions were not all proven before the hook's deadline.")
++        sys.stdout.flush()
++        os._exit(0)
++
++    # A child that outlives its kill can keep the hook past the harness timeout, which lets the merge run.
++    watchdog = threading.Timer(MERGE_DEADLINE_SECONDS + _WATCHDOG_GRACE_SECONDS, expire)
++    watchdog.daemon = True
++    watchdog.start()
++
++    def run(cmd: list[str], cap: int) -> subprocess.CompletedProcess:
++        left = deadline - time.monotonic()
++        if left <= 0:
++            raise subprocess.TimeoutExpired(cmd, 0)
++        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, encoding="utf-8",
++                              errors="replace", timeout=min(cap, left))
++
++    try:
++        r = run(["glab", "api", f"projects/:id/merge_requests/{iid}"], 60)
++        if r.returncode != 0:
++            return f"the MR could not be read: {r.stderr.strip()[:200]}"
++        mr = json.loads(r.stdout)
++        if mr.get("state") != "opened" or mr.get("target_branch") != "main":
++            return f"MR !{iid} is not an open MR into main"
++        pipeline = mr.get("head_pipeline") or {}
++        if pipeline.get("status") != "success" or pipeline.get("source") != "merge_request_event":
++            return f"the head pipeline of MR !{iid} is not a green merge request pipeline"
++        head = str(mr.get("sha", ""))
++        if not _SHA.fullmatch(head):
++            return f"MR !{iid} has no head commit"
++        if head != sha:
++            return f"--sha is not the head commit of MR !{iid}"
++        r = run(["git", "fetch", "--quiet", _REMOTE, "main", f"refs/merge-requests/{iid}/head"], 120)
++        if r.returncode != 0:
++            return f"the MR head could not be fetched: {r.stderr.strip()[:200]}"
++        r = run(["git", "show", f"{_REMOTE}/main:{ROUTING_REL}"], 30)
++        if r.returncode != 0:
++            return f"{ROUTING_REL} could not be read on {_REMOTE}/main"
++        routing = json.loads(r.stdout)
++        allowed, excluded = routing.get("agent_merge_paths"), routing.get("agent_merge_except")
++        if not all(isinstance(v, list) and all(isinstance(p, str) and p for p in v) for v in (allowed, excluded)):
++            return f"{ROUTING_REL} on {_REMOTE}/main holds no usable `agent_merge_paths` and `agent_merge_except`"
++        if not allowed:
++            return f"{ROUTING_REL} on {_REMOTE}/main lists no path the agent may merge"
++        r = run(["git", "diff", "--name-only", "-z", "--no-renames", f"{_REMOTE}/main...{head}"], 60)
++        if r.returncode != 0:
++            return f"the diff of MR !{iid} could not be read: {r.stderr.strip()[:200]}"
++        paths = [p for p in r.stdout.split("\0") if p]
++        if not paths:
++            return f"MR !{iid} changes nothing"
++        outside = _outside_allowlist(paths, allowed, excluded)
++        if outside:
++            return f"MR !{iid} touches paths outside the agent-merge list, so the CPO merges it: {', '.join(outside[:5])}"
++        seeds = _matching(paths, [_CORRECTION_SEEDS])
++        if seeds and not str(mr.get("source_branch", "")).startswith(_RESEARCH_BRANCH):
++            return (f"MR !{iid} changes correction seeds ({', '.join(seeds[:3])}) outside a "
++                    f"`{_RESEARCH_BRANCH}*` branch, the only branch whose pipeline checks their rows")
++        work = tempfile.mkdtemp(prefix="agent_merge_")
++        tree = os.path.join(work, "main")
++        try:
++            r = run(["git", "worktree", "add", "--detach", "--quiet", tree, f"{_REMOTE}/main"], 120)
++            if r.returncode != 0:
++                return f"{_REMOTE}/main could not be checked out: {r.stderr.strip()[:200]}"
++            r = run([sys.executable, os.path.join(tree, _READY_SCRIPT), iid], 420)
++        finally:
++            subprocess.run(["git", "worktree", "remove", "--force", tree], cwd=root, capture_output=True, timeout=60)
++            shutil.rmtree(work, ignore_errors=True)
++        if r.returncode != 0:
++            return f"MR !{iid} is not ready to merge:\n{(r.stdout + r.stderr).strip()[:800]}"
++    except Exception as exc:
++        return f"the merge conditions could not be checked ({type(exc).__name__}: {exc})"
++    finally:
++        watchdog.cancel()
++    return None
++
++
+ def _staged_diff_bytes(root: str) -> bytes | None:
+     """The bytes the review hash covers: CONTENT IDENTITY of the cumulative branch diff,
+     excluding the bookkeeping artifacts (F11/#409, see _hash_exclude_pathspec).
+@@ -881,11 +1022,19 @@ def main() -> int:
+ 
+     for part in parts:
+         if _MR_MERGE.match(part):
++            form = _agent_merge_form(cmd) if len(parts) == 1 else None
++            why = _agent_merge_denial(*form, cwd_root(event, _repo_root())) if form else None
++            if form and why is None:
++                continue
+             emit_deny(
+-                "MERGE BLOCKED: `glab mr merge` is the user's action, not the agent's. "
+-                "Open the MR, get CI green, and stop — the user merges. "
+-                "(Only proceed if the user explicitly typed 'merge it' in this thread.) "
+-                "See docs/working_agreement.md §3."
++                "MERGE BLOCKED: `glab mr merge` waits for the user, unless the MR is one the agent may merge. "
++                "(Proceed if the user explicitly typed 'merge it' in this thread.) "
++                "The agent may merge an MR as the sole command, in the form "
++                "`glab mr merge <number> --sha <head commit> [--yes] [--remove-source-branch]`, "
++                "when its pipeline is green, `scripts/merge_ready.py` says ready, and its diff "
++                "touches only paths in `agent_merge_paths` of `.claude/review_routing.json` on `gitlab/main`."
++                + (f" Not allowed: {why}" if why else "")
++                + " See docs/working_agreement.md §3."
+             )
+             return 0
+ 
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index 87f37e09..3b4aa07b 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -165,6 +165,13 @@
+     "nothing today. Do not read the split as having routed it."
+   ],
+   "always": ["scope-auditor"],
++  "agent_merge_paths": [
++    "dbt_project/seeds/fixture_card_corrections.csv",
++    "dbt_project/seeds/fixture_goal_corrections.csv",
++    "dbt_project/seeds/fixture_result_corrections.csv",
++    ".claude/task/*/*"
++  ],
++  "agent_merge_except": [],
+   "paths": {
+     "dbt_project/**": ["analytics-engineer-reviewer"],
+     "dbt_project/seeds/metric_catalogue.csv": ["analytics-engineer-reviewer", "football-analytics-expert-reviewer"],
+diff --git a/.claude/skills/research-provider-errors/SKILL.md b/.claude/skills/research-provider-errors/SKILL.md
+index 163c38bf..28cb9cd9 100644
+--- a/.claude/skills/research-provider-errors/SKILL.md
++++ b/.claude/skills/research-provider-errors/SKILL.md
+@@ -4,7 +4,8 @@ description: |
+   Research the rows of mart_competition_research_list from allowed sites and report proposed
+   correction-seed rows: withheld results, goals, scorers, assisters, cards and line-up goals.
+   Each match gets two separate reads. Reads that disagree go no further. Never reads a stopped
+-  site. Use it for the morning research of the list. It edits no seed and opens no merge request.
++  site. Use it for the morning research of the list. It lands the rows as a seed-only
++  research-fix merge request and merges it once its review and pipeline pass.
+   Do NOT use it for line-up research.
+ ---
+ 
+@@ -12,11 +13,15 @@ description: |
+ 
+ The nightly withholds a value that fails a check of the provider's data. The value stays blank
+ until sourced research stands in a correction seed. `mart_competition_research_list` lists every
+-such value. This skill researches the list rows and reports what to put in the seeds.
++such value. This skill researches the list rows and lands what it proves in the seeds, as a
++research-fix merge request (section 8).
+ 
+ ## What this skill never does
+ 
+-- It never edits a seed file, commits, pushes or opens a merge request.
++- It never edits a file other than the rows of `fixture_card_corrections`,
++  `fixture_result_corrections` and `fixture_goal_corrections`, and its own task folder.
++- It never commits on `main`, never amends, and never merges a merge request that is not its own
++  research-fix MR.
+ - It never reads a site that is not in the site table below.
+ - It never reads a stopped site, by a fetch or by the browser.
+ - It never reads a page that refused a plain fetch with a 403, by another route.
+@@ -41,7 +46,7 @@ order by research_tier nulls last, fixture_date
+ 
+ - Research only the current season. A row with no `research_tier` is not researched.
+ - Report every row you do not research, with its reason, in the final report.
+-- A `correction_no_longer_needed` row needs no research. Go to section 8.
++- A `correction_no_longer_needed` row needs no research. Go to section 9.
+ 
+ ## 2. Choose the matches
+ 
+@@ -124,11 +129,38 @@ Column formats are in `dbt_project/seeds/schema.yml`. Conventions that matter:
+ - `source` is the https URLs read, separated by a space.
+ - `note` names the match, the competition and the date, and says what was checked.
+ 
+-## 8. Report
+-
+-Do not edit a seed. Put in the final report, one block per seed:
+-
+-- the proposed rows, as CSV lines;
++## 8. Land the rows
++
++Land only rows that passed sections 3 to 7. With none, open nothing and go to section 9. Land all rows of one batch in one merge request.
++
++1. List open merge requests with `glab mr list`. A match already in an open research-fix MR stays with that MR.
++2. Branch from fresh main: `git fetch gitlab main`, then `git checkout -b research-fix/<YYYY-MM-DD> gitlab/main`.
++3. Run `git branch --unset-upstream`. Never commit on `main`.
++4. A second run on the same day takes `research-fix/<YYYY-MM-DD>-2`, then `-3`. The task folder takes the same suffix.
++5. Never reuse, edit or continue the branch or the task folder of an earlier run, merged or not.
++6. Write the contract from `.claude/task/TEMPLATE.md` to `.claude/task/262-research-fix-<YYYY-MM-DD>/contract.md` before any edit.
++7. The contract's `scope_paths` are that folder and the seeds it changes. `depends_on` and `shared_files` read `none` with a reason.
++8. Edit the seeds. Add rows, or change a row of a match researched in this run.
++9. Never remove a row, change a header, or touch another file.
++10. Every row has `source_kind`, `source` and `note`, as in section 7.
++11. Every `source` URL is on a host of the site table below.
++12. Run the review cycle of `docs/working_agreement.md` section 2 on the staged diff. Use the reviewers that `.claude/review_routing.json` routes for the changed paths.
++13. Write `review.md` with the hash that `python .claude/hooks/git_discipline.py --staged-hash` prints.
++14. When the commit gate's cap of review cycles is reached, stop and merge nothing. Put the open findings in the report.
++15. Commit with `git commit -F <message file>`, as the only command of the call. The post-commit hook pushes the branch and opens the merge request.
++16. Run `python scripts/check_research_fix_mr.py --base gitlab/main`. Fix a failure in a new commit and a new review cycle, never by an amend.
++17. Wait for the merge request's pipeline to finish. If it is red or cancelled, stop and merge nothing. Put the failing job in the report.
++18. Run `python scripts/merge_ready.py <MR number>`. If it is not ready, stop and merge nothing. Put its output in the report.
++19. Merge with `glab mr merge <MR number> --yes --sha <head commit of the MR, 40 hex characters>`, from this checkout, at that commit with a clean tree.
++20. The merge hook allows only this form. The pipeline must be green, `merge_ready.py` must say ready, and the diff must touch only paths of `agent_merge_paths`.
++21. If the hook blocks the merge, stop and report its reason. Never try another form of merge.
++22. After the merge, watch the pipeline of `main`. If it is red, revert the merge in a new MR and report it.
++
++## 9. Report
++
++Put in the final report, one block per seed:
++
++- the rows landed, as CSV lines, with the merge request's link and whether it merged;
+ - each match stopped, with its reason and the two reads' values where they differ;
+ - each row not researched, with its reason;
+ - each `correction_no_longer_needed` row, with its seed and key;
+@@ -139,10 +171,8 @@ Do not edit a seed. Put in the final report, one block per seed:
+ These steps wait for the CPO. When a row needs one, stop at it, list the row in the report under
+ its stub, and go on with the next row.
+ 
+-- Landing a fix. How a proposed seed row reaches the seed is not decided.
+-- Do not edit a seed, commit, or open a merge request.
+-- Removing a correction. A `correction_no_longer_needed` row is removed from its seed by the same
+-  step as above. Report the row and stop.
++- Removing a correction. A research-fix MR never removes a row. A `correction_no_longer_needed`
++  row is reported, and the skill stops at it.
+ - A standings or points row. What a standings mismatch withholds is not decided. Report the row
+   and stop.
+ 
+diff --git a/.claude/task/262-agent-merges-low-risk/contract.md b/.claude/task/262-agent-merges-low-risk/contract.md
+new file mode 100644
+index 00000000..05def9f2
+--- /dev/null
++++ b/.claude/task/262-agent-merges-low-risk/contract.md
+@@ -0,0 +1,102 @@
++# Task contract — the agent merges low-risk merge requests itself
++
++objective: >
++  Issue #262: the agent merges a merge request itself when its pipeline is green,
++  `scripts/merge_ready.py` says ready, every required reviewer passed and the diff touches no CPO
++  path (fan-visible text, the metric catalogue, a core document, a guard hook or gate, a cost
++  setting). Every other merge request waits for the CPO's merge. Parts: the working_agreement §3
++  rule and §10 standing rules; the merge hook allowing `glab mr merge` for such an MR, with the
++  allowlist of paths read from `gitlab/main`; a CI step that proves a research-fix branch changes only
++  correction-seed rows; the research skill landing its rows through this route.
++
++refs: >
++  #262.
++
++scope_paths:
++  - .claude/task/262-agent-merges-low-risk/
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
++  - .claude/hooks/git_discipline.py
++  - .claude/review_routing.json
++  - tests/test_research_fix_merge_hook.py
++  - tests/test_governance_hooks.py
++  - scripts/check_research_fix_mr.py
++  - tests/test_check_research_fix_mr.py
++  - .gitlab-ci.yml
++  - .claude/skills/research-provider-errors/SKILL.md
++  - CLAUDE.md
++  - .claude/agents/
++  - .claude/hooks/dbt_layer_gate.py
++
++protected_override: >
++  The merge allowance in the hook, the allowlist of paths in the routing file, the one validate:governance
++  step in .gitlab-ci.yml, and the working_agreement §3 and §10 text and the two docs/agent_guardrails.md
++  rows: approved in chat, 2026-11-20. The pointer changes (§3 lines "wait for CI", CLAUDE.md line 19
++  and "(§10 meta-rule)" to "(§10 Unclear cases)" in the eight .claude/agents files) only restate the
++  approved §3 merge rule and §10 Unclear-cases rule, under the §10 restated-rule paragraph. The
++  eight agent files and the message of .claude/hooks/dbt_layer_gate.py lose the clause that sent an
++  unclear classification to the CPO and keep "ESCALATE": a cut, no new rule.
++
++impact_map: >
++  writers: none; no table, model or page output changes.
++  guard: `.claude/hooks/git_discipline.py` (PreToolUse Bash) blocks every `glab mr merge`/`accept`.
++  It now lets one form through: `glab mr merge <literal number> --sha <head>` with only --yes or
++  --remove-source-branch, as the sole command, when the MR is open into main, its head pipeline is
++  success, the MR diff (read with -z, so a non-ASCII path is not quoted) touches only paths in
++  `agent_merge_paths` and none in `agent_merge_except`, and `scripts/merge_ready.py <number>`, run from a detached checkout of `gitlab/main`,
++  exits 0. The list and the judge both come from `gitlab/main`, so an MR cannot change what judges
++  it. A list that is missing or empty on `gitlab/main` blocks. An MR that changes a correction seed
++  (`dbt_project/seeds/*_corrections.csv`) is cleared only from a `research-fix/*` branch, the one
++  branch whose pipeline runs the seed-only and source check; any other branch waits for the CPO. Every error, timeout or missing value blocks, a
++  watchdog prints the deny and exits at 500 s if a child process hangs, and `--auto-merge`, `--squash`,
++  other flags, a non-literal number, a chained command and an env prefix stay blocked.
++  readers: `agent_merge_paths` and `agent_merge_except` are new keys in the routing file; `_load_routing`
++  and every other reader take the keys they know. Tests pin that no guard path of task_contract_gate,
++  no core document named in working_agreement §10 and no CI, security, cost or config path is
++  agent-mergeable, and that the allowlist holds no test and no directory wildcard. scripts/merge_ready.py runs from a checkout of
++  `gitlab/main`, so no file of the MR can shadow what it imports. "Every required reviewer passed" is held by
++  the green pipeline: validate:governance runs scripts/check_task_artifacts.py.
++  failure: if the list or the hook is wrong, an MR that should wait for the CPO is merged by the
++  agent; the list is deny by default (a path that is not listed waits for the CPO), a post-merge
++  watch of main's pipeline and a revert on red are the §3 rule, and the hook denies on every doubt.
++  ci: one step in validate:governance runs scripts/check_research_fix_mr.py from the target branch's
++  copy on `research-fix/*` source branches only (a failed copy stops the job). No data job, rule or
++  schedule changes; a research-fix MR takes the normal data build.
++  blast_radius: merge permission for MRs that touch only listed paths; nothing else.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: works on main alone
++
++shared_files:
++  - none: no design, registry, font or chart baseline changes
++
++decisions_taken: >
++  The agent merges low-risk merge requests itself, the §10 standing budget, wording and review-cap
++  rules, and the unclear-cases rule: approved in chat, 2026-11-20. The working_agreement text is the
++  approved text. The list of paths the agent may merge is an allowlist, decided in chat, 2026-11-20:
++  `agent_merge_paths` holds the three correction seeds the research routine writes (card, goal,
++  result) and the files inside a task folder. It holds no model, test, macro, yml, other seed or
++  directory wildcard: each of those can hold or weaken a gate, decide a withholding rule or metric
++  window, carry fan-visible text or change a cost. Adding one is a one-line change to the list on
++  main, made by the CPO's merge. `agent_merge_except` is empty and kept for later exceptions. Every
++  path not listed, a new file included, is the CPO's by default. Tests pin the list.
++  A new dependency is decided at plan time, not at merge. The stopped-site test of the research check reads the skill's own
++  site table: a source host outside it is refused. No new dependency.
++  RECURRING COST, measured 18-19 Nov: a merged seed MR runs data:build:mr (17 to 85 GiB billed) and
++  then data:build:main on main (85.5 GiB, about $0.52), about $1 per merge. The research routine lands
++  one MR per batch of research. The coordinating agent reports each month's spend against the standing
++  budget of EUR 25 a month on top of the nightly, and takes anything above it to the CPO first. A
++  merge also rebuilds and redeploys the nightly image through the existing main-push rules.
++
++decisions_reserved:
++  - none: the rule, the hook allowance and the path list are the approved text.
++
++done_when:
++  - python -m pytest tests/test_research_fix_merge_hook.py tests/test_check_research_fix_mr.py tests/test_governance_hooks.py -q passes.
++  - python scripts/ci_local.py --job test:python and --job lint:python are green.
++  - the MR pipeline is green and python scripts/merge_ready.py <iid> says ready.
++
++amendments: (none)
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 9be74fcf..878c8875 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -459,6 +459,10 @@ validate:governance:
+     # scripts/sync_metric_docs_blocks.py` — never a hand edit to the generated file.
+     - python scripts/sync_metric_docs_blocks.py --check
+     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
++    # A research-fix MR (branch research-fix/*) proves in its own pipeline that it changes only
++    # correction-seed rows with sources on the skill's sites; a red result keeps its merge blocked.
++    # The check runs from the target branch's copy, so the MR cannot change the check that judges it.
++    - case "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}" in research-fix/*) git show "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}:scripts/check_research_fix_mr.py" > /tmp/check_research_fix_mr_main.py || exit 1; python /tmp/check_research_fix_mr_main.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}" ;; esac
+     - *dbt_profile
+     - cd dbt_project && dbt deps && dbt parse
+   # This job had no `rules:` at all, so it ran on every pipeline the workflow
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 505db03e..3f10d28f 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -16,7 +16,7 @@ Read this at the start of every session before doing anything else.
+ 
+ **Every unit of work runs Explore → Plan → Confirm → Implement → Verify** (§1). Four steps are machine-gated; **Confirm is the human checkpoint — WAIT for the user's explicit go before implementing.** Exploring options or thinking out loud is not a go. For any file-touching task, use **plan mode** so the harness enforces that wait (`EnterPlanMode` → plan-back → the user approves `ExitPlanMode`).
+ 
+-Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, **and a recommendation with its reasoning**), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, the classification itself is a CPO decision — never decide by analogy.
++Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, **and a recommendation with its reasoning**), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, §10 Unclear cases says who classifies it.
+ 
+ ## North star
+ 
+@@ -64,7 +64,7 @@ pointers; when it disagrees with a row above, it loses and gets corrected.
+ | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
+ | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
+ | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
+-| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen**: cite a past entry, never add one. |
++| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen**: cite a past entry, never add one. |
+ | GitHub Actions tree — disabled, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+ 
+ ⛔ **The two bold rows are load-bearing.** Without them a page gets rebuilt against a design its
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index a4588200..1a9068e4 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -25,7 +25,7 @@ match, because a hook that cries wolf gets ignored.
+ 
+ | Hook | Fires on | Does |
+ |---|---|---|
+-| `git_discipline.py` | PreToolUse Bash | Blocks `glab mr merge`, `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing; asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review passed and the task folder's `review.md` binds the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in the task folder's `acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
++| `git_discipline.py` | PreToolUse Bash | Blocks `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing. Blocks `glab mr merge` except for an MR with a green pipeline, `scripts/merge_ready.py` ready and a diff that touches only paths in `agent_merge_paths`. The list is in `.claude/review_routing.json` and is read from `gitlab/main`. Asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review passed and the task folder's `review.md` binds the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in the task folder's `acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
+ | `git_workflow.py` | PostToolUse Bash | After a commit, reminds: push the feature branch, open the MR. |
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Each task keeps its files in its own folder, `.claude/task/<issue>-<slug>/`: the one folder the branch touches. It denies a write to another task's folder, a merged task's folder or the old shared `.claude/task/` files. `scripts/check_task_artifacts.py` refuses the same in CI. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`. It denies any edit under a contract without `depends_on:` and `shared_files:` (`working_agreement.md` §12). It denies an edit to a shared file the contract does not list, by Edit or by shell write. The gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. An `approved_design` line `none: no page output changes` is checked by `scope-auditor` alone, by no machine: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Injects the layer contract when a dbt model or a consumption file (`scripts/export_*.py`, `site/`, `site_v2/`) is edited. `scripts/check_layer_contract.py` enforces it in CI. |
+@@ -69,7 +69,7 @@ assumption that there is a defect. Which agent reviews which path is
+ | `onboard-competition` | add a competition: registry entry, dbt vars sync, labels |
+ | `onboard-endpoint` | evaluate and ingest a new provider endpoint, cost approved first |
+ | `verify-competition-ingest` | check a competition's ingest health |
+-| `research-provider-errors` | research the provider-error list from allowed sites and report proposed seed rows |
++| `research-provider-errors` | research the provider-error list from allowed sites and land the proposed seed rows as a research-fix MR and merge it |
+ 
+ The `/status` command (`.claude/commands/status.md`, protected) shows the branch, the tree, open
+ MRs and the handover.
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index a6e5d99e..06f95404 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -261,20 +261,18 @@ CI re-checks the artifacts on every MR with `scripts/check_task_artifacts.py`.
+ ## 3. Branches — always
+ 
+ Every change goes on a **new branch**. Never commit directly to `main`. Never push to `main`. Open
+-an MR and wait for CI and explicit user approval before merging.
++an MR and wait for CI. Merging follows the rule below.
+ 
+ **Process:**
+ 
+ 1. `git checkout -b feature/name`, never with `gitlab/main` as the tracking target.
+ 2. Do the work and commit.
+ 3. `git push gitlab feature/name`, with the explicit remote branch name.
+-4. Open an MR, then wait for CI and user approval.
++4. Open an MR, then wait for CI. Merging follows the rule below.
+ 
+ A `gitlab/main` tracking target sends pushes directly to `main`. Never rely on implicit tracking.
+ 
+-**Never run `glab mr merge`.** Merging is the user's action, not the agent's. The agent's job ends
+-when the MR is open and CI is green. Never run `glab mr merge` or its `glab mr accept` alias for
+-any reason, `--auto-merge` included. The one exception is the user typing "merge it", or an equivalent, in
++The agent merges an MR itself when its pipeline is green, `scripts/merge_ready.py` says ready, and every required reviewer passed. The diff must touch none of these: fan-visible text, `metric_catalogue.csv`, a core document, a guard hook or gate, or a cost setting. A path not listed in `agent_merge_paths` of `.claude/review_routing.json` counts as one of these. The agent then watches main's pipeline and reverts on red. Every other MR waits for the CPO's merge. The one exception is the user typing "merge it", or an equivalent, in
+ the same message.
+ 
+ ### 3a. Branch consolidation — check before branching
+@@ -398,8 +396,15 @@ standards, the metric catalogue and the task contract.
+ 
+ **Visual details** (sizes, spacing, alignment, corners, separators, and which existing form of a part a page uses) are decided by the coordinating agent against `docs/design/design_standard.md`; the CPO reviews each finished page group and can veto any page.
+ 
+-**The meta-rule:** when a new case does not clearly match a written rule, the classification
+-itself is a CPO decision. An analogy to an existing rule is not a licence (Appendix A3).
++**Standing budget.** BigQuery work for CI, checks and research runs without asking up to €25 a month on top of the nightly. The agent reports each month's spend; anything above goes to the CPO first.
++
++**Wording before go-live.** Until go-live, the coordinating agent writes fan-visible strings from the approved designs and existing labels; the CPO reviews each finished page group and can veto any string. URLs, slugs and other permanent identifiers stay CPO-only.
++
++**Review cap.** At the round cap, the coordinating agent lands what passed and closes or splits off the rest; a fourth round stays the CPO's.
++
++**Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
++
++A core-doc sentence that only restates a rule the CPO already approved, or describes code that implements one, needs no new approval. The scope-auditor checks that it matches.
+ 
+ ---
+ 
+@@ -422,7 +427,7 @@ nudge.
+ 
+ | The decision changes… | The record is… |
+ |---|---|
+-| **code** | the MR. The CPO merges it, and the merge is the approval. |
++| **code** | the MR. The merge is the approval: the CPO's, or the agent's under §3. |
+ | **a rule**: how we work, what a screen shows, what a metric means | the document that owns that rule, **edited in the same MR**. The new text replaces the old text, never appended to it. |
+ | **a requirement** for work not yet built | that work's GitLab issue, edited in place |
+ | **a locked file** (a protected path) | the contract's `protected_override` and the MR head's `Locked files` line. They name the approval, where and when, and never quote it. The merge is the approval. |
+@@ -438,8 +443,7 @@ nudge.
+   `.gitlab/merge_request_templates/Default.md` (`glab mr update <n> --description …`).
+ - The head holds the issue's checklist, ticked, with one link per tick, and the same
+   `Locked files:` line. Everything else sits below a fold.
+-- The merge is the one act the builder cannot perform, so the merge is the approval. Nothing is
+-  recorded until the CPO merges.
++- The merge is the approval: the CPO's, or the agent's under §3. Nothing is recorded until the MR merges.
+ - No record quotes the CPO.
+ - The CPO reads the head before merging and refuses a long one.
+ 
+diff --git a/scripts/check_research_fix_mr.py b/scripts/check_research_fix_mr.py
+new file mode 100644
+index 00000000..8b9f2c69
+--- /dev/null
++++ b/scripts/check_research_fix_mr.py
+@@ -0,0 +1,183 @@
++#!/usr/bin/env python
++"""Is this merge request a research-fix MR?
++
++    python scripts/check_research_fix_mr.py --base <ref> [--head <ref>]
++
++Exit 0: a research-fix MR. Exit 1: not one, with every reason. Exit 2: cannot decide.
++
++A research-fix MR changes only rows of the correction seeds the research skill writes to, and
++its own task folder. Each added or changed row names its source, and every source is on a site
++the skill reads. The merge hook lets such an MR through once its pipeline is green.
++
++The allowed sites are the skill's own tables, read from the skill on the merge base: a site the
++skill does not list, a stopped site included, is refused.
++"""
++
++from __future__ import annotations
++
++import argparse
++import csv
++import io
++import re
++import subprocess
++import sys
++from urllib.parse import urlparse
++
++SKILL = ".claude/skills/research-provider-errors/SKILL.md"
++SEED_DIR = "dbt_project/seeds/"
++SEED_KEYS = {
++    "fixture_card_corrections": ("fixture_id", "card_order"),
++    "fixture_goal_corrections": ("fixture_id", "goal_order"),
++    "fixture_result_corrections": ("fixture_id",),
++}
++SEEDS = {f"{SEED_DIR}{name}.csv": key for name, key in SEED_KEYS.items()}
++TASK_FILE = re.compile(r"^\.claude/task/([^/]+)/[^/]+$")
++HOST = re.compile(r"`([a-z0-9][a-z0-9.-]*\.[a-z]{2,})`")
++TABLE_START = "## Site table"
++TABLE_END = "Not read, and the reason:"
++
++
++class Undecided(Exception):
++    pass
++
++
++def git(args: list[str], cwd: str | None = None) -> str:
++    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8",
++                       errors="replace")
++    if r.returncode != 0:
++        raise Undecided(f"`git {' '.join(args[:2])}` failed: {r.stderr.strip()[:200]}")
++    return r.stdout
++
++
++def show(ref: str, path: str, cwd: str | None = None) -> str | None:
++    r = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=cwd, capture_output=True, text=True,
++                       encoding="utf-8", errors="replace")
++    return r.stdout if r.returncode == 0 else None
++
++
++def allowed_hosts(skill_text: str) -> set[str]:
++    """The hosts the skill reads: its site table and its news-outlet list, down to the stopped sites."""
++    start = skill_text.find(TABLE_START)
++    end = skill_text.find(TABLE_END, start)
++    if start < 0 or end < 0:
++        raise Undecided("the skill's site table could not be found")
++    hosts = set(HOST.findall(skill_text[start:end]))
++    if not hosts:
++        raise Undecided("the skill's site table holds no host")
++    return hosts
++
++
++def parse_seed(text: str, name: str) -> tuple[str, dict[tuple, dict], list[str]]:
++    """(header line, rows by key, problems)."""
++    header = text.splitlines()[0] if text.strip() else ""
++    key_cols = SEEDS[f"{SEED_DIR}{name}.csv"]
++    reader = csv.reader(io.StringIO(text))
++    names = next(reader, [])
++    rows: dict[tuple, dict] = {}
++    problems: list[str] = []
++    for n, values in enumerate(reader, start=2):
++        if not values:
++            continue
++        if len(values) != len(names):
++            problems.append(f"{name} line {n}: {len(values)} fields, the header has {len(names)}")
++            continue
++        row = dict(zip(names, values))
++        if any(c not in row for c in key_cols):
++            problems.append(f"{name}: no key column {key_cols}")
++            break
++        key = tuple(row[c] for c in key_cols)
++        if key in rows:
++            problems.append(f"{name} line {n}: key {key} appears twice")
++        rows[key] = row
++    return header, rows, problems
++
++
++def source_problems(source: str, hosts: set[str]) -> list[str]:
++    urls = source.split()
++    if not urls:
++        return ["no source"]
++    out = []
++    for u in urls:
++        p = urlparse(u)
++        if p.scheme != "https" or not p.hostname:
++            out.append(f"source {u} is not an https URL")
++        elif p.hostname.lower() not in hosts:
++            out.append(f"source host {p.hostname.lower()} is not on the skill's list of sites it reads")
++    return out
++
++
++def seed_problems(name: str, old: str | None, new: str | None, hosts: set[str]) -> list[str]:
++    if new is None:
++        return [f"{name} is deleted"]
++    if old is None:
++        return [f"{name} is new; a research-fix MR only adds rows to a seed that exists"]
++    old_header, old_rows, _ = parse_seed(old, name)
++    new_header, new_rows, problems = parse_seed(new, name)
++    if old_header != new_header:
++        problems.append(f"{name}: the header changed")
++    for key in old_rows:
++        if key not in new_rows:
++            problems.append(f"{name}: the row {key} is removed; a research-fix MR only adds or changes rows")
++    for key, row in new_rows.items():
++        if old_rows.get(key) == row:
++            continue
++        for p in source_problems(row.get("source", ""), hosts):
++            problems.append(f"{name} row {key}: {p}")
++    return problems
++
++
++def decide(base: str, head: str, cwd: str | None = None) -> list[str]:
++    """Why this is not a research-fix MR; an empty list means it is one."""
++    merge_base = git(["merge-base", base, head], cwd).strip()
++    changes = [ln.split("\t", 1) for ln in git(["diff", "--name-status", "--no-renames", merge_base, head],
++                                                cwd).splitlines() if ln.strip()]
++    if not changes:
++        return ["the MR changes nothing"]
++    problems: list[str] = []
++    folders: set[str] = set()
++    seeds: list[str] = []
++    for _status, path in changes:
++        m = TASK_FILE.match(path)
++        if m:
++            folders.add(m.group(1))
++        elif path in SEEDS:
++            seeds.append(path)
++        else:
++            problems.append(f"{path} is not a correction seed the research skill writes to")
++    if len(folders) > 1:
++        problems.append(f"more than one task folder is changed: {', '.join(sorted(folders))}")
++    if not seeds:
++        problems.append("no correction seed is changed")
++    if problems:
++        return problems
++    skill = show(merge_base, SKILL, cwd)
++    if skill is None:
++        raise Undecided(f"{SKILL} does not exist on the merge base")
++    hosts = allowed_hosts(skill)
++    for path in seeds:
++        name = path[len(SEED_DIR):-len(".csv")]
++        problems += seed_problems(name, show(merge_base, path, cwd), show(head, path, cwd), hosts)
++    return problems
++
++
++def main(argv: list[str]) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
++    ap.add_argument("--base", required=True, help="the target branch, e.g. origin/main")
++    ap.add_argument("--head", default="HEAD")
++    args = ap.parse_args(argv)
++    try:
++        problems = decide(args.base, args.head)
++    except Undecided as e:
++        print(f"cannot decide: {e}", file=sys.stderr)
++        return 2
++    if problems:
++        print("NOT a research-fix MR:")
++        for p in problems:
++            print(f"- {p}")
++        return 1
++    print("research-fix MR: only correction-seed rows, each with its source on a site the skill reads")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main(sys.argv[1:]))
+diff --git a/tests/test_check_research_fix_mr.py b/tests/test_check_research_fix_mr.py
+new file mode 100644
+index 00000000..7677d59e
+--- /dev/null
++++ b/tests/test_check_research_fix_mr.py
+@@ -0,0 +1,225 @@
++import os
++import re
++import subprocess
++import sys
++
++import pytest
++
++ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
++sys.path.insert(0, os.path.join(ROOT, "scripts"))
++
++import check_research_fix_mr as chk  # noqa: E402
++
++SKILL_TEXT = open(os.path.join(ROOT, chk.SKILL), encoding="utf-8").read()
++CARD = "dbt_project/seeds/fixture_card_corrections.csv"
++RESULT = "dbt_project/seeds/fixture_result_corrections.csv"
++GOAL = "dbt_project/seeds/fixture_goal_corrections.csv"
++CARD_HEADER = "fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,event_detail,source_kind,source,note\n"
++RESULT_HEADER = "fixture_id,goals_home,goals_away,awarded,source_kind,source,note\n"
++GOAL_HEADER = "fixture_id,goal_order,team_id,player_name,source_kind,source,note\n"
++OLD_CARD = "1,1,10,100,A. One,32,,Yellow Card,official,https://www.uefa.com/match/1/,old row on a stopped site\n"
++OK_URL = "https://www.premierleague.com/en/match/1/a-vs-b"
++
++
++def sh(repo, *args):
++    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
++
++
++def write(repo, rel, text):
++    path = os.path.join(repo, rel)
++    os.makedirs(os.path.dirname(path), exist_ok=True)
++    with open(path, "w", encoding="utf-8", newline="") as f:
++        f.write(text)
++
++
++@pytest.fixture()
++def repo(tmp_path):
++    r = str(tmp_path)
++    sh(r, "init", "-q", "-b", "main")
++    sh(r, "config", "user.email", "t@t")
++    sh(r, "config", "user.name", "t")
++    write(r, chk.SKILL, SKILL_TEXT)
++    write(r, CARD, CARD_HEADER + OLD_CARD)
++    write(r, RESULT, RESULT_HEADER + f"5,1,0,false,official,{OK_URL},m\n")
++    write(r, GOAL, GOAL_HEADER + f"7,1,10,B. Two,official,{OK_URL},m\n")
++    write(r, "scripts/other.py", "x = 1\n")
++    sh(r, "add", "-A")
++    sh(r, "commit", "-qm", "base")
++    sh(r, "checkout", "-qb", "research-fix/2026-11-20")
++    return r
++
++
++def commit(repo):
++    sh(repo, "add", "-A")
++    sh(repo, "commit", "-qm", "fix")
++
++
++def card_row(n, source=OK_URL, kind="official"):
++    return f"2,{n},10,100,A. One,32,,Yellow Card,{kind},{source},match checked\n"
++
++
++def reasons(repo):
++    return chk.decide("main", "HEAD", repo)
++
++
++def test_added_rows_with_allowed_sources_pass(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1) + card_row(2, source=f"{OK_URL} https://www.skysports.com/x"))
++    commit(repo)
++    assert reasons(repo) == []
++
++
++def test_old_rows_on_stopped_sites_are_not_judged(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1))
++    commit(repo)
++    assert reasons(repo) == []
++
++
++def test_changed_row_is_judged_like_an_added_one(repo):
++    changed = OLD_CARD.replace("32,,", "33,,")
++    write(repo, CARD, CARD_HEADER + changed)
++    commit(repo)
++    assert any("uefa.com" in r for r in reasons(repo))
++
++
++def test_task_folder_files_are_allowed(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1))
++    write(repo, ".claude/task/262-research-fix-2026-11-20/contract.md", "c")
++    write(repo, ".claude/task/262-research-fix-2026-11-20/review.md", "r")
++    commit(repo)
++    assert reasons(repo) == []
++
++
++def test_two_task_folders_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1))
++    write(repo, ".claude/task/a/contract.md", "c")
++    write(repo, ".claude/task/b/contract.md", "c")
++    commit(repo)
++    assert any("more than one task folder" in r for r in reasons(repo))
++
++
++def test_other_file_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1))
++    write(repo, "scripts/other.py", "x = 2\n")
++    commit(repo)
++    assert any("scripts/other.py" in r for r in reasons(repo))
++
++
++def test_other_seed_refused(repo):
++    write(repo, "dbt_project/seeds/standings_corrections.csv", "a,b\n1,2\n")
++    commit(repo)
++    assert any("standings_corrections" in r for r in reasons(repo))
++
++
++def test_task_folder_only_is_not_a_fix(repo):
++    write(repo, ".claude/task/a/contract.md", "c")
++    commit(repo)
++    assert any("no correction seed" in r for r in reasons(repo))
++
++
++def test_no_change_refused(repo):
++    assert reasons(repo) == ["the MR changes nothing"]
++
++
++def test_header_change_refused(repo):
++    write(repo, CARD, CARD_HEADER.replace("note", "notes") + OLD_CARD)
++    commit(repo)
++    assert any("header changed" in r for r in reasons(repo))
++
++
++def test_removed_row_refused(repo):
++    write(repo, CARD, CARD_HEADER)
++    commit(repo)
++    assert any("is removed" in r for r in reasons(repo))
++
++
++def test_empty_source_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1, source=""))
++    commit(repo)
++    assert any("no source" in r for r in reasons(repo))
++
++
++@pytest.mark.parametrize("url", [
++    "https://www.uefa.com/uefachampionsleague/match/1/",
++    "https://www.fifa.com/x",
++    "https://www.espn.com/soccer/x",
++    "https://www.bundesliga.com/x",
++    "https://en.wikipedia.org/wiki/X",
++    "https://www.transfermarkt.com/x",
++    "https://www.fff.fr/x",
++])
++def test_stopped_and_unlisted_hosts_refused(repo, url):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1, source=f"{OK_URL} {url}"))
++    commit(repo)
++    assert any("not on the skill's list" in r for r in reasons(repo))
++
++
++def test_non_https_source_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1, source="http://www.premierleague.com/x"))
++    commit(repo)
++    assert any("not an https URL" in r for r in reasons(repo))
++
++
++def test_subdomain_of_an_allowed_host_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1, source="https://www.premierleague.com.evil.example/x"))
++    commit(repo)
++    assert any("not on the skill's list" in r for r in reasons(repo))
++
++
++def test_duplicate_key_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1) + card_row(1))
++    commit(repo)
++    assert any("appears twice" in r for r in reasons(repo))
++
++
++def test_wrong_field_count_refused(repo):
++    write(repo, CARD, CARD_HEADER + OLD_CARD + "2,1,10\n")
++    commit(repo)
++    assert any("fields" in r for r in reasons(repo))
++
++
++def test_result_and_goal_seeds_pass_with_a_row_each(repo):
++    write(repo, RESULT, RESULT_HEADER + f"5,1,0,false,official,{OK_URL},m\n6,2,1,false,official,{OK_URL},m\n")
++    write(repo, GOAL, GOAL_HEADER + f"7,1,10,B. Two,official,{OK_URL},m\n7,2,10,C. Three,official,{OK_URL},m\n")
++    commit(repo)
++    assert reasons(repo) == []
++
++
++def test_skill_on_the_merge_base_decides_not_the_head(repo):
++    write(repo, chk.SKILL, SKILL_TEXT.replace("`www.skysports.com`", "`www.uefa.com`"))
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1, source="https://www.uefa.com/x"))
++    commit(repo)
++    assert any(chk.SKILL in r for r in reasons(repo))
++
++
++def test_cli_exit_codes(repo):
++    script = os.path.join(ROOT, "scripts", "check_research_fix_mr.py")
++    write(repo, CARD, CARD_HEADER + OLD_CARD + card_row(1))
++    commit(repo)
++    ok = subprocess.run([sys.executable, script, "--base", "main"], cwd=repo, capture_output=True, text=True)
++    assert ok.returncode == 0
++    write(repo, "scripts/other.py", "x = 3\n")
++    commit(repo)
++    bad = subprocess.run([sys.executable, script, "--base", "main"], cwd=repo, capture_output=True, text=True)
++    assert bad.returncode == 1 and "scripts/other.py" in bad.stdout
++    undecided = subprocess.run([sys.executable, script, "--base", "no-such-ref"], cwd=repo,
++                               capture_output=True, text=True)
++    assert undecided.returncode == 2
++
++
++def test_allowed_hosts_come_from_the_skill_tables():
++    hosts = chk.allowed_hosts(SKILL_TEXT)
++    assert {"www.premierleague.com", "www.dfb.de", "t-online.de", "www.skysports.com"} <= hosts
++    for stopped in ("uefa", "fifa", "mls", "bundesliga", "espn", "rfef", "wikipedia", "transfermarkt",
++                    "fff.fr", "conmebol"):
++        assert not [h for h in hosts if stopped in h], stopped
++
++
++def test_seed_set_is_the_set_the_skill_writes_to():
++    section = SKILL_TEXT.split("## 7. Write the proposed rows", 1)[1].split("\n## ", 1)[0]
++    assert set(re.findall(r"`(fixture_\w+_corrections)`", section)) == set(chk.SEED_KEYS)
++
++
++def test_key_columns_exist_in_the_real_seed_headers():
++    for path, key in chk.SEEDS.items():
++        header = open(os.path.join(ROOT, path), encoding="utf-8").readline().strip().split(",")
++        assert all(c in header and c != "source" for c in key) and "source" in header, path
+diff --git a/tests/test_research_fix_merge_hook.py b/tests/test_research_fix_merge_hook.py
+new file mode 100644
+index 00000000..d7012f68
+--- /dev/null
++++ b/tests/test_research_fix_merge_hook.py
+@@ -0,0 +1,477 @@
++import io
++import json
++import os
++import re
++import subprocess
++import sys
++
++import pytest
++
++ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
++HOOKS = os.path.join(ROOT, ".claude", "hooks")
++sys.path.insert(0, HOOKS)
++
++import git_discipline as gd  # noqa: E402
++import task_contract_gate as gate  # noqa: E402
++
++SHA = "a" * 40
++OTHER = "b" * 40
++GOOD_MR = {"state": "opened", "target_branch": "main", "source_branch": "research-fix/2026-11-20",
++           "head_pipeline": {"status": "success", "source": "merge_request_event"}, "sha": SHA}
++MERGE = f"glab mr merge 7 --sha {SHA}"
++ROUTING = json.load(open(os.path.join(ROOT, ".claude", "review_routing.json"), encoding="utf-8"))
++def z(*paths):
++    return "".join(f"{p}\0" for p in paths)
++
++
++SAFE_DIFF = z("dbt_project/seeds/fixture_card_corrections.csv", ".claude/task/262-x/contract.md")
++
++
++class Fake:
++    """Stands in for subprocess.run: one reply per command kind, and a record of what ran."""
++
++    def __init__(self, mr=None, routing=None, diff=SAFE_DIFF, diff_rc=0, **codes):
++        self.mr = mr if mr is not None else GOOD_MR
++        self.codes = {"glab": 0, "fetch": 0, "show": 0, "diff": diff_rc, "worktree": 0, "cleanup": 0,
++                      "ready": 0, **codes}
++        self.diff = diff
++        self.routing = json.dumps(ROUTING) if routing is None else routing
++        self.ran, self.cmds, self.timeouts = [], [], []
++
++    def __call__(self, cmd, **kwargs):
++        out = ""
++        if cmd[0] == "glab":
++            kind, out = "glab", json.dumps(self.mr)
++        elif cmd[0] == "git":
++            kind = {"fetch": "fetch", "show": "show", "diff": "diff"}.get(cmd[1])
++            if cmd[1] == "worktree":
++                kind = "worktree" if cmd[2] == "add" else "cleanup"
++            out = {"show": self.routing, "diff": self.diff}.get(kind, "")
++        else:
++            kind, out = "ready", "NOT READY"
++        self.ran.append(kind)
++        self.cmds.append(cmd)
++        self.timeouts.append(kwargs.get("timeout"))
++        return subprocess.CompletedProcess(cmd, self.codes[kind], stdout=out, stderr="")
++
++
++def denial(monkeypatch, sha=SHA, **kw):
++    fake = Fake(**kw)
++    monkeypatch.setattr(subprocess, "run", fake)
++    return gd._agent_merge_denial("7", sha, "."), fake
++
++
++def test_all_conditions_met_allows(monkeypatch):
++    why, fake = denial(monkeypatch)
++    assert why is None
++    assert fake.ran == ["glab", "fetch", "show", "diff", "worktree", "ready", "cleanup"]
++
++
++def test_the_list_and_the_judge_come_from_the_target_branch_not_the_mr(monkeypatch):
++    _, fake = denial(monkeypatch)
++    assert fake.cmds[fake.ran.index("show")][-1] == "gitlab/main:.claude/review_routing.json"
++    diff = fake.cmds[fake.ran.index("diff")]
++    assert diff[-1] == f"gitlab/main...{SHA}" and "-z" in diff
++    add = fake.cmds[fake.ran.index("worktree")]
++    assert add[-1] == "gitlab/main"
++    ready = fake.cmds[fake.ran.index("ready")]
++    assert ready[1] == os.path.join(add[-2], "scripts", "merge_ready.py") and ready[2] == "7"
++
++
++@pytest.mark.parametrize("path", [
++    "site_v2/src/pages/index.astro", "site_v2/src/i18n/strings.ts", "dbt_project/seeds/metric_catalogue.csv",
++    "docs/working_agreement.md", ".claude/hooks/git_discipline.py", ".claude/settings.json",
++    ".claude/review_routing.json", ".gitlab-ci.yml", "scripts/check_layer_contract.py",
++    "scripts/merge_ready.py", "docs/competition_registry.yml", "deploy/nightly/entrypoint.sh",
++    "dbt_project/seeds/team_name_overrides.csv", "dbt_project/seeds/round_names.csv",
++    "dbt_project/seeds/competition_registry.csv", "docs/wireframes/metrics_display.md",
++    ".claude/skills/research-provider-errors/SKILL.md", ".gitleaksignore", "brand_new_file.txt",
++    "tests/test_governance_hooks.py", "tests/fixtures/design_inventory/baseline.json",
++    "dbt_project/macros/generate_schema_name.sql", "dbt_project/tests/assert_x.sql",
++    "dbt_project/models/5_marts/shared.yml", "dbt_project/seeds/confederations.csv",
++    ".claude/task/REVIEW_TEMPLATE.md", ".claude/task/TEMPLATE.md",
++])
++def test_an_mr_touching_an_unlisted_or_excluded_path_waits_for_the_cpo(monkeypatch, path):
++    why, fake = denial(monkeypatch, diff=SAFE_DIFF + z(path))
++    assert path in why and "worktree" not in fake.ran
++
++
++def test_a_non_ascii_path_is_read_as_it_is_and_is_not_listed(monkeypatch):
++    path = "site_v2/src/content/münchen – spielplan.md"
++    why, fake = denial(monkeypatch, diff=z(path))
++    assert path in why and "worktree" not in fake.ran
++
++
++def test_a_non_ascii_path_under_a_listed_directory_is_cleared(monkeypatch):
++    why, _ = denial(monkeypatch, diff=z(".claude/task/262-x/münchen.md"))
++    assert why is None
++
++
++def test_a_model_is_not_a_listed_path(monkeypatch):
++    why, fake = denial(monkeypatch, diff=SAFE_DIFF + z("dbt_project/models/5_marts/mart_x.sql"))
++    assert "mart_x.sql" in why and "worktree" not in fake.ran
++
++
++def test_correction_seeds_are_merged_only_from_a_research_fix_branch(monkeypatch):
++    why, _ = denial(monkeypatch)
++    assert why is None
++    for branch in ("claude/anything", "xresearch-fix/1"):
++        why, fake = denial(monkeypatch, mr={**GOOD_MR, "source_branch": branch})
++        assert "correction seeds" in why and "worktree" not in fake.ran
++    why, _ = denial(monkeypatch, diff=z(".claude/task/262-x/contract.md"),
++                    mr={**GOOD_MR, "source_branch": "claude/anything"})
++    assert why is None
++
++
++def test_an_excluded_path_is_outside_the_allowlist_even_when_it_is_listed():
++    assert gd._outside_allowlist(["a/x.csv", "a/y.csv"], ["a/*"], ["a/y.csv"]) == ["a/y.csv"]
++    assert gd._outside_allowlist(["a/x.csv"], ["a/*"], []) == []
++
++
++def test_a_path_on_the_except_list_of_main_waits_for_the_cpo(monkeypatch):
++    routing = json.dumps({**ROUTING, "agent_merge_except": ["dbt_project/seeds/fixture_card_corrections.csv"]})
++    why, fake = denial(monkeypatch, routing=routing)
++    assert "fixture_card_corrections.csv" in why and "worktree" not in fake.ran
++
++
++def test_the_diff_is_read_so_that_a_rename_shows_both_paths(tmp_path, monkeypatch):
++    def git(*args):
++        return subprocess.run(["git", *args], cwd=tmp_path, capture_output=True, text=True, check=True).stdout
++
++    git("init", "-q", "-b", "main")
++    git("config", "user.email", "t@t")
++    git("config", "user.name", "t")
++    (tmp_path / ".claude" / "hooks").mkdir(parents=True)
++    guard = tmp_path / ".claude" / "hooks" / "guard.py"
++    guard.write_text("x = 1\n" * 20)
++    git("add", "-A")
++    git("commit", "-qm", "base")
++    git("checkout", "-qb", "mr")
++    target = tmp_path / "dbt_project" / "seeds" / "fixture_card_corrections.csv"
++    target.parent.mkdir(parents=True)
++    guard.rename(target)
++    git("add", "-A")
++    git("commit", "-qm", "rename")
++    _, fake = denial(monkeypatch, diff="")
++    monkeypatch.undo()
++    flags = fake.cmds[fake.ran.index("diff")][:-1]
++    paths = [p for p in git("-c", "diff.renames=true", *flags[1:], "main...mr").split("\0") if p]
++    assert ".claude/hooks/guard.py" in paths and "dbt_project/seeds/fixture_card_corrections.csv" in paths
++    assert gd._outside_allowlist(paths, ROUTING["agent_merge_paths"], ROUTING["agent_merge_except"]) == [
++        ".claude/hooks/guard.py"]
++
++
++@pytest.mark.parametrize("routing", [
++    "", "not json", "{}", json.dumps({"agent_merge_paths": ["tests/**"]}),
++    json.dumps({"agent_merge_except": []}), json.dumps({"agent_merge_paths": [], "agent_merge_except": []}),
++    json.dumps({"agent_merge_paths": "x", "agent_merge_except": []}),
++    json.dumps({"agent_merge_paths": [""], "agent_merge_except": []}),
++    json.dumps({"agent_merge_paths": [1], "agent_merge_except": []}),
++    json.dumps({"agent_merge_paths": ["tests/**"], "agent_merge_except": [None]}),
++])
++def test_no_usable_list_on_main_denies(monkeypatch, routing):
++    why, fake = denial(monkeypatch, routing=routing)
++    assert why and "ready" not in fake.ran
++
++
++def test_a_list_on_main_that_cannot_be_read_denies(monkeypatch):
++    why, fake = denial(monkeypatch, show=128)
++    assert "could not be read" in why and "diff" not in fake.ran
++
++
++def test_an_empty_diff_denies(monkeypatch):
++    why, _ = denial(monkeypatch, diff="")
++    assert "changes nothing" in why
++
++
++def test_a_diff_that_cannot_be_read_denies(monkeypatch):
++    why, fake = denial(monkeypatch, diff_rc=1)
++    assert "could not be read" in why and "ready" not in fake.ran
++
++
++@pytest.mark.parametrize("change", [
++    {"state": "merged"},
++    {"target_branch": "release"},
++    {"head_pipeline": {"status": "running"}},
++    {"head_pipeline": None},
++    {"head_pipeline": {"status": "success", "source": "web"}},
++    {"head_pipeline": {"status": "success"}},
++    {"sha": ""},
++    {"sha": OTHER},
++])
++def test_each_mr_fact_that_fails_denies(monkeypatch, change):
++    why, fake = denial(monkeypatch, mr={**GOOD_MR, **change})
++    assert why
++    assert "show" not in fake.ran and "ready" not in fake.ran
++
++
++def test_sha_that_is_not_the_head_denies(monkeypatch):
++    why, fake = denial(monkeypatch, sha=OTHER)
++    assert "--sha is not the head" in why and "show" not in fake.ran
++
++
++def test_a_main_checkout_that_fails_denies_and_runs_nothing_from_the_tree(monkeypatch):
++    why, fake = denial(monkeypatch, worktree=128)
++    assert "could not be checked out" in why and "ready" not in fake.ran and "cleanup" in fake.ran
++
++
++def test_not_ready_denies_and_removes_the_main_checkout(monkeypatch):
++    why, fake = denial(monkeypatch, ready=1)
++    assert "not ready to merge" in why and fake.ran[-1] == "cleanup"
++    remove = fake.cmds[-1]
++    assert remove[:4] == ["git", "worktree", "remove", "--force"]
++
++
++def test_unreadable_mr_denies(monkeypatch):
++    why, _ = denial(monkeypatch, glab=1)
++    assert "could not be read" in why
++
++
++def test_failed_fetch_denies(monkeypatch):
++    why, _ = denial(monkeypatch, fetch=1)
++    assert "could not be fetched" in why
++
++
++def test_an_exception_denies(monkeypatch):
++    def boom(cmd, **kwargs):
++        raise subprocess.TimeoutExpired(cmd, 1)
++
++    monkeypatch.setattr(subprocess, "run", boom)
++    assert "could not be checked" in gd._agent_merge_denial("7", SHA, ".")
++
++
++def test_the_steps_share_one_deadline_below_the_harness_timeout(monkeypatch):
++    import time
++
++    assert gd.MERGE_DEADLINE_SECONDS < 600
++    clock = iter([0.0] + [gd.MERGE_DEADLINE_SECONDS - 5.0] * 50)
++    monkeypatch.setattr(time, "monotonic", lambda: next(clock))
++    why, fake = denial(monkeypatch)
++    assert why is None
++    steps = [t for kind, t in zip(fake.ran, fake.timeouts) if kind != "cleanup"]
++    assert max(steps) <= 5.0 + 1e-9
++
++
++def test_an_exhausted_deadline_denies(monkeypatch):
++    import time
++
++    clock = iter([0.0] + [gd.MERGE_DEADLINE_SECONDS + 1.0] * 50)
++    monkeypatch.setattr(time, "monotonic", lambda: next(clock))
++    why, fake = denial(monkeypatch)
++    assert "could not be checked" in why and fake.ran == []
++
++
++@pytest.mark.parametrize("cmd", [
++    f"glab mr merge 7 --sha {SHA}",
++    f"glab mr merge 7 --sha={SHA} --yes",
++    f"glab mr accept 7 --yes --sha {SHA}",
++    f"glab mr merge 12 --sha {SHA} -d -y",
++    f"  glab mr merge 7 --sha {SHA}  ",
++])
++def test_allowed_forms(cmd):
++    iid, sha = gd._agent_merge_form(cmd)
++    assert iid in ("7", "12") and sha == SHA
++
++
++@pytest.mark.parametrize("cmd", [
++    "glab mr merge",
++    "glab mr merge 7",
++    "glab mr merge 7 --yes",
++    f"glab mr merge 7 --sha {SHA} --auto-merge",
++    f"glab mr merge 7 --sha {SHA} --squash",
++    f"glab mr merge 7 --sha {SHA} -s",
++    f"glab mr merge 7 --sha {SHA} --when-pipeline-succeeds",
++    f"glab mr merge 7 --sha {SHA} --sha {OTHER}",
++    "glab mr merge 7 --sha abc",
++    f"glab mr merge 7 --sha {SHA.upper()}",
++    f"glab mr merge $(echo 7) --sha {SHA}",
++    f"glab mr merge feature-branch --sha {SHA}",
++    f"glab mr merge 7 --sha {SHA} -R other/repo",
++    f"glab mr merge 7 --sha {SHA} > out.txt",
++    f"glab mr merge 7 --sha {SHA} &",
++    f"glab -R other/repo mr merge 7 --sha {SHA}",
++    f"FOO=1 glab mr merge 7 --sha {SHA}",
++    f"GIT_DIR=../other/.git glab mr merge 7 --sha {SHA}",
++    f"env glab mr merge 7 --sha {SHA}",
++    f"sudo glab mr merge 7 --sha {SHA}",
++    f"command glab mr merge 7 --sha {SHA}",
++    f"glab mr merge '7 --sha {SHA}",
++])
++def test_other_forms_are_not_the_merge_form(cmd):
++    assert gd._agent_merge_form(cmd) is None
++
++
++def run_main(monkeypatch, capsys, command):
++    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(
++        {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": command}})))
++    monkeypatch.setattr(sys, "argv", ["git_discipline.py"])
++    assert gd.main() == 0
++    return capsys.readouterr().out
++
++
++def denied(out):
++    return '"permissionDecision": "deny"' in out
++
++
++def test_main_allows_a_passing_merge(monkeypatch, capsys):
++    monkeypatch.setattr(subprocess, "run", Fake())
++    assert not denied(run_main(monkeypatch, capsys, MERGE + " --yes"))
++
++
++def test_main_denies_a_failing_merge_and_says_why(monkeypatch, capsys):
++    monkeypatch.setattr(subprocess, "run", Fake(ready=1))
++    out = run_main(monkeypatch, capsys, MERGE + " --yes")
++    assert denied(out) and "not ready to merge" in out
++
++
++def test_main_denies_an_mr_that_touches_an_unlisted_path(monkeypatch, capsys):
++    monkeypatch.setattr(subprocess, "run", Fake(diff=z("site_v2/src/pages/index.astro")))
++    out = run_main(monkeypatch, capsys, MERGE)
++    assert denied(out) and "CPO merges it" in out
++
++
++@pytest.mark.parametrize("command", [
++    f"glab mr merge 7 --sha {SHA} --auto-merge",
++    "glab mr merge",
++    "glab mr merge 7 --yes",
++    f"{MERGE} && echo done",
++    f"echo hi; {MERGE}",
++    f"FOO=1 {MERGE}",
++    f"glab mr accept 7 --sha {SHA} --when-pipeline-succeeds",
++])
++def test_main_blocks_every_other_merge_without_asking_gitlab(monkeypatch, capsys, command):
++    def no_calls(cmd, **kwargs):
++        raise AssertionError(f"ran {cmd}")
++
++    monkeypatch.setattr(subprocess, "run", no_calls)
++    assert denied(run_main(monkeypatch, capsys, command))
++
++
++def test_blocked_merge_over_the_real_hook_process():
++    event = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
++             "tool_input": {"command": "glab mr merge 7 --auto-merge"}}
++    r = subprocess.run([sys.executable, os.path.join(HOOKS, "git_discipline.py")], input=json.dumps(event),
++                       capture_output=True, text=True, cwd=ROOT, timeout=60)
++    assert denied(r.stdout) and "MERGE BLOCKED" in r.stdout
++
++
++ALLOWED, EXCEPT = ROUTING["agent_merge_paths"], ROUTING["agent_merge_except"]
++
++
++def agent_may_merge(path):
++    return not gd._outside_allowlist([path], ALLOWED, EXCEPT)
++
++
++def _as_sample(entry):
++    return entry + "x/y.py" if entry.endswith("/") else entry
++
++
++def test_no_guard_path_of_the_contract_gate_is_agent_mergeable():
++    for entry in (*gate.PROTECTED_PREFIXES, *gate.PROTECTED_FILES):
++        assert not agent_may_merge(_as_sample(entry)), f"{entry} is a guard path and the agent may merge it"
++
++
++def test_no_core_document_is_agent_mergeable():
++    text = open(os.path.join(ROOT, "docs", "working_agreement.md"), encoding="utf-8").read()
++    row = next(ln for ln in text.splitlines() if ln.startswith("| Core document text"))
++    docs = re.findall(r"`([a-z_]+\.md)`", row)
++    assert len(docs) >= 8
++    for name in docs:
++        assert not agent_may_merge(f"docs/{name}"), f"docs/{name} is a core document"
++
++
++@pytest.mark.parametrize("path", [
++    "site_v2/src/pages/en/index.astro", "site_v2/src/i18n/strings.ts", "site_v2/package.json",
++    "dbt_project/seeds/metric_catalogue.csv", "dbt_project/seeds/competition_registry.csv",
++    "dbt_project/seeds/team_name_overrides.csv", "dbt_project/seeds/league_name_overrides.csv",
++    "dbt_project/seeds/country_name_overrides.csv", "dbt_project/seeds/round_names.csv",
++    "docs/competition_registry.yml", "docs/data_contract.md", "docs/wireframes/metrics_display.md",
++    "deploy/nightly/README.md", "ingestion/api_football/settings.py", "ingestion/api_football/main.py",
++    "scripts/check_registry_var_sync.py", "scripts/merge_ready.py", "scripts/ci_local.py",
++    "scripts/design_inventory.py", "scripts/security/check_no_secrets.py", "scripts/export_site_data.py",
++    ".claude/settings.json", ".claude/settings.local.json", ".claude/hooks/x.py", ".claude/agents/x.md",
++    ".claude/skills/other-skill/SKILL.md", ".claude/review_routing.json", ".claude/active_work.md",
++    ".gitlab-ci.yml", ".gitleaks.toml", ".gitleaksignore", ".pre-commit-config.yaml", ".ruff-ci.toml",
++    ".github/workflows/x.yml", ".mcp.json", "CLAUDE.md", "requirements.txt", "a_new_top_level_file.txt",
++    "tests/fixtures/design_inventory/baseline.json", "tests/conftest.py", "tests/test_check_layer_contract.py",
++    "tests/test_check_chart_components.py", "tests/test_x.py", "dbt_project/tests/assert_x.sql",
++    "dbt_project/macros/generate_schema_name.sql", "dbt_project/macros/x.sql", "dbt_project/models/x/y.yml",
++    "dbt_project/models/5_marts/mart_x.sql", "dbt_project/models/2_base/api_football/base_x.sql",
++    "dbt_project/seeds/confederations.csv", "dbt_project/seeds/competition_types.csv",
++    "dbt_project/seeds/standings_corrections.csv", "dbt_project/seeds/fixture_card_answer_key.csv",
++    ".claude/task/TEMPLATE.md", ".claude/task/REVIEW_TEMPLATE.md", ".claude/task/escalations.log",
++])
++def test_the_agent_may_not_merge_these(path):
++    assert not agent_may_merge(path)
++
++
++@pytest.mark.parametrize("path", [
++    "dbt_project/seeds/fixture_card_corrections.csv", "dbt_project/seeds/fixture_goal_corrections.csv",
++    "dbt_project/seeds/fixture_result_corrections.csv", ".claude/task/1-x/contract.md",
++    ".claude/task/1-x/review.md",
++])
++def test_the_agent_may_merge_these(path):
++    assert agent_may_merge(path)
++
++
++def test_the_allowlist_holds_no_tests_and_no_wildcard_seed_or_directory():
++    for pattern in ALLOWED:
++        assert not pattern.startswith("tests/") and "dbt_project/tests" not in pattern
++        assert pattern not in ("dbt_project/seeds/**", "dbt_project/models/**", "dbt_project/macros/**")
++        assert not pattern.endswith("/**"), f"{pattern} lists a whole directory"
++
++
++def test_the_files_merge_ready_imports_are_not_agent_mergeable():
++    src = open(os.path.join(ROOT, "scripts", "merge_ready.py"), encoding="utf-8").read()
++    for module in re.findall(r"^\s*import (ci_local|check_design_inventory|design_inventory|task_contract_gate)\b",
++                             src, re.M):
++        rel = {"ci_local": "scripts/ci_local.py", "check_design_inventory": "scripts/check_design_inventory.py",
++               "design_inventory": "scripts/design_inventory.py",
++               "task_contract_gate": ".claude/hooks/task_contract_gate.py"}[module]
++        assert not agent_may_merge(rel), rel
++
++
++def _ci():
++    import yaml
++
++    return yaml.safe_load(open(os.path.join(ROOT, ".gitlab-ci.yml"), encoding="utf-8"))
++
++
++def test_ci_runs_the_research_check_from_the_target_branch_copy():
++    steps = _ci()["validate:governance"]["script"]
++    line = next(s for s in steps if "check_research_fix_mr" in s)
++    assert "research-fix/*" in line
++    assert 'git show "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}:scripts/check_research_fix_mr.py"' in line
++    assert "main.py || exit 1; python /tmp/check_research_fix_mr_main.py" in line
++    assert "python scripts/check_research_fix_mr.py" not in line
++
++
++def test_the_data_jobs_carry_no_research_fix_rule():
++    ci = _ci()
++    assert "data:build:research-fix" not in ci
++    for name in ("data:build:mr", "data:wait-prod-build", "data:build:main"):
++        assert not [r for r in ci[name]["rules"] if "research-fix" in json.dumps(r)], name
++
++
++WATCHDOG_CHILD = """
++import io, json, subprocess, sys, time
++sys.path.insert(0, {hooks!r})
++import git_discipline as gd
++gd.MERGE_DEADLINE_SECONDS = 1
++gd._WATCHDOG_GRACE_SECONDS = 1
++subprocess.run = lambda *a, **k: time.sleep(60)
++sys.stdin = io.StringIO(json.dumps({{"hook_event_name": "PreToolUse", "tool_name": "Bash",
++    "tool_input": {{"command": {command!r}}}}}))
++sys.argv = ["git_discipline.py"]
++sys.exit(gd.main())
++"""
++
++
++def test_a_step_that_never_returns_is_denied_inside_the_deadline():
++    import time
++
++    code = WATCHDOG_CHILD.format(hooks=HOOKS, command=MERGE)
++    started = time.monotonic()
++    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30)
++    assert time.monotonic() - started < 20
++    assert denied(r.stdout) and "deadline" in r.stdout
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../262-agent-merges-low-risk/review_input.patch   | 1560 ++++++++++++++++++++
+#    1 file changed, 1560 insertions(+)
+# ============================================================================

@@ -2,7 +2,7 @@
 """PreToolUse(Bash) guardrail — git discipline (project-specific wording).
 
 Checks, self-gated against the *actual* command (see _command_utils):
-  1. Block agent-initiated `glab mr merge` — merging is the user's call.
+  1. Block `glab mr merge` unless the MR is one the agent may merge (see _agent_merge_denial).
   2. Block `git commit --amend` / `--no-verify` / `-n` — history integrity and
      the governance hash-chain depend on append-only, hook-verified commits
      (governance G2; flags matched on quote-stripped text so commit-message
@@ -91,6 +91,147 @@ def _commit_form_violation(raw: str) -> str | None:
 
 def _repo_root() -> str:
     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+
+
+_MERGE_ALLOWED_FLAGS = {"-y", "--yes", "-d", "--remove-source-branch"}
+_REMOTE = "gitlab"
+_READY_SCRIPT = os.path.join("scripts", "merge_ready.py")
+_CORRECTION_SEEDS = "dbt_project/seeds/*_corrections.csv"
+_RESEARCH_BRANCH = "research-fix/"
+# Under the harness's hook timeout (600 s): a hook the harness cancels prints no deny, and the merge runs.
+MERGE_DEADLINE_SECONDS = 480
+_WATCHDOG_GRACE_SECONDS = 20
+_SHA = re.compile(r"[0-9a-f]{40}")
+
+
+def _matching(paths: list[str], patterns: list[str]) -> list[str]:
+    """The paths that match a pattern of the list. fnmatch, so `*` crosses `/`."""
+    import fnmatch
+
+    return [p for p in paths if any(fnmatch.fnmatch(p, pat) for pat in patterns)]
+
+
+def _outside_allowlist(paths: list[str], allowed: list[str], excluded: list[str]) -> list[str]:
+    """The paths the allowlist does not clear: every path not listed, and every excluded path."""
+    cleared = set(_matching(paths, allowed)) - set(_matching(paths, excluded))
+    return [p for p in paths if p not in cleared]
+
+
+def _agent_merge_form(cmd: str) -> tuple[str, str] | None:
+    """(MR number, head commit) when `cmd` is exactly `glab mr merge <digits> --sha <40 hex>` plus
+    only the allowed flags. The whole command is read, so an env prefix or wrapper fails the form."""
+    try:
+        tokens = shlex.split(cmd.strip())
+    except ValueError:
+        return None
+    if len(tokens) < 6 or tokens[:2] != ["glab", "mr"] or tokens[2] not in ("merge", "accept"):
+        return None
+    if not tokens[3].isdigit():
+        return None
+    sha = None
+    rest = tokens[4:]
+    while rest:
+        tok = rest.pop(0)
+        if tok == "--sha" and rest and sha is None:
+            sha = rest.pop(0)
+        elif tok.startswith("--sha=") and sha is None:
+            sha = tok[len("--sha="):]
+        elif tok not in _MERGE_ALLOWED_FLAGS:
+            return None
+    if not sha or not _SHA.fullmatch(sha):
+        return None
+    return tokens[3], sha
+
+
+def _agent_merge_denial(iid: str, sha: str, root: str) -> str | None:
+    """Why the agent may not merge this MR itself, or None when it may.
+
+    A condition that cannot be checked counts as not met. The path list and merge_ready.py both
+    come from the target branch, never from the MR, so an MR cannot change what judges it.
+    """
+    import json
+    import shutil
+    import subprocess
+    import tempfile
+    import threading
+    import time
+
+    deadline = time.monotonic() + MERGE_DEADLINE_SECONDS
+
+    def expire() -> None:
+        emit_deny("MERGE BLOCKED: the merge conditions were not all proven before the hook's deadline.")
+        sys.stdout.flush()
+        os._exit(0)
+
+    # A child that outlives its kill can keep the hook past the harness timeout, which lets the merge run.
+    watchdog = threading.Timer(MERGE_DEADLINE_SECONDS + _WATCHDOG_GRACE_SECONDS, expire)
+    watchdog.daemon = True
+    watchdog.start()
+
+    def run(cmd: list[str], cap: int) -> subprocess.CompletedProcess:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise subprocess.TimeoutExpired(cmd, 0)
+        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=min(cap, left))
+
+    try:
+        r = run(["glab", "api", f"projects/:id/merge_requests/{iid}"], 60)
+        if r.returncode != 0:
+            return f"the MR could not be read: {r.stderr.strip()[:200]}"
+        mr = json.loads(r.stdout)
+        if mr.get("state") != "opened" or mr.get("target_branch") != "main":
+            return f"MR !{iid} is not an open MR into main"
+        pipeline = mr.get("head_pipeline") or {}
+        if pipeline.get("status") != "success" or pipeline.get("source") != "merge_request_event":
+            return f"the head pipeline of MR !{iid} is not a green merge request pipeline"
+        head = str(mr.get("sha", ""))
+        if not _SHA.fullmatch(head):
+            return f"MR !{iid} has no head commit"
+        if head != sha:
+            return f"--sha is not the head commit of MR !{iid}"
+        r = run(["git", "fetch", "--quiet", _REMOTE, "main", f"refs/merge-requests/{iid}/head"], 120)
+        if r.returncode != 0:
+            return f"the MR head could not be fetched: {r.stderr.strip()[:200]}"
+        r = run(["git", "show", f"{_REMOTE}/main:{ROUTING_REL}"], 30)
+        if r.returncode != 0:
+            return f"{ROUTING_REL} could not be read on {_REMOTE}/main"
+        routing = json.loads(r.stdout)
+        allowed, excluded = routing.get("agent_merge_paths"), routing.get("agent_merge_except")
+        if not all(isinstance(v, list) and all(isinstance(p, str) and p for p in v) for v in (allowed, excluded)):
+            return f"{ROUTING_REL} on {_REMOTE}/main holds no usable `agent_merge_paths` and `agent_merge_except`"
+        if not allowed:
+            return f"{ROUTING_REL} on {_REMOTE}/main lists no path the agent may merge"
+        r = run(["git", "diff", "--name-only", "-z", "--no-renames", f"{_REMOTE}/main...{head}"], 60)
+        if r.returncode != 0:
+            return f"the diff of MR !{iid} could not be read: {r.stderr.strip()[:200]}"
+        paths = [p for p in r.stdout.split("\0") if p]
+        if not paths:
+            return f"MR !{iid} changes nothing"
+        outside = _outside_allowlist(paths, allowed, excluded)
+        if outside:
+            return f"MR !{iid} touches paths outside the agent-merge list, so the CPO merges it: {', '.join(outside[:5])}"
+        seeds = _matching(paths, [_CORRECTION_SEEDS])
+        if seeds and not str(mr.get("source_branch", "")).startswith(_RESEARCH_BRANCH):
+            return (f"MR !{iid} changes correction seeds ({', '.join(seeds[:3])}) outside a "
+                    f"`{_RESEARCH_BRANCH}*` branch, the only branch whose pipeline checks their rows")
+        work = tempfile.mkdtemp(prefix="agent_merge_")
+        tree = os.path.join(work, "main")
+        try:
+            r = run(["git", "worktree", "add", "--detach", "--quiet", tree, f"{_REMOTE}/main"], 120)
+            if r.returncode != 0:
+                return f"{_REMOTE}/main could not be checked out: {r.stderr.strip()[:200]}"
+            r = run([sys.executable, os.path.join(tree, _READY_SCRIPT), iid], 420)
+        finally:
+            subprocess.run(["git", "worktree", "remove", "--force", tree], cwd=root, capture_output=True, timeout=60)
+            shutil.rmtree(work, ignore_errors=True)
+        if r.returncode != 0:
+            return f"MR !{iid} is not ready to merge:\n{(r.stdout + r.stderr).strip()[:800]}"
+    except Exception as exc:
+        return f"the merge conditions could not be checked ({type(exc).__name__}: {exc})"
+    finally:
+        watchdog.cancel()
+    return None
 
 
 def _staged_diff_bytes(root: str) -> bytes | None:
@@ -881,11 +1022,19 @@ def main() -> int:
 
     for part in parts:
         if _MR_MERGE.match(part):
+            form = _agent_merge_form(cmd) if len(parts) == 1 else None
+            why = _agent_merge_denial(*form, cwd_root(event, _repo_root())) if form else None
+            if form and why is None:
+                continue
             emit_deny(
-                "MERGE BLOCKED: `glab mr merge` is the user's action, not the agent's. "
-                "Open the MR, get CI green, and stop — the user merges. "
-                "(Only proceed if the user explicitly typed 'merge it' in this thread.) "
-                "See docs/working_agreement.md §3."
+                "MERGE BLOCKED: `glab mr merge` waits for the user, unless the MR is one the agent may merge. "
+                "(Proceed if the user explicitly typed 'merge it' in this thread.) "
+                "The agent may merge an MR as the sole command, in the form "
+                "`glab mr merge <number> --sha <head commit> [--yes] [--remove-source-branch]`, "
+                "when its pipeline is green, `scripts/merge_ready.py` says ready, and its diff "
+                "touches only paths in `agent_merge_paths` of `.claude/review_routing.json` on `gitlab/main`."
+                + (f" Not allowed: {why}" if why else "")
+                + " See docs/working_agreement.md §3."
             )
             return 0
 

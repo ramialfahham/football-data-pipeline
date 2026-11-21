@@ -67,8 +67,7 @@ and pass.
   `contract.md` and `escalations.log` are NOT, because they carry authority and you
   need them. A defect in the
   builder's notes is not yours to find.
-- Unclear which layer owns a piece of logic? That classification is a CPO
-  decision (§10 meta-rule) — ESCALATE.
+- Unclear which layer owns a piece of logic? ESCALATE.
 
 ## Output format (exact; machine-parsed)
 

@@ -80,7 +80,7 @@ no such thing as a small SEO bug here.
 - **You review code and `contract.md`, never the review's own paperwork.**
   The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT, because they carry authority.
-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
+- Ambiguous which §10 class a decision falls in → ESCALATE.
 
 **No `risks_checked:` entry may be a presence check.** At programmatic scale "the
 tag is there" is trivially true and tells you nothing — reason about the generated

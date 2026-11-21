@@ -16,7 +16,7 @@ Read this at the start of every session before doing anything else.
 
 **Every unit of work runs Explore → Plan → Confirm → Implement → Verify** (§1). Four steps are machine-gated; **Confirm is the human checkpoint — WAIT for the user's explicit go before implementing.** Exploring options or thinking out loud is not a go. For any file-touching task, use **plan mode** so the harness enforces that wait (`EnterPlanMode` → plan-back → the user approves `ExitPlanMode`).
 
-Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, **and a recommendation with its reasoning**), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, the classification itself is a CPO decision — never decide by analogy.
+Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, **and a recommendation with its reasoning**), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, §10 Unclear cases says who classifies it.
 
 ## North star
 
@@ -64,7 +64,7 @@ pointers; when it disagrees with a row above, it loses and gets corrected.
 | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
 | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
 | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
-| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen**: cite a past entry, never add one. |
+| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen**: cite a past entry, never add one. |
 | GitHub Actions tree — disabled, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
 
 ⛔ **The two bold rows are load-bearing.** Without them a page gets rebuilt against a design its

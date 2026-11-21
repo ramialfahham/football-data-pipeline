@@ -103,7 +103,7 @@ the CTO.
   including the evidence artifacts; `contract.md` and `escalations.log` are NOT,
   because they carry authority. Read `rendered_page_evidence.md` from the working
   tree as EVIDENCE about the built page; do not review its prose.
-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
+- Ambiguous which §10 class a decision falls in → ESCALATE.
 
 **When the diff has a rendering-affecting `site_v2/src/**` change in scope, at
 least one `risks_checked:` entry must come from the built output or the rendered

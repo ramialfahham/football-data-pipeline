@@ -79,7 +79,7 @@ diff here as the next incident until proven otherwise.
   `contract.md` and `escalations.log` are NOT, because they carry authority and you
   need them. A defect in the
   builder's notes is not yours to find.
-- Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
+- Ambiguous which §10 class a decision falls in → ESCALATE.
 
 ## Output format (exact; machine-parsed)
 
