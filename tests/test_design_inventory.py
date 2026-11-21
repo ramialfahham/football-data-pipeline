@@ -1221,6 +1221,31 @@ def test_a_hyphen_break_of_a_word_that_fits_its_line_still_counts(tmp_path):
     assert split == 1, out
 
 
+def _club_in_a_box_of(widest: list[str], delta: float, text: str) -> str:
+    """A club name `text` in a box as wide as the widest of `widest` is on one line, plus `delta` pixels,
+    measured in the page."""
+    return (
+        '<div class="box" id="box"><span class="club"><span class="cn"><span class="nb" id="name">%s</span></span></span></div>'
+        '<script>const widths = %s.map((s) => { const probe = document.createElement("span");'
+        'probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";'
+        'probe.textContent = s; document.getElementById("name").appendChild(probe);'
+        'const w = probe.getBoundingClientRect().width; probe.remove(); return w; });'
+        'document.getElementById("box").style.width = (Math.max(...widths) + %s) + "px";</script>'
+        % (text, json.dumps(widest), delta))
+
+
+@needs_browser
+def test_a_club_name_wider_than_its_line_by_less_than_a_pixel_broken_at_its_hyphens_is_not_a_split(tmp_path):
+    split, out = _split_count(tmp_path, _club_in_a_box_of(["Montigny-lès-Metz"], -0.4, "Montigny-lès-Metz"))
+    assert split == 0, out
+
+
+@needs_browser
+def test_a_club_name_that_fits_its_line_by_a_hair_but_wraps_at_a_hyphen_still_counts(tmp_path):
+    split, out = _split_count(tmp_path, _club_in_a_box_of(["Weston-super", "Aaaa Weston-"], 0.4, "Aaaa Weston-super"))
+    assert split == 1, out
+
+
 def _day_page_check(tmp_path: Path, name: str, body: str, expect: str) -> tuple[int, str]:
     """The check on one built page called `name`, expecting `expect`, at 375px."""
     real = di.DOC.read_text(encoding="utf-8")
