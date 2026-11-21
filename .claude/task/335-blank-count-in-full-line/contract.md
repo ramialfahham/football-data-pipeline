@@ -16,6 +16,7 @@ scope_paths:
   - dbt_project/tests/assert_team_stat_blank_counts_follow_the_blank_rule.sql
   - dbt_project/seeds/player_season_answer_key.csv
   - dbt_project/seeds/team_match_cleaning_answer_key.csv
+  - dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
 
 impact_map: >
   writers: base_apif__fixture_statistics is the only model changed (the `filled` CTE, offsides).
@@ -69,7 +70,17 @@ guard: >
   not zero it. The coordinating session ruled that a blank team offsides count becomes 0 only when
   no player stat line of that team in the match, in any fetch, shows an offside above 0
   (stg_apif__fixture_players, read in the base model as a per-team maximum; the players' offsides
-  are never summed into the team count, so no new derivation). The read adds one scan of the raw
+  are never summed into the team count, so no new derivation). The guard keys on the cleaned team
+  id: one team_id_map of (fixture, provider team id) to team id, built with the model's own
+  override joins (fixture_team_id_overrides: reattribute_in_fixture, alias,
+  reattribute_if_cohabiting) over the statistics rows and the player rows, serves both the
+  statistics lines and the guard, so a remapped team cannot be missed. No remapped team-match in
+  prod has a full line with a blank offsides count and a player offside above 0 (measured), so no
+  answer-key row can show it; the shared map is the guarantee, and a singular test
+  (assert_team_offsides_zero_has_no_player_offside) pins it on every build: no team-match has an
+  offsides count of 0 while a player of it, by the cleaned team id, has an offside above 0, except
+  where the other team's count is above 0 (the existing opponent rule) and the one match whose
+  line has the provider's 0 for both teams (fixture 1149592). The read adds one scan of the raw
   players JSON per build (about 0.8 GB, a few cents a night, no new run). Two hand-worked rows are
   added to team_match_cleaning_answer_key.csv: fixture 1180382 team 119 stays blank, fixture
   1145521 team 9 becomes 0.

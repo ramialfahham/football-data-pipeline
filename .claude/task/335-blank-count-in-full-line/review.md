@@ -1,6 +1,6 @@
 # Review — claude/blank-count-in-full-line — 2026-11-21
 
-diff_sha256: ce6ba68d7642c64f069df11e883c6281bf98f21d40a4dd77a6b0d3aefb9c2d99
+diff_sha256: 48eea9c73401b0858cba1e677ef7ab4e700d6c1e57c8384a92689436bcf5bffd
 
 rounds: 3
 
@@ -18,6 +18,7 @@ risks_checked:
 - The filled CTE reads the team's own raw fouls and possession, not the filled aliases or the opponent's; newest_values is per stat across fetches, so the clause means any fetch carried them.
 - The new singular test's full line (cleaned fouls above 0 and possession) is a subset of the model's, so the full-line half cannot fail on correct data; the thin-line half is limited to a thin, blank opponent, which is stated in the test.
 - Delta, the player-offside guard (stg_apif__fixture_players read as a per-team maximum): no dependency cycle, no fan-out, a team with no player lines or all-null lines passes as ruled, the two team-match answer-key rows are well formed. Accepted limit: the guard keys on the provider's raw team id, which agrees with the remapped id on today's prod data (one guarded match in both); a test of the cleaned team count against the players' maximum is recommended once measured.
+- Delta, the guard on the cleaned team id (round 3 of the cap): one team_id_map shared by the statistics lines and the guard, built with the model's own override joins; the inner join cannot lose a pivoted row and the fan-out is the old one; the compiled model against prod base: 123,250 rows each side, 0 only in one, only offsides differs (4,643 null to 0, none the other way). A test-only addition after this review, assert_team_offsides_zero_has_no_player_offside, pins the guard per build (0 rows today).
 
 ## escalations
 (none)
