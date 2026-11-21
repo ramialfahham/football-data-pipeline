@@ -73,15 +73,25 @@ fixture_clock as (
         on fixture_offsets.kickoff_time_zone = import_dim_timezone.time_zone
 ),
 
+import_base_apif__fixture_rounds as (
+    select * from {{ ref('base_apif__fixture_rounds') }}
+),
+
 fixtures as (
     select
         import_base_apif__fixtures_next.*,
         fixture_clock.kickoff_time_zone,
         fixture_clock.kickoff_local,
-        fixture_clock.kickoff_zone_label
+        fixture_clock.kickoff_zone_label,
+        import_base_apif__fixture_rounds.round_stage_kind
     from import_base_apif__fixtures_next
     left join fixture_clock
         on import_base_apif__fixtures_next.fixture_id = fixture_clock.fixture_id
+    left join import_base_apif__fixture_rounds
+        on
+            import_base_apif__fixtures_next.league_code = import_base_apif__fixture_rounds.league_code
+            and import_base_apif__fixtures_next.season = import_base_apif__fixture_rounds.season_api_year
+            and import_base_apif__fixtures_next.round_name = import_base_apif__fixture_rounds.round_name
 )
 
 select
@@ -105,7 +115,14 @@ select
     status_short,
     status_long,
     status_elapsed,
+    is_finished,
+    is_played,
+    is_awarded_result,
+    is_shootout,
     round_name,
+    round_order,
+    round_stage_kind,
+    coalesce(round_stage_kind = 'table' and is_shootout, false) as is_table_shootout,
     goals_home,
     goals_away,
     shootout_home,

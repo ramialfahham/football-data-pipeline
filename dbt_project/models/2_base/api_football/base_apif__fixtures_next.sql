@@ -131,9 +131,17 @@ checked as (
     from cleaned
 )
 
+-- The match's state, decided once here: every reader takes these columns and writes no status list.
+-- Finished means the provider closed the match, a withheld result included; whether a scoreline
+-- stands is a question of the goals columns.
 select
     * except (goals_home, goals_away, shootout_home, shootout_away, winner_team_id, result_needs_research),
     result_needs_research,
+    coalesce(status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO'), false) as is_finished,
+    coalesce(status_short in ('FT', 'AET', 'PEN'), false) as is_played,
+    coalesce(status_short in ('AWD', 'WO'), false) as is_awarded_result,
+    coalesce(status_short = 'PEN', false) as is_shootout,
+    safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as round_order,
     if(result_needs_research, null, goals_home) as goals_home,
     if(result_needs_research, null, goals_away) as goals_away,
     if(result_needs_research, null, shootout_home) as shootout_home,
