@@ -291,11 +291,11 @@ workflow:
 #   data:build:mr   asks "could this MR break the build?"        -> revalidate broadly
 #   data:build:main asks "did prod's compiled output change?"    -> rebuild narrowly
 #
-# A FULL prod warehouse build is the most expensive job in this file. Five entries
-# below cannot change a single compiled dbt artifact, yet each triggered one on every
-# push to main: measured over 39 triggering pushes, 17 changed nothing that could.
-# They stay in the MR anchor — a CI, ingestion or script change must still be
-# revalidated — and leave the prod one.
+# A FULL prod warehouse build is the most expensive job in this file, and an MR build
+# is billed BigQuery work too. The MR anchor lists what that job builds or runs: dbt's
+# inputs, the dbt version, the scripts it runs and the CI file. Offline gates
+# (scripts/check_*.py), reporting scripts (scripts/data_trust_*.py) and ingestion code
+# are none of those: the job reads no file of theirs and ingests nothing.
 #
 # Before adding a path to *data_paths_prod, ask the narrow question: can editing this
 # file change the SQL dbt compiles? If not, it belongs in the MR anchor alone.
@@ -307,20 +307,17 @@ workflow:
   - dbt_project/tests/**/*
   - dbt_project/*.yml
   - dbt_project/.sqlfluff
-  - ingestion/**/*
   - docs/competition_registry.yml
-  - scripts/check_*.py
-  - scripts/data_trust_*.py
+  - scripts/stale_prod_nodes.py
+  - scripts/wait_for_nightly.py
   - requirements.txt
   - .gitlab-ci.yml
 
 # The prod anchor: ONLY paths that can change what dbt compiles. Dropped relative to
 # the MR anchor, each with the reason it cannot:
 #   .gitlab-ci.yml        — changes how the build is invoked, not what compiles
-#   scripts/check_*.py    — offline governance gates; they run in validate:governance
-#   scripts/data_trust_*.py — reporting only; no model reads them
+#   scripts/stale_prod_nodes.py, scripts/wait_for_nightly.py — steps the MR build runs; they compile nothing
 #   requirements.txt      — see the residual risk note below
-#   ingestion/**/*        — writes RAW; it does not participate in dbt compilation
 #
 # RESIDUAL RISK, stated rather than left for someone to discover: a dbt version bump
 # in requirements.txt CAN change compiled SQL, and prod will not rebuild for it on its
@@ -352,8 +349,8 @@ workflow:
 # snapshot/test), and `check_layer_contract.py` + `check_registry_var_sync.py` —
 # the second of which imports `scripts/sync_dbt_vars.py`, so that module is listed
 # explicitly (`scripts/check_*.py` does not match its filename; platform-reviewer
-# round 1 caught this). `*data_paths_mr` already covers ingestion/dbt/checks/
-# requirements; this adds what changes the IMAGE ITSELF and is not a dbt/CI input:
+# round 1 caught this). This list covers the nightly's ingestion code and checks, which
+# `*data_paths_mr` does not; it adds what changes the IMAGE ITSELF and is not a dbt/CI input:
 # the root Dockerfile, `.dockerignore`, and the two files entrypoint.sh's shebang
 # and `dbt` invocation actually depend on under deploy/nightly/ (the runbook is
 # excluded on purpose — docs-only, never baked in).
@@ -873,9 +870,12 @@ data:build:mr:
     # dbt cannot tell whether a seed over 1 MB changed, so each seed this MR changed is also selected by path.
     - SEED_DIFF=$(git diff --name-only "${MR_TARGET_SHA:?}" HEAD -- 'dbt_project/seeds/*.csv') || exit 1
     - CHANGED_SEEDS=$(for f in $SEED_DIFF; do printf 'path:%s+ ' "${f#dbt_project/}"; done)
+    # A prod model older than one of its parent tables was skipped or interrupted by a prod build.
+    # It is built here with its descendants, so a deferred read never meets a stale prod table.
+    - STALE_PROD_MODELS=$(python scripts/stale_prod_nodes.py /tmp/main-state/manifest.json) || exit 1
     - cd dbt_project
     - >-
-      dbt build --select state:modified+ $CHANGED_SEEDS --exclude tag:freshness_check
+      dbt build --select state:modified+ $CHANGED_SEEDS $STALE_PROD_MODELS --exclude tag:freshness_check
       --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
     # A merge request is tested by the tests inside this build, those on the nodes it changes and
     # their descendants; the full test suite runs in data:build:main and the nightly.

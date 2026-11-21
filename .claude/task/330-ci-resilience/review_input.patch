@@ -1,0 +1,498 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index be99272b..a9bfdfcd 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -53,6 +53,9 @@ and pass.
+    from `dbt ls --select <model>+` / the dbt MCP, not asserted) + the CI layer
+    rules that apply. A spot-fix shipped without the end-to-end map, or an
+    asserted / dishonest "trivial" short-form, → FAIL.
++9. A change to a model's rule must change every test that recomputes that rule
++   in the same MR. A test never hard-codes a provider's competition, team or
++   table name; it reads them from the model or a seed.
+ 
+ ## Verdict rules (no free passes)
+ 
+diff --git a/.claude/task/330-ci-resilience/contract.md b/.claude/task/330-ci-resilience/contract.md
+new file mode 100644
+index 00000000..64d3952f
+--- /dev/null
++++ b/.claude/task/330-ci-resilience/contract.md
+@@ -0,0 +1,91 @@
++# Task contract — the MR data build rebuilds the prod models that are stale, and skips MRs with no dbt-relevant change
++
++objective: >
++  Issue 330. data:build:mr builds every prod model that is older than one of its parent tables,
++  with its descendants, into the merge request's own datasets, so its deferred reads only ever
++  meet consistent prod tables. It no longer triggers on paths that cannot change what dbt builds
++  or tests in it. One reviewer-checklist line is added.
++
++refs: >
++  Issue 330 (approved in chat, 20 Nov 2026), reworked as approved in chat the same day.
++
++scope_paths:
++  - .gitlab-ci.yml
++  - scripts/stale_prod_nodes.py
++  - tests/test_stale_prod_nodes.py
++  - tests/test_ci_data_job_invariants.py
++  - dbt_project/docs/layering.md
++  - .claude/agents/analytics-engineer-reviewer.md
++  - .claude/task/330-ci-resilience/contract.md
++  - .claude/task/330-ci-resilience/review.md
++  - .claude/task/330-ci-resilience/review_input.patch
++
++protected_override: >
++  .gitlab-ci.yml and .claude/agents/analytics-engineer-reviewer.md edits approved in chat,
++  20 Nov 2026, as issue 330; the MR head declares the locked files. The reviewer line is the text
++  the CPO approved in chat on 20 Nov 2026.
++
++impact_map: >
++  writers: no model, seed or raw table changes. .gitlab-ci.yml changes one anchor, .data_paths_mr,
++  one comment above .data_paths_image, and one job, data:build:mr, which gains one script line and
++  a selection on its `dbt build`. data:build:main, data:nightly, the deploy jobs and
++  validate:governance keep their scripts; .data_paths_prod is untouched. dbt_project/docs/layering.md
++  changes one paragraph that says what a merge request is tested on.
++  downstream: readers of .data_paths_mr, from `grep -n "data_paths_mr" .gitlab-ci.yml` and
++  `grep -rn "data_paths_mr" tests scripts docs`: data:wait-prod-build and data:build:mr in
++  .gitlab-ci.yml, tests/test_ci_data_job_invariants.py and tests/test_merged_result_ci.py (which
++  keeps the two rules equal). scripts/stale_prod_nodes.py is new and is called by no other job.
++  A dbt file reads none of the dropped paths: `grep -rn "scripts/\|ingestion/" dbt_project` finds
++  comments and descriptions only.
++  layer_rules: not applicable, no model changes.
++  deploy_order: takes effect on the next MR pipeline after merge. The new step reads the manifest
++  that data:build:mr already compiles from the target commit with --target prod, and BigQuery
++  metadata of the prod datasets with the credentials the job already holds.
++  blast_radius: every MR pipeline that triggers data:build:mr. While prod is whole the new step
++  finds nothing and the build is unchanged: against the live prod of 20 Nov 2026 it finds 0 stale
++  models of 138. While prod is partly built, the build also runs the stale models and their
++  descendants and their tests; a test of those that fails on the rebuilt data is the MR's
++  to fix, as a prod test it does not touch is not selected. MRs touching only scripts/check_*.py,
++  scripts/data_trust_*.py or ingestion/ get no data build. If the metadata read fails the job
++  fails before any dbt build.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: the change reads .gitlab-ci.yml as it is on main; !492, !493 and !491 touch no CI file
++
++shared_files:
++  - none: no design baseline, component registry, font coverage or chart screenshot changes
++
++decisions_taken: >
++  The three items of issue 330, approved in chat, 20 Nov 2026, with the route for item 1 approved
++  in chat the same day: no stop and no override. A prod model is stale when one of its parent
++  tables was modified after it, which is exactly where a deferred read would meet a child older
++  than its inputs; it covers a nightly's skips, a data:build:main's, and a build interrupted halfway.
++  Seeds and sources count as fresh, because the build does not rebuild them as models; a view or an
++  ephemeral model is passed through to its table parents. The source is the prod manifest that
++  data:build:mr already compiles into /tmp/main-state, and the last-modified times of the prod
++  datasets in BigQuery's __TABLES__ metadata, which a dry run measured at 0 bytes. The
++  last prod run's run_results.json is not used: data:build:main publishes only the manifest, the
++  catalog and the docs page, and its dbt seed, two builds and test each rewrite that file, and the
++  nightly persists nothing. NEW MECHANISM declared: scripts/stale_prod_nodes.py.
++  RECURRING COST declared: on a day prod is partly built, each MR data build also builds the stale
++  models and their descendants into its own datasets, about the build size of the models that run
++  skipped and at most one full prod build per MR pipeline; the nightly's measured cost in CLAUDE.md
++  is about 129 GB a day for the nightly and the freshness sentinel together, which is the scale.
++  On a whole prod it is nothing. The trigger narrowing lowers cost: an MR changing only the dropped
++  paths no longer starts a BigQuery build. dbt_project/docs/layering.md states what a merge
++  request is tested on and now names the stale models, a one-paragraph edit the CPO's merge approves.
++
++decisions_reserved:
++  - none: nothing else is open.
++
++done_when:
++  - python -m pytest tests/ -q is green.
++  - python scripts/ci_local.py --mr passes.
++  - scripts/stale_prod_nodes.py run against live prod returns no stale model, and a test with the
++    timestamps of a partly built prod returns the skipped models and their descendants.
++  - The MR pipeline is green and python scripts/merge_ready.py <iid> says ready.
++
++amendments: (none)
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 9be74fcf..ee82cf43 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -291,11 +291,11 @@ workflow:
+ #   data:build:mr   asks "could this MR break the build?"        -> revalidate broadly
+ #   data:build:main asks "did prod's compiled output change?"    -> rebuild narrowly
+ #
+-# A FULL prod warehouse build is the most expensive job in this file. Five entries
+-# below cannot change a single compiled dbt artifact, yet each triggered one on every
+-# push to main: measured over 39 triggering pushes, 17 changed nothing that could.
+-# They stay in the MR anchor — a CI, ingestion or script change must still be
+-# revalidated — and leave the prod one.
++# A FULL prod warehouse build is the most expensive job in this file, and an MR build
++# is billed BigQuery work too. The MR anchor lists what that job builds or runs: dbt's
++# inputs, the dbt version, the scripts it runs and the CI file. Offline gates
++# (scripts/check_*.py), reporting scripts (scripts/data_trust_*.py) and ingestion code
++# are none of those: the job reads no file of theirs and ingests nothing.
+ #
+ # Before adding a path to *data_paths_prod, ask the narrow question: can editing this
+ # file change the SQL dbt compiles? If not, it belongs in the MR anchor alone.
+@@ -307,20 +307,17 @@ workflow:
+   - dbt_project/tests/**/*
+   - dbt_project/*.yml
+   - dbt_project/.sqlfluff
+-  - ingestion/**/*
+   - docs/competition_registry.yml
+-  - scripts/check_*.py
+-  - scripts/data_trust_*.py
++  - scripts/stale_prod_nodes.py
++  - scripts/wait_for_nightly.py
+   - requirements.txt
+   - .gitlab-ci.yml
+ 
+ # The prod anchor: ONLY paths that can change what dbt compiles. Dropped relative to
+ # the MR anchor, each with the reason it cannot:
+ #   .gitlab-ci.yml        — changes how the build is invoked, not what compiles
+-#   scripts/check_*.py    — offline governance gates; they run in validate:governance
+-#   scripts/data_trust_*.py — reporting only; no model reads them
++#   scripts/stale_prod_nodes.py, scripts/wait_for_nightly.py — steps the MR build runs; they compile nothing
+ #   requirements.txt      — see the residual risk note below
+-#   ingestion/**/*        — writes RAW; it does not participate in dbt compilation
+ #
+ # RESIDUAL RISK, stated rather than left for someone to discover: a dbt version bump
+ # in requirements.txt CAN change compiled SQL, and prod will not rebuild for it on its
+@@ -352,8 +349,8 @@ workflow:
+ # snapshot/test), and `check_layer_contract.py` + `check_registry_var_sync.py` —
+ # the second of which imports `scripts/sync_dbt_vars.py`, so that module is listed
+ # explicitly (`scripts/check_*.py` does not match its filename; platform-reviewer
+-# round 1 caught this). `*data_paths_mr` already covers ingestion/dbt/checks/
+-# requirements; this adds what changes the IMAGE ITSELF and is not a dbt/CI input:
++# round 1 caught this). This list covers the nightly's ingestion code and checks, which
++# `*data_paths_mr` does not; it adds what changes the IMAGE ITSELF and is not a dbt/CI input:
+ # the root Dockerfile, `.dockerignore`, and the two files entrypoint.sh's shebang
+ # and `dbt` invocation actually depend on under deploy/nightly/ (the runbook is
+ # excluded on purpose — docs-only, never baked in).
+@@ -869,9 +866,12 @@ data:build:mr:
+     # dbt cannot tell whether a seed over 1 MB changed, so each seed this MR changed is also selected by path.
+     - SEED_DIFF=$(git diff --name-only "${MR_TARGET_SHA:?}" HEAD -- 'dbt_project/seeds/*.csv') || exit 1
+     - CHANGED_SEEDS=$(for f in $SEED_DIFF; do printf 'path:%s+ ' "${f#dbt_project/}"; done)
++    # A prod model older than one of its parent tables was skipped or interrupted by a prod build.
++    # It is built here with its descendants, so a deferred read never meets a stale prod table.
++    - STALE_PROD_MODELS=$(python scripts/stale_prod_nodes.py /tmp/main-state/manifest.json) || exit 1
+     - cd dbt_project
+     - >-
+-      dbt build --select state:modified+ $CHANGED_SEEDS --exclude tag:freshness_check
++      dbt build --select state:modified+ $CHANGED_SEEDS $STALE_PROD_MODELS --exclude tag:freshness_check
+       --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
+     # A merge request is tested by the tests inside this build, those on the nodes it changes and
+     # their descendants; the full test suite runs in data:build:main and the nightly.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 24b4cce9..6e972d5e 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -33,7 +33,7 @@ dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is
+ 
+ ⚠ **The CI target is PER MERGE REQUEST; there is no shared `ci` target** (#92, 2026-08-27). It used to be one `ci` target writing `ci_marts` / `ci_analytics` for every branch, and that shared workspace became a real defect the moment the singular tests started reading it instead of prod: a merge request that rebuilt nothing read tables another branch had built, and went red on three tests for reasons that had nothing to do with it. `.gitlab-ci.yml` derives `DBT_CI_TARGET=ci_mr<IID>_<SHA>`. `<SHA>` is the first 8 characters of the target commit the pipeline merged in. The profile's output name and its `dataset:` both come from it. `generate_schema_name`'s target-name prefix isolates the layer datasets, and the profile `dataset:` isolates the base models and seeds. **The macro is unchanged.** CI never expires or deletes these datasets; `scripts/list_mr_scratch.py` lists the sets nothing reads any more. A full set is ~6 GB (~12¢/month).
+ 
+-⚠ **A merge request is tested only on what it changes.** The tests inside the `dbt build` of `data:build:mr` run, those on the models and seeds it changes and their descendants; the full test suite runs in `data:build:main` and the nightly.
++⚠ **A merge request is tested on what it changes, and on the stale prod models.** The tests inside the `dbt build` of `data:build:mr` run, those on the models and seeds it changes and their descendants. The build also rebuilds each prod model older than one of its parent tables, and its descendants. A deferred read then never meets a stale prod table. The full test suite runs in `data:build:main` and the nightly.
+ 
+ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
+ 
+diff --git a/scripts/stale_prod_nodes.py b/scripts/stale_prod_nodes.py
+new file mode 100644
+index 00000000..3aad8338
+--- /dev/null
++++ b/scripts/stale_prod_nodes.py
+@@ -0,0 +1,87 @@
++"""Name the prod models a prod build left older than their inputs, so a merge request build rebuilds them.
++
++A merge request build defers to prod for every model it does not build. When a prod build was cut
++short (an errored node, and every node below it skipped, or an interrupted run), a prod model can be
++older than a parent table, and a deferred read then meets a child that no longer matches its inputs.
++A table model is stale when one of its parent tables was modified after it. Seeds and sources are
++not compared; a view or an ephemeral model is passed through to its table parents.
++
++Reads the prod manifest the job compiles and the last-modified times in BigQuery's `__TABLES__`
++metadata (no table data is read). Prints a dbt selection, `<model>+` per stale model, on one line.
++"""
++
++from __future__ import annotations
++
++import json
++import re
++import sys
++from pathlib import Path
++
++from google.cloud import bigquery
++
++PASS_THROUGH = frozenset({"view", "ephemeral"})
++IDENTIFIER = re.compile(r"^[A-Za-z0-9_-]+$")
++
++
++def _models(manifest: dict) -> dict[str, dict]:
++    return {uid: node for uid, node in manifest["nodes"].items() if node["resource_type"] == "model"}
++
++
++def _relation(node: dict) -> tuple[str, str]:
++    return node["schema"], node.get("alias") or node["name"]
++
++
++def _table_parents(uid: str, models: dict[str, dict]) -> list[str]:
++    """The table models a model reads, looking through views and ephemeral models."""
++    found: list[str] = []
++    for parent in models[uid]["depends_on"]["nodes"]:
++        if parent not in models:
++            continue
++        if models[parent]["config"].get("materialized") in PASS_THROUGH:
++            found.extend(_table_parents(parent, models))
++        else:
++            found.append(parent)
++    return found
++
++
++def stale_models(manifest: dict, modified: dict[tuple[str, str], int]) -> list[str]:
++    """The names of the table models older than a parent table, or missing from the warehouse."""
++    models = _models(manifest)
++    stale = []
++    for uid, node in models.items():
++        if node["config"].get("materialized") in PASS_THROUGH:
++            continue
++        own = modified.get(_relation(node))
++        if own is None:
++            stale.append(node["name"])
++            continue
++        parents = (modified.get(_relation(models[p])) for p in _table_parents(uid, models))
++        if any(p is not None and p > own for p in parents):
++            stale.append(node["name"])
++    return sorted(stale)
++
++
++def last_modified(client: bigquery.Client, manifest: dict) -> dict[tuple[str, str], int]:
++    """Last-modified milliseconds of every table in the datasets the manifest's models live in."""
++    datasets = sorted({(n["database"], n["schema"]) for n in _models(manifest).values()})
++    for part in (p for d in datasets for p in d):
++        if not IDENTIFIER.match(part):
++            raise ValueError(f"not a project or dataset identifier: {part!r}")
++    sql = " union all ".join(
++        f"select '{schema}' as dataset, table_id, last_modified_time from `{database}.{schema}.__TABLES__`"
++        for database, schema in datasets
++    )
++    return {(r.dataset, r.table_id): int(r.last_modified_time) for r in client.query(sql).result()}
++
++
++def main(argv: list[str]) -> int:
++    manifest = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
++    project = next(iter(_models(manifest).values()))["database"]
++    stale = stale_models(manifest, last_modified(bigquery.Client(project=project), manifest))
++    print(f"{len(stale)} stale prod model(s): {', '.join(stale) or 'none'}", file=sys.stderr)
++    print(" ".join(f"{name}+" for name in stale))
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main(sys.argv))
+diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+index 092d3a7a..c69d0bfb 100644
+--- a/tests/test_ci_data_job_invariants.py
++++ b/tests/test_ci_data_job_invariants.py
+@@ -218,6 +218,66 @@ def test_the_mr_data_gate_is_its_lineage_build_alone() -> None:
+         )
+ 
+ 
++STALE_STEP = "STALE_PROD_MODELS=$(python scripts/stale_prod_nodes.py /tmp/main-state/manifest.json) || exit 1"
++
++
++def test_the_mr_data_build_rebuilds_the_prod_models_a_prod_build_left_stale() -> None:
++    """A deferred read must meet only prod tables that match their inputs, so stale ones are built here."""
++    jobs = _script_lines_by_job(_ci_config())
++    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
++    assert STALE_STEP in lines, (
++        "data:build:mr no longer computes the stale prod models from the prod manifest. Without "
++        "them a prod that a build left partly built fails every merge request on tests that read "
++        f"stale deferred prod tables. Expected line: {STALE_STEP}"
++    )
++    compile_at = next(i for i, ln in enumerate(lines) if "dbt compile --target prod --target-path /tmp/main-state" in ln)
++    build_at = next(i for i, ln in enumerate(lines) if ln.startswith("dbt build "))
++    assert compile_at < lines.index(STALE_STEP) < build_at, (
++        "the stale-model step must run after the prod manifest is compiled and before the dbt build."
++    )
++    build = lines[build_at]
++    assert "state:modified+" in build and "$STALE_PROD_MODELS" in build, (
++        "data:build:mr's `dbt build` must select state:modified+ together with $STALE_PROD_MODELS, "
++        f"or the stale prod models are never built into the merge request's datasets. Line: {build}"
++    )
++    for job in ("data:build:main", "data:nightly"):
++        assert "scripts/stale_prod_nodes.py" not in " ".join(jobs[job]), (
++            f"{job} runs the stale-model step. It rebuilds the whole of prod, so there is nothing "
++            "stale for it to select."
++        )
++
++
++def test_the_mr_data_build_triggers_only_on_what_it_builds_or_runs() -> None:
++    """An MR changing no dbt input, dbt version, registry or step of this job gets no BigQuery build."""
++    config = _ci_config()
++    mr_paths = set(config[".data_paths_mr"])
++    allowed = DBT_COMPILE_INPUTS | {
++        "dbt_project/.sqlfluff",
++        "docs/competition_registry.yml",
++        "requirements.txt",
++        ".gitlab-ci.yml",
++    }
++    job_lines = _script_lines_by_job(config)["data:build:mr"]
++    run_scripts = set(re.findall(r"python (scripts/[\w.]+\.py)", "\n".join(job_lines)))
++    own_scripts = {p for p in mr_paths if p.startswith("scripts/")}
++    assert own_scripts == run_scripts, (
++        f".data_paths_mr lists {sorted(own_scripts - run_scripts)} that data:build:mr does not run, "
++        f"and omits {sorted(run_scripts - own_scripts)} that it runs. A script the job never runs "
++        "cannot change its result, and one it runs must start it when it changes."
++    )
++    extra = mr_paths - allowed - own_scripts
++    assert not extra, (
++        f".data_paths_mr gained {sorted(extra)}. Each entry starts a BigQuery build, so it must be a "
++        "dbt input, the dbt version, the registry, the CI file or a script this job runs; an offline "
++        "gate, a reporting script or ingestion code is none of those."
++    )
++    missing = allowed - mr_paths
++    assert not missing, f".data_paths_mr lost {sorted(missing)}, so a change to it no longer gets validated."
++    for job in ("data:wait-prod-build", "data:build:mr"):
++        rule = next(r for r in config[job]["rules"] if isinstance(r, dict) and "changes" in r)
++        assert rule["changes"] == config[".data_paths_mr"], f"{job} no longer triggers on .data_paths_mr"
++
++
+ def test_main_and_nightly_builds_run_the_full_singular_suite() -> None:
+     """Dropping the suite from merge requests leaves it to the prod build, which must keep it."""
+     tests = _dbt_lines("data:build:main", "test")
+diff --git a/tests/test_stale_prod_nodes.py b/tests/test_stale_prod_nodes.py
+new file mode 100644
+index 00000000..8f869f7d
+--- /dev/null
++++ b/tests/test_stale_prod_nodes.py
+@@ -0,0 +1,134 @@
++"""scripts/stale_prod_nodes.py — the prod models a cut-short prod build left older than their inputs."""
++
++from __future__ import annotations
++
++import importlib.util
++import json
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++REPO_ROOT = Path(__file__).resolve().parents[1]
++_spec = importlib.util.spec_from_file_location("stale_prod_nodes", REPO_ROOT / "scripts" / "stale_prod_nodes.py")
++stale_prod_nodes = importlib.util.module_from_spec(_spec)
++_spec.loader.exec_module(stale_prod_nodes)
++
++PROJECT = "proj"
++
++
++def _model(name: str, schema: str, parents: list[str], materialized: str = "table") -> dict:
++    return {
++        "resource_type": "model",
++        "name": name,
++        "schema": schema,
++        "database": PROJECT,
++        "config": {"materialized": materialized},
++        "depends_on": {"nodes": parents},
++    }
++
++
++def _manifest() -> dict:
++    return {
++        "nodes": {
++            "seed.s": {"resource_type": "seed", "name": "s", "depends_on": {"nodes": []}},
++            "model.a": _model("a", "staging", ["seed.s", "source.raw"]),
++            "model.v": _model("v", "staging", ["model.a"], materialized="view"),
++            "model.b": _model("b", "core", ["model.v"]),
++            "model.c": _model("c", "marts", ["model.b"]),
++            "model.d": _model("d", "marts", ["seed.s"]),
++        }
++    }
++
++
++def _times(a: int, b: int, c: int, d: int = 10) -> dict:
++    return {("staging", "a"): a, ("staging", "v"): 1, ("core", "b"): b, ("marts", "c"): c, ("marts", "d"): d}
++
++
++def test_a_whole_build_has_no_stale_model():
++    assert stale_prod_nodes.stale_models(_manifest(), _times(a=100, b=110, c=120)) == []
++
++
++def test_models_skipped_after_an_upstream_rebuild_are_stale():
++    assert stale_prod_nodes.stale_models(_manifest(), _times(a=200, b=110, c=120)) == ["b"]
++    assert stale_prod_nodes.stale_models(_manifest(), _times(a=200, b=110, c=105)) == ["b", "c"]
++
++
++def test_a_view_is_looked_through_to_its_table_parents():
++    times = _times(a=100, b=110, c=120)
++    times[("staging", "v")] = 999
++    assert stale_prod_nodes.stale_models(_manifest(), times) == []
++
++
++def test_a_seed_never_makes_a_model_stale():
++    times = _times(a=100, b=110, c=120)
++    times[("staging", "s")] = 999
++    assert stale_prod_nodes.stale_models(_manifest(), times) == []
++
++
++def test_a_model_missing_from_the_warehouse_is_stale():
++    times = _times(a=100, b=110, c=120)
++    del times[("core", "b")]
++    assert stale_prod_nodes.stale_models(_manifest(), times) == ["b"]
++
++
++def test_a_view_is_never_itself_listed():
++    times = _times(a=100, b=110, c=120)
++    del times[("staging", "v")]
++    assert stale_prod_nodes.stale_models(_manifest(), times) == []
++
++
++def test_an_alias_names_the_relation():
++    manifest = _manifest()
++    manifest["nodes"]["model.b"]["alias"] = "b_table"
++    times = _times(a=100, b=0, c=120)
++    times[("core", "b_table")] = 110
++    assert stale_prod_nodes.stale_models(manifest, times) == []
++
++
++def _client(rows):
++    client = SimpleNamespace()
++    client.query = lambda sql: SimpleNamespace(result=lambda: rows, sql=sql)
++    return client
++
++
++def test_last_modified_reads_the_metadata_of_each_dataset_once():
++    seen = []
++    rows = [SimpleNamespace(dataset="core", table_id="b", last_modified_time="110")]
++
++    def query(sql):
++        seen.append(sql)
++        return SimpleNamespace(result=lambda: rows)
++
++    client = SimpleNamespace(query=query)
++    assert stale_prod_nodes.last_modified(client, _manifest()) == {("core", "b"): 110}
++    assert len(seen) == 1
++    for dataset in ("staging", "core", "marts"):
++        assert f"`proj.{dataset}.__TABLES__`" in seen[0]
++
++
++def test_a_schema_that_is_not_an_identifier_is_refused():
++    manifest = _manifest()
++    manifest["nodes"]["model.b"]["schema"] = "core`; drop"
++    with pytest.raises(ValueError):
++        stale_prod_nodes.last_modified(_client([]), manifest)
++
++
++def test_main_prints_one_selection_line(tmp_path, monkeypatch, capsys):
++    path = tmp_path / "manifest.json"
++    path.write_text(json.dumps(_manifest()), encoding="utf-8")
++    monkeypatch.setattr(stale_prod_nodes, "last_modified", lambda client, manifest: _times(a=200, b=110, c=105))
++    monkeypatch.setattr(stale_prod_nodes.bigquery, "Client", lambda project: object())
++    assert stale_prod_nodes.main(["stale_prod_nodes.py", str(path)]) == 0
++    out = capsys.readouterr()
++    assert out.out == "b+ c+\n"
++    assert "2 stale prod model(s): b, c" in out.err
++
++
++def test_main_prints_an_empty_selection_when_nothing_is_stale(tmp_path, monkeypatch, capsys):
++    path = tmp_path / "manifest.json"
++    path.write_text(json.dumps(_manifest()), encoding="utf-8")
++    monkeypatch.setattr(stale_prod_nodes, "last_modified", lambda client, manifest: _times(a=100, b=110, c=120))
++    monkeypatch.setattr(stale_prod_nodes.bigquery, "Client", lambda project: object())
++    assert stale_prod_nodes.main(["stale_prod_nodes.py", str(path)]) == 0
++    assert capsys.readouterr().out == "\n"
