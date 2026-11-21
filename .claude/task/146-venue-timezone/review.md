@@ -1,6 +1,8 @@
 # Review — claude/146-venue-timezone — 2026-11-21
 
-diff_sha256: 809a0b72bfc98e0c88aeaaf81904cd88a714dc0172066fd01146777afdefe9bb
+diff_sha256: 6fbd1a7899c70c67d2d0f9902680bc61d3860911489d96e0c7053de2b4bffef8
+
+Change after the four verdicts (not reviewed): the local CI run failed two pin tests because the branch lowered a count each, so two numbers were lowered (`PINNED_LINES` 267 to 266 and `PINNED_FILES` 91 to 90 in `tests/test_no_decision_history_in_code.py`; the `docs/wireframes/00_overview.md` long-sentence pin 12 to 11 in `tests/test_sentence_length_in_docs.py`), and the two test files were added to `scope_paths`. The server-side rebase onto main 91961595 changed no content of this branch's files: the only file that differs, `dbt_project/seeds/schema.yml`, carries the same hunks of this branch before and after.
 
 rounds: 4
 
