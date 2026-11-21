@@ -299,7 +299,7 @@ locale's `Intl` conventions and renders a null as `–`.
 |---|---|---|
 | Fixture | `SportsEvent` | teams as `competitor`, kickoff, venue snapshot |
 | Team | `SportsTeam` | crest as `logo`, memberOf league |
-| Player | `Person` (athlete) | photo, nationality |
+| Player | `Person` (athlete) | nationality |
 | All | `BreadcrumbList` | mirrors the URL hierarchy |
 
 Each page's spec (`site_v2/src/specs/**/*.spec.json`, field `seo.schema_org`) names its type.

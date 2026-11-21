@@ -110,7 +110,6 @@ const entity = {
   "@type": "Person",
   name: name || undefined,
   affiliation: team || undefined,
-  ...(player.photo ? { image: player.photo } : {}),
 };
 const crumbs = [
   { name: t(lang, "crumbHome"), href: localeHref(lang) },
@@ -129,7 +128,6 @@ const TAB = {
   description={description}
   entity={entity}
   crumbs={crumbs}
-  image={player.photo ?? undefined}
   section="players"
 >
   <div class="inner">

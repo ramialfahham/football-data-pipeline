@@ -46,7 +46,6 @@ function second(p: LineupPlayer): string[] {
                 <PlayerRow
                   lang={lang}
                   name={p.name ?? DASH}
-                  photo={p.photo}
                   line={second(p)}
                   numbers={p.minutes != null ? [{ value: p.minutes, term: "minutes" }] : []}
                 />

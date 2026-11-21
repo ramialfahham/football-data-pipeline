@@ -17,7 +17,6 @@ const { player, format, lang } = Astro.props;
 <PlayerRow
   lang={lang}
   name={player.player_name}
-  photo={player.player_photo_url}
   line={[positionLabel(lang, player.position_code)]}
   value={formatValue(player.value, format, lang)}
   id={player.player_sk}

@@ -1,0 +1,632 @@
+diff --git a/.claude/task/36-img-origin-pin/contract.md b/.claude/task/36-img-origin-pin/contract.md
+new file mode 100644
+index 00000000..62aa3f3d
+--- /dev/null
++++ b/.claude/task/36-img-origin-pin/contract.md
+@@ -0,0 +1,88 @@
++# Task contract — player photos off and the build fails on an image from a foreign origin
++
++objective: >
++  Apply the photos-off ruling: no built page shows or names a provider player photo. A player row and
++  the player header show the initials. The player page names no image in its meta or JSON-LD.
++  `npm run build` gains a pin on the images the built pages name: an `<img>` or `<source>` address,
++  an `og:image` or `twitter:image` address and a JSON-LD `image` or `logo` address. Each is classed
++  as a provider player-photo, a provider crest or logo, or another foreign origin. Player photos and
++  other foreign origins are pinned at 0 on every build. Provider crests and logos are pinned at the
++  count measured on the committed sample build; the pin holds on a sample build, in both directions,
++  and is reported on a full export. The crest hosting (#36) lowers the crest pin to 0.
++refs: "#36, #290 (gate item: 0 img from the provider's player-photo path), #293 (shirts replace the initials later)"
++
++scope_paths:
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - site_v2/src/components/ui/PlayerRow.astro
++  - site_v2/src/components/player/PlayerHeader.astro
++  - site_v2/src/components/player/PlayerIndexRow.astro
++  - site_v2/src/components/fixture/MatchLineups.astro
++  - site_v2/src/components/fixture/PlayerToWatch.astro
++  - site_v2/src/components/team/TeamSquad.astro
++  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
++  - docs/site_architecture.md
++  - docs/ui_design_brief.md
++  - .claude/task/36-img-origin-pin/contract.md
++  - .claude/task/36-img-origin-pin/review.md
++  - .claude/task/36-img-origin-pin/review_input.patch
++  - .claude/task/36-img-origin-pin/acceptance_evidence.md
++  - .claude/task/36-img-origin-pin/rendered_page_evidence.md
++
++impact_map: >
++  writers: none. No table or model is written. The export keeps serving `photo` and
++  `player_photo_url` in the payloads; the components stop reading them.
++  downstream: `PlayerRow.astro` is imported by `PlayerIndexRow.astro`, `TeamSquad.astro`,
++  `MatchLineups.astro` and `PlayerToWatch.astro` (grep over `site_v2/src`: no other importer). The
++  player header and the player page read `player.photo` only to pass it to `Crest.astro` and to the
++  layout's `image` and the JSON-LD entity. `check-built-pages.mjs` runs as the last step of `npm run
++  build` (pinned by `site_v2/scripts/build-wiring.test.mjs`). No dbt model, export script or other
++  page file changes; no dbt lineage applies.
++  layer_rules: none apply. `check_layer_contract.py` reads `dbt_project/models/**` only. The
++  components drop a field and add no logic.
++  deploy_order: independent. A full export build reports the provider counts while their pins are
++  above 0 and fails on any player photo and any other foreign origin.
++  blast_radius: every page that shows a player row or the player header loses its `<img>` and shows
++  the initials: the Players page, the nation pages, the Team page squad, the match page line-ups
++  and Players to watch, the Player page. The CSS slot `.pphoto` and the registry slot `photo` stay.
++  The measured counts, before and after, are in the MR head.
++
++depends_on:
++  - none: the change reads the built pages and the components; no open MR's code is needed. Open MRs !503 and !504 touch other files.
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes; the player rows keep the same box and show the initials the rows already show when a player has no photo
++
++decisions_taken: >
++  The coordinating session's message of 2026-11-21 applies the photos-off ruling (CPO, approved in
++  chat, 2026-11-12, #290): the initials are today's no-photo display, #293 replaces them with shirts
++  later, so no new design choice is made. Three core-document lines drop the word "photo" and
++  change nothing else: the `Person` row of the SEO table in `docs/site_architecture.md`, and the
++  Images row and the Player Identity line in `docs/ui_design_brief.md`. The edit is strip-only,
++  describes the output the photos-off ruling removed, and its exact text stands in the MR head,
++  where the CPO's merge approves it (working_agreement §10, core text). The same message pins player photos at 0 on every
++  build, crests and logos at the measured sample count, and other hosts at 0. No new dependency, no
++  cost, no new pipeline run. The check extends the existing built-pages check.
++
++decisions_reserved:
++  - "none: the change shows the initials the rows already show when a player has no photo, per the photos-off ruling of 2026-11-12. The licence question for re-hosting crests and logos is answered separately and belongs to step 2 of #36."
++
++approved_design:
++  - match: #132
++  - team: #134
++  - players: #135
++  - player: #136
++
++acceptance_criteria:
++  - "No built page names a provider player or coach photo: the built-pages check, with the player-photo pin at 0, passes on the build of the committed sample and counts 0 player photos in `img`, `source`, `og:image`, `twitter:image` and JSON-LD addresses."
++  - "A player row on the Players page, a nation page, the Team page squad, the match page line-ups and Players to watch shows the player's initials in `.pphoto` and holds no `<img>`."
++  - "The Player page header shows the initials in its crest circle and holds no `<img>`."
++  - "The Player page carries no `og:image`, no `twitter:image` and no JSON-LD `image` from the player's photo."
++  - "A built page with a provider player-photo address fails the built-pages check, whatever the build (unit test)."
++  - "A provider crest or logo count that differs from its pin fails a sample build and is only reported on a full export, with the manifest-present branch of `main` covered by a test."
++
++done_when:
++  - "`cd site_v2 && node --test scripts/check-built-pages.test.mjs scripts/build-wiring.test.mjs` passes."
++  - "`cd site_v2 && npm run build` on the committed sample passes and prints the image counts, 0 player photos."
++  - "`python scripts/ci_local.py --mr` passes."
++
++amendments: (none)
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index a65ce69b..12dd0d40 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -299,7 +299,7 @@ locale's `Intl` conventions and renders a null as `–`.
+ |---|---|---|
+ | Fixture | `SportsEvent` | teams as `competitor`, kickoff, venue snapshot |
+ | Team | `SportsTeam` | crest as `logo`, memberOf league |
+-| Player | `Person` (athlete) | photo, nationality |
++| Player | `Person` (athlete) | nationality |
+ | All | `BreadcrumbList` | mirrors the URL hierarchy |
+ 
+ Each page's spec (`site_v2/src/specs/**/*.spec.json`, field `seo.schema_org`) names its type.
+diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
+index 07c33d36..15a57e2f 100644
+--- a/docs/ui_design_brief.md
++++ b/docs/ui_design_brief.md
+@@ -57,7 +57,7 @@ thing.
+ | Color semantics | Win, draw and loss (W/D/L) use one consistent encoding: color plus letter, never color alone. Each metric has a good direction, which the data carries in `direction`. The design expresses better and worse consistently. |
+ | Accessibility | WCAG AA (Web Content Accessibility Guidelines, level AA): contrast in both themes, touch targets, reduced motion. |
+ | Performance | The site is static and fast: no heavy JavaScript, and charts are lightweight islands. Design for instant first paint, within a Core Web Vitals budget. |
+-| Images | Team crests and player photos come from the provider's content delivery network (CDN) as small PNGs of variable quality. The design needs a graceful fallback: a monogram or initials. |
++| Images | Team crests come from the provider's content delivery network (CDN) as small PNGs of variable quality. The design needs a graceful fallback: a monogram or initials. |
+ | Labels | Labels and wording are i18n (internationalisation) keys. Design with realistic strings from the longest language. |
+ | Row links | A row that leads somewhere is ONE link: the whole row. Hover tints its background, a press sinks it, and the focus ring sits inside the row. An underline marks a word inside running text, such as a breadcrumb or a sentence. A name inside a row never has an underline. One shared rule in `system.css` carries this for every row link on the site. |
+ | Nothing renders empty | A block that does not apply to a page is absent. A block that applies but that the data cannot fill keeps its heading. It says in one line what is not recorded, in the same words on every page. A single missing value inside a rendered row shows "–". |
+@@ -145,7 +145,7 @@ The home page's GitLab issue and `docs/wireframes/10_home.md` §0 own this scree
+ 
+ ### 6.4 Player profile
+ 
+-**Identity**: name, photo, nationality, birth date, position badge (GK/DF/MF/FW), team.
++**Identity**: name, nationality, birth date, position badge (GK/DF/MF/FW), team.
+ 
+ **Per season** (selector):
+ 
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index 17e8aa8c..ccbe8202 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -25,6 +25,12 @@
+ // 5. On every Team page, in each deserved points scatter, the difference label and the team's name
+ //    stay apart: the label on the other side of the team's dot, anchored the other way, or on the
+ //    name's side at least one line under the name.
++// 6. Every image a built page names comes from our own origin. An `<img>` or `<source>` address, an
++//    `og:image` or `twitter:image` address and a JSON-LD `image` or `logo` address that names another
++//    host is counted by kind (a provider player or coach photo, a provider crest or
++//    logo, any other host) and held to `IMAGE_PINS`, a ceiling per kind that only goes down. A pin at
++//    0 holds on every build. A pin above 0 holds on a build of the committed sample (no manifest) and
++//    is only reported on a full export. The change that removes a kind lowers its pin to 0.
+ //
+ // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
+ // components, and the pure functions below are unit-tested on string literals.
+@@ -385,6 +391,126 @@ export function checkMatchRowsFound({ matchRows, payloadFiles }) {
+     : [];
+ }
+ 
++export const OUR_HOSTS = ["matchdaypilot.com", "www.matchdaypilot.com", "football-data-pipeline-gcp.web.app"];
++export const PROVIDER_HOST = "api-sports.io";
++export const PROVIDER_PERSON_PATHS = ["/football/players/", "/football/coachs/"];
++export const IMAGE_PINS = { playerPhoto: 0, providerImage: 59337, foreign: 0 };
++export const IMAGE_EXAMPLES = 3;
++
++const IMG_TAG = /<(?:img|source)\b[^>]*>/gi;
++const IMG_ATTR = /\s(?:src|srcset)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
++
++const META_TAG = /<meta\b[^>]*>/gi;
++const META_IMAGE = /\s(?:property|name)\s*=\s*["'](?:og|twitter):image(?::[a-z_]+)?["']/i;
++const META_CONTENT = /\scontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i;
++const LD_SCRIPT = /<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
++const LD_KEYS = new Set(["image", "logo"]);
++const LD_STRING = /"(?:image|logo)"\s*:\s*"([^"]*)"/g;
++
++/** The `image` and `logo` addresses a JSON-LD value names, a string, a list or an object with a `url`. */
++function ldAddresses(value, key = null, out = []) {
++  if (typeof value === "string") {
++    if (LD_KEYS.has(key)) out.push(value);
++  } else if (Array.isArray(value)) {
++    for (const v of value) ldAddresses(v, key, out);
++  } else if (value && typeof value === "object") {
++    for (const [k, v] of Object.entries(value)) {
++      if (LD_KEYS.has(key) && k === "url") ldAddresses(v, key, out);
++      else ldAddresses(v, k, out);
++    }
++  }
++  return out;
++}
++
++/** Every image address the page names: image tags (`srcset` candidates split apart), the `og:image`
++ *  and `twitter:image` cards and the `image` and `logo` of the JSON-LD blocks. */
++export function imageUrls(html) {
++  const urls = [];
++  for (const [tag] of html.matchAll(META_TAG)) {
++    if (!META_IMAGE.test(tag)) continue;
++    const m = tag.match(META_CONTENT);
++    const url = (m?.[1] ?? m?.[2] ?? "").trim();
++    if (url) urls.push(url);
++  }
++  for (const [, body] of html.matchAll(LD_SCRIPT)) {
++    try {
++      urls.push(...ldAddresses(JSON.parse(body)));
++    } catch {
++      urls.push(...[...body.matchAll(LD_STRING)].map((m) => m[1]));
++    }
++  }
++  for (const [tag] of html.matchAll(IMG_TAG)) {
++    for (const m of tag.matchAll(IMG_ATTR)) {
++      const value = (m[1] ?? m[2]).trim();
++      const isSet = /^\s*srcset/i.test(m[0]);
++      for (const part of isSet ? value.split(",") : [value]) {
++        const url = part.trim().split(/\s+/)[0];
++        if (url) urls.push(url);
++      }
++    }
++  }
++  return urls;
++}
++
++/** What an image address is: `ours` (a path on this site, a data address or our own host),
++ *  `playerPhoto` (the provider's player or coach photo path), `providerImage` (any other path on the
++ *  provider's host: crests, logos) or `foreign` (any other host). */
++export function imageKind(url) {
++  const absolute = /^(?:https?:)?\/\//i.test(url);
++  if (!absolute) return "ours";
++  let host;
++  let pathname;
++  try {
++    ({ hostname: host, pathname } = new URL(url.startsWith("//") ? `https:${url}` : url));
++  } catch {
++    return "foreign";
++  }
++  if (OUR_HOSTS.includes(host)) return "ours";
++  if (host === PROVIDER_HOST || host.endsWith(`.${PROVIDER_HOST}`)) {
++    return PROVIDER_PERSON_PATHS.some((p) => pathname.startsWith(p)) ? "playerPhoto" : "providerImage";
++  }
++  return "foreign";
++}
++
++export const emptyImageCounts = () => ({
++  playerPhoto: 0, providerImage: 0, foreign: 0, examples: { playerPhoto: [], providerImage: [], foreign: [] },
++});
++
++/** The count of non-ours images by kind on one page, with the addresses of the first few of each. */
++export function countImages(html, path = "", into = emptyImageCounts()) {
++  for (const url of imageUrls(html)) {
++    const kind = imageKind(url);
++    if (kind === "ours") continue;
++    into[kind] += 1;
++    if (into.examples[kind].length < IMAGE_EXAMPLES) into.examples[kind].push(`${path} ${url}`);
++  }
++  return into;
++}
++
++const IMAGE_LABELS = {
++  playerPhoto: "provider player or coach photo",
++  providerImage: "provider crest or logo",
++  foreign: "image from a host that is not ours",
++};
++
++/** Issues from the image counts against `pins`, a ceiling per kind that only goes down. A pin at 0
++ *  holds on every build. A pin above 0 holds on a sample build only, in both directions (a count that
++ *  fell is a pin to lower), and is reported and not failed on a full export, whose counts the sample
++ *  does not bound. */
++export function checkImageOrigins(counts, { fullBuild = false, pins = IMAGE_PINS } = {}) {
++  const issues = [];
++  for (const kind of Object.keys(IMAGE_LABELS)) {
++    const n = counts[kind];
++    const pin = pins[kind];
++    if (pin === 0 ? n > 0 : !fullBuild && n !== pin) {
++      const seen = counts.examples[kind].length ? ` (first: ${counts.examples[kind].join("; ")})` : "";
++      const lower = n < pin ? `: lower the ${kind} pin` : "";
++      issues.push(`${n} ${IMAGE_LABELS[kind]} image(s), pinned at ${pin}${lower}${seen}`);
++    }
++  }
++  return issues;
++}
++
+ export function readManifest(dataDir = DATA_DIR) {
+   const file = join(dataDir, "manifest.json");
+   return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+@@ -401,7 +527,7 @@ export function payloadIds(dataDir = DATA_DIR) {
+   return new Set(readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => Number(f.slice(0, -5))));
+ }
+ 
+-export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
++export function main(distDir = DIST_DIR, dataDir = DATA_DIR, pins = IMAGE_PINS) {
+   if (!existsSync(distDir)) {
+     console.error(`check-built-pages: no build output at ${distDir}`);
+     return 1;
+@@ -418,7 +544,9 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   const teamRanks = expectedTeamRanks(dataDir);
+   const built = payloadIds(dataDir);
+   const manifest = readManifest(dataDir);
++  const images = emptyImageCounts();
+   for (const { path, html } of readDist(distDir)) {
++    countImages(html, path, images);
+     if (MATCH_PAGE.test(path)) matchPages += 1;
+     rowsChecked += matchRows(html).length;
+     issues.push(...checkMatchRowLinks(html, built, path));
+@@ -444,6 +572,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
+   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
+   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
++  issues.push(...checkImageOrigins(images, { fullBuild: Boolean(manifest), pins }));
+   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
+   if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
+     issues.push("a team payload serves the deserved points scatter but no Team page carried one");
+@@ -458,7 +587,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
+         : " (no manifest: sample build)") +
+       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
+-      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked. OK.`,
++      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked;` +
++      ` ${images.providerImage} provider crest/logo image(s), ${images.playerPhoto} player photo(s), ${images.foreign} other foreign image(s). OK.`,
+   );
+   return 0;
+ }
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index decdb2a5..fe6e94a4 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -11,10 +11,16 @@ import { join } from "node:path";
+ import {
+   checkFixturesPage, checkFixturesPayloads, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage,
+   boards, isZeroValue,
+-  main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
++  main as mainWithPins, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+   checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
++  checkImageOrigins, countImages, emptyImageCounts, imageKind, imageUrls, IMAGE_PINS,
+ } from "./check-built-pages.mjs";
+ 
++// The trees the main tests write carry no images; the pins describe the committed sample, so they
++// run against pins of 0 and the image rules have their own tests below.
++const NO_IMAGES = { playerPhoto: 0, providerImage: 0, foreign: 0 };
++const main = (distDir, dataDir, pins = NO_IMAGES) => mainWithPins(distDir, dataDir, pins);
++
+ function round(n, { checked = false, next = false, rows = [] } = {}) {
+   const rowHtml = rows
+     .map((r) =>
+@@ -426,6 +432,136 @@ test("main fails a Team page whose scatter is missing or puts the label beside t
+   }
+ });
+ 
++const PROVIDER = "https://media.api-sports.io/football";
++
++test("an image address is read from src and from every srcset candidate, on img and source, in either quote", () => {
++  const html =
++    `<img src="${PROVIDER}/teams/1.png" alt="">` +
++    `<IMG alt='' SRC='${PROVIDER}/leagues/2.png'>` +
++    `<picture><source srcset="/a.webp 1x, https://cdn.example.com/b.webp 2x"><img src="/c.png"></picture>` +
++    `<a href="https://media.api-sports.io/football/players/9.png">not an image</a>`;
++  assert.deepEqual(imageUrls(html), [
++    `${PROVIDER}/teams/1.png`, `${PROVIDER}/leagues/2.png`, "/a.webp", "https://cdn.example.com/b.webp", "/c.png",
++  ]);
++});
++
++test("the social cards and the JSON-LD image and logo are read as image addresses, in any attribute order", () => {
++  const html =
++    `<meta content="${PROVIDER}/teams/1.png" property="og:image">` +
++    `<meta name="twitter:image" content='${PROVIDER}/players/9.png'>` +
++    `<meta property="og:title" content="${PROVIDER}/not-an-image.png">` +
++    `<script type="application/ld+json">{"@type":"Person","image":"${PROVIDER}/players/8.png",` +
++    `"parent":{"logo":{"@type":"ImageObject","url":"${PROVIDER}/teams/2.png"},"url":"https://matchdaypilot.com/x/"},` +
++    `"sameAs":["${PROVIDER}/nope.png"],"photos":[{"image":["/a.png","${PROVIDER}/teams/3.png"]}]}</script>` +
++    `<script type="application/ld+json">{"image":"${PROVIDER}/teams/4.png", broken</script>`;
++  assert.deepEqual(imageUrls(html), [
++    `${PROVIDER}/teams/1.png`, `${PROVIDER}/players/9.png`,
++    `${PROVIDER}/players/8.png`, `${PROVIDER}/teams/2.png`, "/a.png", `${PROVIDER}/teams/3.png`,
++    `${PROVIDER}/teams/4.png`,
++  ]);
++});
++
++test("an image is ours, a provider photo, a provider crest or logo, or from another host", () => {
++  assert.equal(imageKind("/assets/crest.png"), "ours");
++  assert.equal(imageKind("data:image/png;base64,AAAA"), "ours");
++  assert.equal(imageKind("https://matchdaypilot.com/crests/1.png"), "ours");
++  assert.equal(imageKind(`${PROVIDER}/players/9.png`), "playerPhoto");
++  assert.equal(imageKind(`${PROVIDER}/coachs/9.png`), "playerPhoto");
++  assert.equal(imageKind(`//media.api-sports.io/football/players/9.png`), "playerPhoto");
++  assert.equal(imageKind(`${PROVIDER}/teams/1.png`), "providerImage");
++  assert.equal(imageKind(`${PROVIDER}/leagues/1.png`), "providerImage");
++  assert.equal(imageKind("https://media-4.api-sports.io/football/teams/1.png"), "providerImage");
++  assert.equal(imageKind("https://matchdaypilot.com.evil.example/x.png"), "foreign");
++  assert.equal(imageKind("https://cdn.example.com/x.png"), "foreign");
++  assert.equal(imageKind("http://[bad"), "foreign");
++});
++
++test("images are counted by kind across pages, with the first addresses of each kind", () => {
++  const counts = emptyImageCounts();
++  countImages(`<img src="${PROVIDER}/teams/1.png"><img src="/ours.png">`, "/en/", counts);
++  countImages(`<img src="${PROVIDER}/players/9.png"><img src="https://cdn.example.com/x.png">`, "/de/", counts);
++  assert.deepEqual([counts.playerPhoto, counts.providerImage, counts.foreign], [1, 1, 1]);
++  assert.deepEqual(counts.examples.playerPhoto, [`/de/ ${PROVIDER}/players/9.png`]);
++});
++
++test("the committed pins hold player photos and other hosts at 0", () => {
++  assert.equal(IMAGE_PINS.playerPhoto, 0);
++  assert.equal(IMAGE_PINS.foreign, 0);
++});
++
++test("a pin at 0 fails any image of its kind on every build", () => {
++  const counts = emptyImageCounts();
++  countImages(`<img src="${PROVIDER}/players/9.png">`, "/en/p/", counts);
++  const pins = { playerPhoto: 0, providerImage: 0, foreign: 0 };
++  for (const fullBuild of [false, true]) {
++    const issues = checkImageOrigins(counts, { fullBuild, pins });
++    assert.equal(issues.length, 1);
++    assert.match(issues[0], /1 provider player or coach photo image\(s\), pinned at 0 \(first: \/en\/p\/ /);
++  }
++  assert.deepEqual(checkImageOrigins(emptyImageCounts(), { pins }), []);
++});
++
++test("a pin above 0 fails a sample build whose count rose or fell, and is only reported on a full export", () => {
++  const pins = { playerPhoto: 0, providerImage: 2, foreign: 0 };
++  const built = (n) => countImages(`<img src="${PROVIDER}/teams/1.png">`.repeat(n), "/en/", emptyImageCounts());
++  assert.deepEqual(checkImageOrigins(built(2), { pins }), []);
++  assert.match(checkImageOrigins(built(3), { pins })[0], /3 provider crest or logo image\(s\), pinned at 2 \(first/);
++  assert.match(checkImageOrigins(built(1), { pins })[0], /1 provider crest or logo image\(s\), pinned at 2: lower the providerImage pin/);
++  assert.deepEqual(checkImageOrigins(built(900), { pins, fullBuild: true }), []);
++});
++
++test("main fails a built page with an image from a foreign host or a provider photo, and passes the pinned sample", (t) => {
++  const root = mkdtempSync(join(tmpdir(), "check-built-pages-img-"));
++  try {
++    mkdirSync(join(root, "data"), { recursive: true });
++    mkdirSync(join(root, "dist", "en"), { recursive: true });
++    const page = (img) => writeFileSync(join(root, "dist", "en", "index.html"), `<html><body>${img}</body></html>`);
++    const pins = { playerPhoto: 0, providerImage: 1, foreign: 0 };
++    const errors = t.mock.method(console, "error", () => {});
++    t.mock.method(console, "log", () => {});
++    page(`<img src="${PROVIDER}/teams/1.png">`);
++    assert.equal(main(join(root, "dist"), join(root, "data"), pins), 0, errors.mock.calls.map((c) => c.arguments[0]).join("\n"));
++    page(`<img src="${PROVIDER}/teams/1.png"><img src="${PROVIDER}/players/9.png">`);
++    assert.equal(main(join(root, "dist"), join(root, "data"), pins), 1);
++    assert.ok(errors.mock.calls.some((c) => /provider player or coach photo/.test(c.arguments[0])));
++    page(`<img src="${PROVIDER}/teams/1.png"><img src="https://cdn.example.com/x.png">`);
++    assert.equal(main(join(root, "dist"), join(root, "data"), pins), 1);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test("main holds a pin above 0 on a sample build and only reports it on a full export; a pin at 0 holds on both", (t) => {
++  const root = mkdtempSync(join(tmpdir(), "check-built-pages-pin-"));
++  try {
++    mkdirSync(join(root, "data"), { recursive: true });
++    mkdirSync(join(root, "dist", "en"), { recursive: true });
++    const crests = (n) => writeFileSync(join(root, "dist", "en", "index.html"),
++      `<html><body>${`<img src="${PROVIDER}/teams/1.png">`.repeat(n)}</body></html>`);
++    const photo = () => writeFileSync(join(root, "dist", "en", "index.html"),
++      `<html><body><meta property="og:image" content="${PROVIDER}/players/9.png"></body></html>`);
++    const manifest = () => writeFileSync(join(root, "data", "manifest.json"), JSON.stringify(
++      { counts: { fixture: 0 }, source_counts: { fixtures_unplayed: 0, fixtures_played: 0 } }));
++    const pins = { playerPhoto: 0, providerImage: 2, foreign: 0 };
++    const run = () => main(join(root, "dist"), join(root, "data"), pins);
++    t.mock.method(console, "error", () => {});
++    t.mock.method(console, "log", () => {});
++    crests(5);
++    assert.equal(run(), 1, "a sample build with a count above its pin fails");
++    crests(1);
++    assert.equal(run(), 1, "a sample build with a count below its pin fails");
++    crests(2);
++    assert.equal(run(), 0);
++    manifest();
++    crests(5);
++    assert.equal(run(), 0, "a full export is not failed on a pin above 0");
++    photo();
++    assert.equal(run(), 1, "a pin at 0 holds on a full export");
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
+ test("a page with no round at all is an issue, not a pass", () => {
+   assert.match(checkFixturesPage("<html><body></body></html>", "p")[0], /no round on the page/);
+ });
+diff --git a/site_v2/src/components/fixture/MatchLineups.astro b/site_v2/src/components/fixture/MatchLineups.astro
+index 19a9e68b..773c39d3 100644
+--- a/site_v2/src/components/fixture/MatchLineups.astro
++++ b/site_v2/src/components/fixture/MatchLineups.astro
+@@ -46,7 +46,6 @@ function second(p: LineupPlayer): string[] {
+                 <PlayerRow
+                   lang={lang}
+                   name={p.name ?? DASH}
+-                  photo={p.photo}
+                   line={second(p)}
+                   numbers={p.minutes != null ? [{ value: p.minutes, term: "minutes" }] : []}
+                 />
+diff --git a/site_v2/src/components/fixture/PlayerToWatch.astro b/site_v2/src/components/fixture/PlayerToWatch.astro
+index c56f2820..6e687bd7 100644
+--- a/site_v2/src/components/fixture/PlayerToWatch.astro
++++ b/site_v2/src/components/fixture/PlayerToWatch.astro
+@@ -17,7 +17,6 @@ const { player, format, lang } = Astro.props;
+ <PlayerRow
+   lang={lang}
+   name={player.player_name}
+-  photo={player.player_photo_url}
+   line={[positionLabel(lang, player.position_code)]}
+   value={formatValue(player.value, format, lang)}
+   id={player.player_sk}
+diff --git a/site_v2/src/components/player/PlayerHeader.astro b/site_v2/src/components/player/PlayerHeader.astro
+index f705a626..1e46590f 100644
+--- a/site_v2/src/components/player/PlayerHeader.astro
++++ b/site_v2/src/components/player/PlayerHeader.astro
+@@ -1,5 +1,5 @@
+ ---
+-// The player's header: photo, full name and one line: position / club / nation / age / height /
++// The player's header: initials, full name and one line: position / club / nation / age / height /
+ // season. A missing value drops out of the line, and each item stays whole. A midfielder is named
+ // by his role.
+ import Crest from "../ui/Crest.astro";
+@@ -30,7 +30,7 @@ const first = position ? position.charAt(0).toLocaleUpperCase(lang) + position.s
+ ---
+ 
+ <header class="thead">
+-  <Crest name={player.name} crest={player.photo} />
++  <Crest name={player.name} />
+   <div class="tid">
+     <h1>{player.name}</h1>
+     <div class="meta facts-line">
+diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
+index fc6b547a..95c8b01e 100644
+--- a/site_v2/src/components/player/PlayerIndexRow.astro
++++ b/site_v2/src/components/player/PlayerIndexRow.astro
+@@ -1,5 +1,5 @@
+ ---
+-// One row of the Players page and a nation page, the player row without numbers: photo / name over
++// One row of the Players page and a nation page, the player row without numbers: initials / name over
+ // position / club. `view`, `competitionSlot` and `region` mark the views it shows in, for the stylesheet's
+ // position and region filters.
+ import PlayerRow from "../ui/PlayerRow.astro";
+@@ -24,7 +24,6 @@ const line = [position ? positionLabel(lang, position) : null, player.club].filt
+ <PlayerRow
+   lang={lang}
+   name={player.name}
+-  photo={player.photo}
+   line={line}
+   id={player.player_id}
+   slug={player.slug}
+diff --git a/site_v2/src/components/team/TeamSquad.astro b/site_v2/src/components/team/TeamSquad.astro
+index d4ecb44b..fd1aa96e 100644
+--- a/site_v2/src/components/team/TeamSquad.astro
++++ b/site_v2/src/components/team/TeamSquad.astro
+@@ -1,7 +1,7 @@
+ ---
+ // Squad: the whole roster of the featured season (mart_roster), by position (goalkeepers,
+ // defenders, midfielders, forwards, other), each player as the match page's player row without
+-// goals or assists: photo / name, then country / age / appearances / minutes per appearance (no
++// goals or assists: initials / name, then country / age / appearances / minutes per appearance (no
+ // minutes without an appearance). The appearances are served: 0 where every finished match carries
+ // player data, otherwise empty, shown "–". Two columns where they fit.
+ import SectionHead from "../ui/SectionHead.astro";
+@@ -67,7 +67,7 @@ const groups = GROUPS.map((g) => ({
+         <div class="colhead">{t(lang, g.label)}</div>
+         <div class="sqgrid">
+           {g.members.map((m) => (
+-            <PlayerRow lang={lang} name={m.name} photo={m.photo} line={line(m)} id={m.player_id} />
++            <PlayerRow lang={lang} name={m.name} line={line(m)} id={m.player_id} />
+           ))}
+         </div>
+       </>
+diff --git a/site_v2/src/components/ui/PlayerRow.astro b/site_v2/src/components/ui/PlayerRow.astro
+index fcd582ca..5b1c0795 100644
+--- a/site_v2/src/components/ui/PlayerRow.astro
++++ b/site_v2/src/components/ui/PlayerRow.astro
+@@ -1,5 +1,5 @@
+ ---
+-// THE player row: photo (the initials when there is none) / name over its second line / the numbers
++// THE player row: the initials / name over its second line / the numbers
+ // on the right when the list has any, or a board's value alone. The row links to the player's page when this build makes one;
+ // a row given no player id leads nowhere. Other attributes (the filters' data marks) pass through.
+ import ListRow from "./ListRow.astro";
+@@ -13,7 +13,6 @@ type Term = "minutes" | "goals" | "assists" | "saves";
+ interface Props {
+   lang: Lang;
+   name: string | null | undefined;
+-  photo?: string | null;
+   line: string[];
+   /** The numbers on the right; a count the warehouse leaves blank shows as a dash. */
+   numbers?: { value: number | null | undefined; term: Term }[] | null;
+@@ -24,7 +23,7 @@ interface Props {
+   slug?: string | null;
+   [attr: string]: unknown;
+ }
+-const { lang, name, photo, line, numbers, value, id, slug, ...rest } = Astro.props;
++const { lang, name, line, numbers, value, id, slug, ...rest } = Astro.props;
+ const initials = (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+ const page = id == null || !builtPlayers().has(id) ? null : slug ?? builtPlayers().get(id);
+ const href = page ? localeHref(lang, `${word(lang, "players")}/${page}/`) : undefined;
+@@ -42,9 +41,7 @@ const units = (numbers ?? []).map(({ value, term }) => ({
+ 
+ <ListRow href={href} {...rest}>
+   <div class="plrow">
+-    <span class="pphoto">
+-      {photo ? <img src={photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials}</span>}
+-    </span>
++    <span class="pphoto"><span>{initials}</span></span>
+     <span class="pname">
+       <span class="nm">{name}</span>
+       <span class="ps facts-line">{line.map((s) => <span>{s}</span>)}</span>
+diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
+index 3c4f7f45..eea672d3 100644
+--- a/site_v2/src/pages/[lang]/[players]/[player].astro
++++ b/site_v2/src/pages/[lang]/[players]/[player].astro
+@@ -110,7 +110,6 @@ const entity = {
+   "@type": "Person",
+   name: name || undefined,
+   affiliation: team || undefined,
+-  ...(player.photo ? { image: player.photo } : {}),
+ };
+ const crumbs = [
+   { name: t(lang, "crumbHome"), href: localeHref(lang) },
+@@ -129,7 +128,6 @@ const TAB = {
+   description={description}
+   entity={entity}
+   crumbs={crumbs}
+-  image={player.photo ?? undefined}
+   section="players"
+ >
+   <div class="inner">
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/36-img-origin-pin/acceptance_evidence.md  |  17 +
+#    .../36-img-origin-pin/rendered_page_evidence.md    |  15 +
+#    .claude/task/36-img-origin-pin/review.md           |  29 +
+#    .claude/task/36-img-origin-pin/review_input.patch  | 631 +++++++++++++++++++++
+#    4 files changed, 692 insertions(+)
+# ============================================================================

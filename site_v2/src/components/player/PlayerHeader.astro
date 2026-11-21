@@ -1,5 +1,5 @@
 ---
-// The player's header: photo, full name and one line: position / club / nation / age / height /
+// The player's header: initials, full name and one line: position / club / nation / age / height /
 // season. A missing value drops out of the line, and each item stays whole. A midfielder is named
 // by his role.
 import Crest from "../ui/Crest.astro";
@@ -30,7 +30,7 @@ const first = position ? position.charAt(0).toLocaleUpperCase(lang) + position.s
 ---
 
 <header class="thead">
-  <Crest name={player.name} crest={player.photo} />
+  <Crest name={player.name} />
   <div class="tid">
     <h1>{player.name}</h1>
     <div class="meta facts-line">
