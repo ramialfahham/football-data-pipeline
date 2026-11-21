@@ -1,0 +1,197 @@
+diff --git a/.claude/task/335-blank-count-in-full-line/contract.md b/.claude/task/335-blank-count-in-full-line/contract.md
+index 6bd2acb4..c2faa63a 100644
+--- a/.claude/task/335-blank-count-in-full-line/contract.md
++++ b/.claude/task/335-blank-count-in-full-line/contract.md
+@@ -16,6 +16,7 @@ scope_paths:
+   - dbt_project/tests/assert_team_stat_blank_counts_follow_the_blank_rule.sql
+   - dbt_project/seeds/player_season_answer_key.csv
+   - dbt_project/seeds/team_match_cleaning_answer_key.csv
++  - dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
+ 
+ impact_map: >
+   writers: base_apif__fixture_statistics is the only model changed (the `filled` CTE, offsides).
+@@ -69,7 +70,17 @@ guard: >
+   not zero it. The coordinating session ruled that a blank team offsides count becomes 0 only when
+   no player stat line of that team in the match, in any fetch, shows an offside above 0
+   (stg_apif__fixture_players, read in the base model as a per-team maximum; the players' offsides
+-  are never summed into the team count, so no new derivation). The read adds one scan of the raw
++  are never summed into the team count, so no new derivation). The guard keys on the cleaned team
++  id: one team_id_map of (fixture, provider team id) to team id, built with the model's own
++  override joins (fixture_team_id_overrides: reattribute_in_fixture, alias,
++  reattribute_if_cohabiting) over the statistics rows and the player rows, serves both the
++  statistics lines and the guard, so a remapped team cannot be missed. No remapped team-match in
++  prod has a full line with a blank offsides count and a player offside above 0 (measured), so no
++  answer-key row can show it; the shared map is the guarantee, and a singular test
++  (assert_team_offsides_zero_has_no_player_offside) pins it on every build: no team-match has an
++  offsides count of 0 while a player of it, by the cleaned team id, has an offside above 0, except
++  where the other team's count is above 0 (the existing opponent rule) and the one match whose
++  line has the provider's 0 for both teams (fixture 1149592). The read adds one scan of the raw
+   players JSON per build (about 0.8 GB, a few cents a night, no new run). Two hand-worked rows are
+   added to team_match_cleaning_answer_key.csv: fixture 1180382 team 119 stays blank, fixture
+   1145521 team 9 becomes 0.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index 4f5c812f..4b819946 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -92,35 +92,57 @@ overrides as (
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
+ 
+--- Corrected BEFORE the dedup below, not after: the dedup key contains team_id and the model
+--- carries a uniqueness test on (league_code, fixture_id, team_id). Remapping afterwards would emit
+--- two rows for one (fixture, team) whenever the correct id already has one of its own; remapping
+--- first lets the newest-value rule resolve that collision.
+-corrected as (
++-- The most offsides any player line of a team shows in a match, over every fetch, under the
++-- provider's team id.
++player_lines as (
+     select
+-        pivoted.* except (team_id),
+-        pivoted.team_id as provider_team_id,
++        fixture_id,
++        team_id,
++        max(offsides) as player_offsides_max
++    from {{ ref('stg_apif__fixture_players') }}
++    where fixture_id is not null and team_id is not null
++    group by fixture_id, team_id
++),
++
++-- Every (fixture, provider team id) the statistics lines and the player lines name, mapped once
++-- to the team id both are kept under.
++team_id_pairs as (
++    select
++        fixture_id,
++        team_id as provider_team_id
++    from pivoted
++    union distinct
++    select
++        fixture_id,
++        team_id as provider_team_id
++    from player_lines
++),
++
++team_id_map as (
++    select
++        pairs.fixture_id,
++        pairs.provider_team_id,
+         coalesce(
+             fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+-            pivoted.team_id
++            pairs.provider_team_id
+         ) as team_id
+-    from pivoted
++    from team_id_pairs as pairs
+     left join overrides as fixture_override
+         on
+-            pivoted.team_id = fixture_override.wrong_team_api_id
+-            and pivoted.fixture_id = fixture_override.fixture_id
++            pairs.provider_team_id = fixture_override.wrong_team_api_id
++            and pairs.fixture_id = fixture_override.fixture_id
+             and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+-            pivoted.team_id = alias_override.wrong_team_api_id
++            pairs.provider_team_id = alias_override.wrong_team_api_id
+             and alias_override.mode = 'alias'
+     left join fixture_participants
+-        on pivoted.fixture_id = fixture_participants.fixture_id
++        on pairs.fixture_id = fixture_participants.fixture_id
+     left join overrides as reattribute_override
+         on
+-            pivoted.team_id = reattribute_override.wrong_team_api_id
++            pairs.provider_team_id = reattribute_override.wrong_team_api_id
+             and reattribute_override.mode = 'reattribute_if_cohabiting'
+             and reattribute_override.correct_team_api_id in (
+                 fixture_participants.home_team_id, fixture_participants.away_team_id
+@@ -130,6 +152,20 @@ corrected as (
+             )
+ ),
+ 
++-- Corrected BEFORE the dedup below, not after: the dedup key contains team_id and the model
++-- carries a uniqueness test on (league_code, fixture_id, team_id). Remapping afterwards would emit
++-- two rows for one (fixture, team) whenever the correct id already has one of its own; remapping
++-- first lets the newest-value rule resolve that collision.
++corrected as (
++    select
++        pivoted.* except (team_id),
++        pivoted.team_id as provider_team_id,
++        team_id_map.team_id
++    from pivoted
++    inner join team_id_map
++        on pivoted.fixture_id = team_id_map.fixture_id and pivoted.team_id = team_id_map.provider_team_id
++),
++
+ -- A fetch can file one team's line under its wrong id and its correct id: the line under the
+ -- correct id comes first.
+ ranked as (
+@@ -340,15 +376,18 @@ team_events as (
+     group by fixture_id, team_id
+ ),
+ 
+--- The most offsides any player line of a team shows in a match, over every fetch.
++-- The same, under the team id the statistics lines are kept under.
+ player_offsides as (
+     select
+-        fixture_id,
+-        team_id,
+-        max(offsides) as player_offsides_max
+-    from {{ ref('stg_apif__fixture_players') }}
+-    where fixture_id is not null and team_id is not null
+-    group by fixture_id, team_id
++        player_lines.fixture_id,
++        team_id_map.team_id,
++        max(player_lines.player_offsides_max) as player_offsides_max
++    from player_lines
++    inner join team_id_map
++        on
++            player_lines.fixture_id = team_id_map.fixture_id
++            and player_lines.team_id = team_id_map.provider_team_id
++    group by player_lines.fixture_id, team_id_map.team_id
+ ),
+ 
+ in_context as (
+diff --git a/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql b/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
+new file mode 100644
+index 00000000..5d98c962
+--- /dev/null
++++ b/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
+@@ -0,0 +1,37 @@
++-- A team's offsides count is not 0 while a player of it, by the cleaned team id, has an offside
++-- above 0. The clause that cleans a blank offsides count to 0 (the cleaning_rules Blank rule) is
++-- guarded by the players' offsides under the same team id, so this fails when a team id remap
++-- leaves the guard looking at the wrong team. Not counted: a zero that follows the other team's
++-- value above 0 (the opponent rule), and fixture 1149592, whose line has the provider's 0 for
++-- both teams.
++{{ config(store_failures = true) }}
++
++with team_lines as (
++    select
++        fixture_sk,
++        team_sk,
++        offsides
++    from {{ ref('fct_fixture_team_stats') }}
++),
++
++players_with_an_offside as (
++    select
++        fixture_sk,
++        team_sk
++    from {{ ref('fct_fixture_player_stats') }}
++    where offsides > 0
++    group by fixture_sk, team_sk
++)
++
++select
++    t.fixture_sk,
++    t.team_sk
++from team_lines as t
++inner join players_with_an_offside as p
++    on t.fixture_sk = p.fixture_sk and t.team_sk = p.team_sk
++inner join team_lines as o
++    on t.fixture_sk = o.fixture_sk and t.team_sk != o.team_sk
++where
++    t.offsides = 0
++    and coalesce(o.offsides, 0) = 0
++    and t.fixture_sk != 1149592

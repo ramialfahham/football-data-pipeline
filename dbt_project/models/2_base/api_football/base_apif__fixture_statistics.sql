@@ -92,6 +92,66 @@ overrides as (
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
+-- The most offsides any player line of a team shows in a match, over every fetch, under the
+-- provider's team id.
+player_lines as (
+    select
+        fixture_id,
+        team_id,
+        max(offsides) as player_offsides_max
+    from {{ ref('stg_apif__fixture_players') }}
+    where fixture_id is not null and team_id is not null
+    group by fixture_id, team_id
+),
+
+-- Every (fixture, provider team id) the statistics lines and the player lines name, mapped once
+-- to the team id both are kept under.
+team_id_pairs as (
+    select
+        fixture_id,
+        team_id as provider_team_id
+    from pivoted
+    union distinct
+    select
+        fixture_id,
+        team_id as provider_team_id
+    from player_lines
+),
+
+team_id_map as (
+    select
+        pairs.fixture_id,
+        pairs.provider_team_id,
+        coalesce(
+            fixture_override.correct_team_api_id,
+            alias_override.correct_team_api_id,
+            reattribute_override.correct_team_api_id,
+            pairs.provider_team_id
+        ) as team_id
+    from team_id_pairs as pairs
+    left join overrides as fixture_override
+        on
+            pairs.provider_team_id = fixture_override.wrong_team_api_id
+            and pairs.fixture_id = fixture_override.fixture_id
+            and fixture_override.mode = 'reattribute_in_fixture'
+    left join overrides as alias_override
+        on
+            pairs.provider_team_id = alias_override.wrong_team_api_id
+            and alias_override.mode = 'alias'
+    left join fixture_participants
+        on pairs.fixture_id = fixture_participants.fixture_id
+    left join overrides as reattribute_override
+        on
+            pairs.provider_team_id = reattribute_override.wrong_team_api_id
+            and reattribute_override.mode = 'reattribute_if_cohabiting'
+            and reattribute_override.correct_team_api_id in (
+                fixture_participants.home_team_id, fixture_participants.away_team_id
+            )
+            and reattribute_override.wrong_team_api_id not in (
+                fixture_participants.home_team_id, fixture_participants.away_team_id
+            )
+),
+
 -- Corrected BEFORE the dedup below, not after: the dedup key contains team_id and the model
 -- carries a uniqueness test on (league_code, fixture_id, team_id). Remapping afterwards would emit
 -- two rows for one (fixture, team) whenever the correct id already has one of its own; remapping
@@ -100,34 +160,10 @@ corrected as (
     select
         pivoted.* except (team_id),
         pivoted.team_id as provider_team_id,
-        coalesce(
-            fixture_override.correct_team_api_id,
-            alias_override.correct_team_api_id,
-            reattribute_override.correct_team_api_id,
-            pivoted.team_id
-        ) as team_id
+        team_id_map.team_id
     from pivoted
-    left join overrides as fixture_override
-        on
-            pivoted.team_id = fixture_override.wrong_team_api_id
-            and pivoted.fixture_id = fixture_override.fixture_id
-            and fixture_override.mode = 'reattribute_in_fixture'
-    left join overrides as alias_override
-        on
-            pivoted.team_id = alias_override.wrong_team_api_id
-            and alias_override.mode = 'alias'
-    left join fixture_participants
-        on pivoted.fixture_id = fixture_participants.fixture_id
-    left join overrides as reattribute_override
-        on
-            pivoted.team_id = reattribute_override.wrong_team_api_id
-            and reattribute_override.mode = 'reattribute_if_cohabiting'
-            and reattribute_override.correct_team_api_id in (
-                fixture_participants.home_team_id, fixture_participants.away_team_id
-            )
-            and reattribute_override.wrong_team_api_id not in (
-                fixture_participants.home_team_id, fixture_participants.away_team_id
-            )
+    inner join team_id_map
+        on pivoted.fixture_id = team_id_map.fixture_id and pivoted.team_id = team_id_map.provider_team_id
 ),
 
 -- A fetch can file one team's line under its wrong id and its correct id: the line under the
@@ -340,9 +376,24 @@ team_events as (
     group by fixture_id, team_id
 ),
 
+-- The same, under the team id the statistics lines are kept under.
+player_offsides as (
+    select
+        player_lines.fixture_id,
+        team_id_map.team_id,
+        max(player_lines.player_offsides_max) as player_offsides_max
+    from player_lines
+    inner join team_id_map
+        on
+            player_lines.fixture_id = team_id_map.fixture_id
+            and player_lines.team_id = team_id_map.provider_team_id
+    group by player_lines.fixture_id, team_id_map.team_id
+),
+
 in_context as (
     select
         t.*,
+        po.player_offsides_max,
         o.shots_on_target as opponent_shots_on_target,
         o.shots_off_target as opponent_shots_off_target,
         o.shots as opponent_shots,
@@ -383,6 +434,8 @@ in_context as (
         on
             t.fixture_id = o.fixture_id
             and o.team_id = if(t.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
+    left join player_offsides as po
+        on t.fixture_id = po.fixture_id and t.team_id = po.team_id
     left join match_events as me
         on t.fixture_id = me.fixture_id
     left join team_events as te
@@ -410,7 +463,15 @@ filled as (
         coalesce(shots_outside_box, if(opponent_shots_outside_box is not null, 0, null)) as shots_outside_box_filled,
         coalesce(fouls, if(opponent_fouls is not null, 0, null)) as fouls_filled,
         coalesce(corners, if(opponent_corners is not null, 0, null)) as corners_filled,
-        coalesce(offsides, if(opponent_offsides is not null, 0, null)) as offsides_filled,
+        coalesce(
+            offsides,
+            if(
+                opponent_offsides is not null
+                or (fouls is not null and possession_pct is not null and coalesce(player_offsides_max, 0) = 0),
+                0,
+                null
+            )
+        ) as offsides_filled,
         coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
         coalesce(
             cards_yellow,
