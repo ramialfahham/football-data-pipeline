@@ -326,6 +326,13 @@ teams must be known. The line is then left out of the facts and is on
 mart_competition_research_list, until a fixture_team_id_overrides row files it under the right team.
 {% enddocs %}
 
+{% docs player_team_needs_research %}
+True where the player's stat line and his events of the match name different teams of the match.
+Own goals are left out. The squad list and his other matches cannot decide which team is right.
+His stat line and his events are then left out of the facts. They are on
+mart_competition_research_list until a fixture_lineup_corrections row names his team.
+{% enddocs %}
+
 {% docs scorer_needs_research %}
 True on a provider goal whose scorer was not on the pitch at its minute on a confirmed or
 researched line-up; the scorer is then blank, and so are his goals in the match. Where is_goal is

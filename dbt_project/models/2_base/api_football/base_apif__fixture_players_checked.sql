@@ -65,11 +65,16 @@ participants as (
     from {{ ref('base_apif__fixtures_next') }}
 ),
 
+disputed_players as (
+    {{ player_team_disputes(ref('base_apif__fixture_players'), ref('base_apif__fixture_events'), 'participants') }}
+),
+
 checked_players as (
     select
         players.*,
         {{ team_not_in_fixture('players.team_id', 'participants.home_team_id', 'participants.away_team_id') }}
             as team_needs_research,
+        disputed_players.fixture_id is not null as player_team_needs_research,
         if(coalesce(withheld.scorer_withheld, false), null, players.goals) as checked_goals,
         if(coalesce(withheld.scorer_withheld, false), null, players.goals_penalty) as checked_goals_penalty,
         if(coalesce(withheld.scorer_withheld, false), null, players.penalties_scored) as checked_penalties_scored,
@@ -82,6 +87,8 @@ checked_players as (
             and players.player_id = withheld.player_id
     left join participants
         on players.fixture_id = participants.fixture_id
+    left join disputed_players
+        on players.fixture_id = disputed_players.fixture_id and players.player_id = disputed_players.player_id
 )
 
 select
@@ -125,5 +132,6 @@ select
     penalties_saved,
     raw_ingested_at,
     stat_corrections,
-    team_needs_research
+    team_needs_research,
+    player_team_needs_research
 from checked_players

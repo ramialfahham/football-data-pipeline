@@ -10,6 +10,10 @@ participants as (
     from {{ ref('base_apif__fixtures_next') }}
 ),
 
+disputed_players as (
+    {{ player_team_disputes(ref('base_apif__fixture_players'), 'events', 'participants') }}
+),
+
 -- Minutes as elapsed * 100 + added time. A minute at the end of a period with no added minute can
 -- be any minute of that period's added time.
 sheet as (
@@ -96,7 +100,8 @@ select
     coalesce(checked.scorer_needs_research, false) as scorer_needs_research,
     coalesce(checked.assist_needs_research, false) as assist_needs_research,
     {{ team_not_in_fixture('events.team_id', 'participants.home_team_id', 'participants.away_team_id') }}
-        as team_needs_research
+        as team_needs_research,
+    disputed_players.fixture_id is not null as player_team_needs_research
 from events
 left join checked
     on
@@ -105,3 +110,5 @@ left join checked
         and events.event_index = checked.event_index
 left join participants
     on events.fixture_id = participants.fixture_id
+left join disputed_players
+    on events.fixture_id = disputed_players.fixture_id and events.player_id = disputed_players.player_id

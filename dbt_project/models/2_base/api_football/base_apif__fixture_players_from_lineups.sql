@@ -66,6 +66,13 @@ participants as (
     from {{ ref('base_apif__fixtures_next') }}
 ),
 
+disputed_players as (
+    {{ player_team_disputes(
+        ref('base_apif__fixture_players'), ref('base_apif__fixture_events'),
+        '(select participant_fixture_id as fixture_id, home_team as home_team_id, away_team as away_team_id from participants)'
+    ) }}
+),
+
 sheets as (
     select
         l.league_code,
@@ -415,10 +422,13 @@ cleaned as (
 flagged as (
     select
         c.*,
-        {{ team_not_in_fixture('c.team_id', 'p.home_team', 'p.away_team') }} as team_needs_research
+        {{ team_not_in_fixture('c.team_id', 'p.home_team', 'p.away_team') }} as team_needs_research,
+        d.fixture_id is not null as player_team_needs_research
     from cleaned as c
     left join participants as p
         on c.fixture_id = p.participant_fixture_id
+    left join disputed_players as d
+        on c.fixture_id = d.fixture_id and c.player_id = d.player_id
 )
 
 select
@@ -462,5 +472,6 @@ select
     penalties_saved,
     raw_ingested_at,
     team_needs_research,
+    player_team_needs_research,
     goals_need_research
 from flagged

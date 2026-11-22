@@ -7,7 +7,9 @@
   play the match is left out of its fact, so it is left out of the base side here. Which lines
   those are is derived from the match's two teams in fct_fixture, never from the flag, so a flag
   that withholds a line of a team of the match still fails this test. assert_misfiled_team_lines_withheld
-  holds the withheld lines to account.
+  holds the withheld lines to account. A player line of a player whose stat line and events name the
+  two different teams of the match is left out of its fact too, and out of the base side here, by the
+  same inline derivation; assert_player_row_and_events_same_team holds those lines to account.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -39,6 +41,24 @@ with participants as (
         home_team_api_id as home_team_id,
         away_team_api_id as away_team_id
     from {{ ref('fct_fixture') }}
+),
+
+disputes as (
+    select distinct
+        r.fixture_id,
+        r.player_id
+    from {{ ref('base_apif__fixture_players') }} as r
+    inner join {{ ref('base_apif__fixture_events') }} as e
+        on r.fixture_id = e.fixture_id and r.player_id = e.player_id
+    inner join participants as p
+        on r.fixture_id = p.fixture_id
+    where
+        e.team_id != r.team_id
+        and r.team_id in (p.home_team_id, p.away_team_id)
+        and e.team_id in (p.home_team_id, p.away_team_id)
+        and not (e.event_type = 'Goal' and e.event_detail = 'Own Goal')
+        and e.goal_correction_source is null
+        and e.card_correction_source is null
 )
 
 {% for f in facts %}
@@ -73,6 +93,13 @@ from (
             and p.away_team_id is not null
             and b.team_id not in (p.home_team_id, p.away_team_id)
     )
+    {%- if 'player_api_id' in f['renamed'] %}
+    and not exists (
+        select 1
+        from disputes as d
+        where d.fixture_id = b.fixture_id and d.player_id = b.player_id
+    )
+    {%- endif %}
     except distinct
     select {{ fact_columns }} from {{ ref(f.fact) }} where {{ f.fact_rows }}
 ) as t
