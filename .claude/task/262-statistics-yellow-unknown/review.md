@@ -1,6 +1,6 @@
 # Review - claude/262-statistics-yellow-unknown
 
-diff_sha256: 6aff4e314387b8b6e7fed8a4a6c516aa4e654cb3e7f4618618935883ce62fa1f
+diff_sha256: 4c551bada011ce3e7f59ba29656ec456f5483696f04bf8810ceb8fd807a4ac2b
 
 rounds: 2
 
@@ -18,6 +18,9 @@ risks_checked:
 VERDICT: PASS
 risks_checked:
 - Round 1 FAIL: the new rule's own and opponent delivery flags came from the newest fetch, so a legitimately kept earlier-fetch 0 could fail it. Round 2: delivered_ever reads any fetch, the matches_with_events rewrite and its read in delivered are pinned by a fullmatch, and the other wiring tests that render the statistics model are unaffected.
+
+## note
+After the round-2 verdicts one Jinja call in matches_with_events was wrapped over three lines for the line-length lint rule. The rendered SQL is unchanged and the wiring tests pass.
 
 ## escalations
 (none)
