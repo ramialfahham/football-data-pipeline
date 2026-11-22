@@ -1,7 +1,8 @@
 {#
   The competition-seasons of each window on a player's page. this_season and last_season are the
   club competitions around the player's featured season, at any club; current_competitions are the
-  player's nation's. competition_type and last_match_at carry what the page's competition order
+  player's nation's for a squad place, and the editions the player played in for an earned tab.
+  competition_type and last_match_at carry what the page's competition order
   needs. Grain: (player_sk, window_type, season_sk).
 #}
 
@@ -36,6 +37,19 @@ windows as (
     from profile as p
     inner join {{ ref('int_team__current_national_competitions') }} as c
         on p.national_team_sk = c.team_sk
+    where p.national_tab_basis = 'squad'
+    union all
+    select distinct
+        p.player_sk,
+        'current_competitions' as window_type,
+        l.season_sk,
+        l.team_sk
+    from profile as p
+    inner join {{ ref('int_legs__player_match') }} as l
+        on p.player_sk = l.player_sk and p.national_team_sk = l.team_sk
+    inner join {{ ref('int_competition_season__national_editions') }} as e
+        on l.season_sk = e.season_sk
+    where p.national_tab_basis = 'earned' and l.minutes > 0
 )
 
 select
