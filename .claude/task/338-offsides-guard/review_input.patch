@@ -1,9 +1,9 @@
 diff --git a/.claude/task/338-offsides-guard/contract.md b/.claude/task/338-offsides-guard/contract.md
 new file mode 100644
-index 00000000..d8ca8d0c
+index 00000000..c62a09e4
 --- /dev/null
 +++ b/.claude/task/338-offsides-guard/contract.md
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,102 @@
 +# Task contract — a team never shows 0 offsides when one of its players was offside
 +
 +objective: >
@@ -34,12 +34,39 @@ index 00000000..d8ca8d0c
 +  (its first half moves, unchanged, into the new base model base_apif__fixture_player_lines, so
 +  that the statistics model can read the players' cleaned offsides without a cycle: the players
 +  model reads the statistics model for its shots fill and its zero fill).
-+  downstream: `dbt ls --select base_apif__fixture_statistics+ --resource-type model` lists 86
-+  models: base (8: events_checked, players, players_checked, players_from_lineups, lineup_sheets,
-+  lineups, players, the changed one), core (fct_fixture_team_stats, fct_fixture_player_stats,
-+  fct_fixture_event, fct_fixture_lineup, dim_player), then the int_legs__*, int_player_*, int_team_*
-+  and mart_* models down to mart_team_leaderboards and mart_team_window_metrics.
-+  `dbt ls --select base_apif__fixture_players+` lists the player side of the same tree.
++  downstream: output of `dbt ls --select base_apif__fixture_player_lines+ --resource-type model
++  --output name`, 87 models (it covers both changed models, since the statistics model reads the new
++  one):
++  base_apif__fixture_events_checked base_apif__fixture_player_lines base_apif__fixture_players
++  base_apif__fixture_players_checked base_apif__fixture_players_from_lineups
++  base_apif__fixture_statistics base_apif__lineup_sheets base_apif__lineups base_apif__players
++  dim_player fct_fixture_event fct_fixture_lineup fct_fixture_player_stats fct_fixture_team_stats
++  int_competition_season__player_stat_corrections int_legs__player_match
++  int_legs__team_from_players int_legs__team_match int_pipeline__corrections_no_longer_needed
++  int_player__national_team_minutes int_player__page_profile int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_match__metrics int_player_momentum__metrics int_player_page__window_seasons
++  int_player_profile__contribution int_player_season__metrics int_player_season__team
++  int_player_season_position__metrics int_player_season_record int_player_squad_window__metrics
++  int_player_window__metrics int_standings__official_rank int_team__current_national_competitions
++  int_team__featured_season int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks int_team_competition_phase__metrics int_team_momentum__metrics
++  int_team_momentum_window int_team_profile__streaks int_team_season__biggest_results
++  int_team_season__deserved_vs_actual int_team_season__longest_runs int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season__standings_primary
++  int_team_season__table_by_time int_team_season__table_legs int_team_season__table_state
++  int_team_season_record int_team_window__metrics mart_competition_fixtures mart_competition_index
++  mart_competition_research_list mart_competition_season_summary mart_fixture_standing_context
++  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats mart_player_index
++  mart_player_momentum mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_competitions mart_team_fixtures mart_team_index mart_team_leaderboards
++  mart_team_momentum_window mart_team_page_window_metrics mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record mart_team_window_metrics
++  The opponent clause reads the other team's offsides as delivered, so a team's blank is still
++  zeroed by the other team's provider 0 even where that 0 is withheld for the other team; no
++  prod team-match shows it (the 7 changed rows are the only differences measured).
 +  A team offsides count that goes from 0 to blank can only change offsides per match and its
 +  windows and boards for the team-matches measured below. The players model is meant to be row and
 +  column identical: its offsides fill (offsides_counted or team_offsides = 0) cannot change where a
@@ -1273,3 +1300,19 @@ index 5d98c962..0dec4e27 100644
 -    and coalesce(o.offsides, 0) = 0
 -    and t.fixture_sk != 1149592
 +where t.offsides = 0
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/338-offsides-guard/review_input.patch | 1275 ++++++++++++++++++++
+#    1 file changed, 1275 insertions(+)
+# ============================================================================
