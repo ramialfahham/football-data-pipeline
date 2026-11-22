@@ -3,6 +3,8 @@
   rows has them, whatever order the competitions were ingested in. Chelsea (49) is the named case:
   its UESC row carries only a name, and its other rows say England, CHE and Stamford Bridge. Each
   failing row is a team settled on an empty row, or Chelsea settled on anything but its filled one.
+  The settled row is read from base_apif__teams_global, where the settling happens, so the check
+  compares provider attributes and not what a dimension publishes for them.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -31,7 +33,7 @@ settled as (
             cast(venue_api_id as string), venue_name, venue_address, venue_city,
             cast(venue_capacity as string)
         ) is null as is_empty
-    from {{ ref('dim_team') }}
+    from {{ ref('base_apif__teams_global') }}
 ),
 
 named_case as (
