@@ -1,8 +1,11 @@
 {#
   A delivery that leaves an identity field empty never blanks it: a player's birth date or
   nationality, or a team's country, is filled in base wherever any stored delivery holds one,
-  unless player_bio_corrections left it blank because the sources disagree. A team's country that
-  changed between deliveries is the exception: it is withheld, blank and flagged, until a
+  unless player_bio_corrections left it blank because the sources disagree. A player whose newest
+  delivery of the field holds two real values is the exception, read from the staged records
+  (players_with_conflicting_bio) and not from the flag: his value is withheld, blank and flagged,
+  until a player_bio_corrections row settles it. A team's country that
+  changed between deliveries is the exception too: it is withheld, blank and flagged, until a
   team_country_corrections row settles it.
   Named case: H. Abe (33085), whose latest delivery is blank and an earlier one says Japan and
   1999-01-28, has both.
@@ -24,6 +27,14 @@ checked_fields as (
         player_api_id,
         corrected_field
     from {{ ref('player_bio_corrections') }}
+),
+
+birth_date_conflicts as (
+    {{ players_with_conflicting_bio(possible_birth_date('birth_date', 'raw_ingested_at')) }}
+),
+
+nationality_conflicts as (
+    {{ players_with_conflicting_bio("nullif(trim(nationality), '')") }}
 ),
 
 team_deliveries as (
@@ -57,7 +68,9 @@ inner join player_deliveries as d
     on p.player_api_id = d.player_api_id
 left join checked_fields as c
     on p.player_api_id = c.player_api_id and c.corrected_field = 'player_birth_date'
-where d.has_birth_date and p.player_birth_date is null and c.player_api_id is null
+left join birth_date_conflicts as w
+    on p.player_api_id = w.player_api_id
+where d.has_birth_date and p.player_birth_date is null and c.player_api_id is null and w.player_api_id is null
 
 union all
 
@@ -70,7 +83,9 @@ inner join player_deliveries as d
     on p.player_api_id = d.player_api_id
 left join checked_fields as c
     on p.player_api_id = c.player_api_id and c.corrected_field = 'player_nationality'
-where d.has_nationality and p.player_nationality is null and c.player_api_id is null
+left join nationality_conflicts as w
+    on p.player_api_id = w.player_api_id
+where d.has_nationality and p.player_nationality is null and c.player_api_id is null and w.player_api_id is null
 
 union all
 

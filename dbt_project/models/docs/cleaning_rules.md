@@ -108,6 +108,8 @@ match stats are good enough.
   withheld until a standings_table_kinds pattern names it.
 - A team's country that is missing, or that changed between deliveries, is withheld until a
   team_country_corrections row settles it.
+- A player's tied records can hold two real birth dates or two real nationalities. That value is
+  withheld until a player_bio_corrections row settles it.
 {% enddocs %}
 
 {% docs stat_corrections_cleaned_value %}

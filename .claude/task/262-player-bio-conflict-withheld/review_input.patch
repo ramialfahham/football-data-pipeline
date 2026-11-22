@@ -1,0 +1,532 @@
+diff --git a/.claude/task/262-player-bio-conflict-withheld/contract.md b/.claude/task/262-player-bio-conflict-withheld/contract.md
+new file mode 100644
+index 00000000..0b130193
+--- /dev/null
++++ b/.claude/task/262-player-bio-conflict-withheld/contract.md
+@@ -0,0 +1,87 @@
++# Task contract - a player whose records hold two real birth dates or nationalities has the value withheld, not the nightly stopped
++
++objective: >
++  Issue #262, box "Only a check that catches a defect in our own code stops the nightly." The test
++  assert_player_bio_conflicts_settled returns a player whose tied records hold two real birth dates
++  (or two real nationalities) and who has no row in player_bio_corrections, and its error severity
++  stops the nightly on a provider input. base_apif__players now withholds the value: it is blank
++  and flagged (birth_date_needs_research, nationality_needs_research) until a correction row
++  settles it. The test stays at error severity and proves the value is withheld, against a conflict
++  it derives from the staged records itself, never from the flag. assert_identity_fields_never_blanked
++  exempts the same derived conflicts, so over-flagging still fails it. A new warn test lists the
++  withheld players: a player is no match, so he is not a row of mart_competition_research_list.
++
++refs: >
++  #262 What exactly / How (approved in chat, 15 Nov 2026). Part of the three provider checks that
++  move from stopping the nightly to withholding; this one is the smallest of them.
++
++depends_on:
++  - none: glab mr list shows no open merge request; every file this change edits is on gitlab/main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/macros/withheld_when_conflicting.sql
++  - dbt_project/macros/players_with_conflicting_bio.sql
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/tests/assert_player_bio_conflicts_settled.sql
++  - dbt_project/tests/assert_identity_fields_never_blanked.sql
++  - dbt_project/tests/assert_player_bio_withheld_listed.sql
++  - dbt_project/tests/assert_withhold_rules_answer_key.sql
++  - tests/test_withhold_wiring.py
++  - .claude/task/262-player-bio-conflict-withheld/contract.md
++  - .claude/task/262-player-bio-conflict-withheld/review.md
++  - .claude/task/262-player-bio-conflict-withheld/review_input.patch
++
++impact_map: >
++  writers: base_apif__players is written by dbt only (no ingestion code, no raw table); it reads
++  stg_apif__players, base_apif__fixture_events, base_apif__lineups, stg_apif__fixture_players and
++  the seeds player_bio_corrections, country_name_overrides and player_id_overrides. No other model
++  writes it. Its only direct reader is dim_player. No model reads the two flag columns that are
++  renamed (grep over dbt_project/models, tests, macros, seeds, scripts, tests and site_v2/src finds
++  them only in base.yml, base_apif__players.sql and assert_player_bio_conflicts_settled).
++  downstream: `dbt ls --select base_apif__players+ --resource-type model`, run from the repo root
++  with `--project-dir dbt_project` on this branch cut from gitlab/main:
++  base_apif__players, dim_player, mart_competition_fixtures, mart_competition_research_list,
++  mart_leaderboards, mart_match_days, mart_player_career, mart_player_competition_benchmarks,
++  mart_player_fixture_stats, mart_player_index, mart_player_profile, mart_player_season_record,
++  mart_roster, mart_team_competitions, mart_team_index, mart_team_momentum_window (16 models).
++  Tests downstream of the model: 191 (`dbt ls --select base_apif__players+ --resource-type test`);
++  the two that read it directly and change here are assert_player_bio_conflicts_settled and
++  assert_identity_fields_never_blanked. dim_player takes the profile's birth date and nationality
++  before the base value, so a withheld base value reaches a page only for a player with no profile.
++  layer_rules: the withholding is cleaning and sits in base; check_layer_contract applies unchanged:
++  no new model, no materialisation change, no per-competition file. Two macros are added, as the
++  models already use macros for cleaning.
++  deploy_order: one build; the nightly picks it up after merge. Renaming two columns of
++  base_apif__players is safe because the only reader of them is the test that this change rewrites.
++  blast_radius: measured read-only on prod before the build: 13 players have a conflicting birth
++  date and 10 a conflicting nationality in base_apif__players, and every one has a row in
++  player_bio_corrections (0 without), so no published value changes today. The MR states the same
++  measure on its ci_mr tables.
++
++approved_design:
++  - none: no page output changes; a withheld birth date or nationality is blank, as the existing withheld values are
++
++decisions_taken: >
++  The smallest unit that is wrong is withheld: the value where it can be blanked. The test that
++  caught a provider input stays at error severity and proves the value is withheld (#262, approved
++  in chat, 15 Nov 2026). No test gets a where exemption, a lower severity or a filter that hides
++  rows: the exemption added to assert_identity_fields_never_blanked is the set of players whose
++  latest delivered values conflict, derived from stg_apif__players by the same macro as the
++  settled test, so it does not read the flag it tests. The listing test is new and warn.
++
++decisions_reserved: >
++  none: how a withheld value looks on a page is the existing withheld-value form; no page, metric,
++  name or rule is added.
++
++done_when:
++  - python scripts/ci_local.py --mr passes
++  - dbt parse passes and sqlfluff lint passes on every changed model and macro
++  - python -m pytest tests/test_withhold_wiring.py passes, and fails with the withheld_when_conflicting call removed from base_apif__players.sql
++  - the MR pipeline is green, data:build:mr included
++
++amendments: (none)
+diff --git a/dbt_project/macros/players_with_conflicting_bio.sql b/dbt_project/macros/players_with_conflicting_bio.sql
+new file mode 100644
+index 00000000..1ea3221b
+--- /dev/null
++++ b/dbt_project/macros/players_with_conflicting_bio.sql
+@@ -0,0 +1,24 @@
++{#
++  The players whose newest delivery of a bio field holds two real values, read from
++  stg_apif__players alone: one row per player_api_id. `value` is the SQL of the field as base
++  reads it, over the staged columns birth_date, nationality and raw_ingested_at. The tests use this
++  to find a conflict without reading the flag that base_apif__players sets for it.
++#}
++{% macro players_with_conflicting_bio(value) -%}
++select distinct player_api_id
++from (
++    select
++        season_row.raw_ingested_at,
++        {{ season_player_id(
++            'safe_cast(season_row.player_id as int64)', 'season_row.league_code', 'season_row.season_year',
++            'season_row.team_id'
++        ) }} as player_api_id,
++        {{ value }} as field_value
++    from {{ ref('stg_apif__players') }} as season_row
++    where season_row.player_id is not null
++)
++where field_value is not null
++qualify
++    raw_ingested_at = max(raw_ingested_at) over (partition by player_api_id)
++    and count(distinct field_value) over (partition by player_api_id, raw_ingested_at) > 1
++{%- endmacro %}
+diff --git a/dbt_project/macros/withheld_when_conflicting.sql b/dbt_project/macros/withheld_when_conflicting.sql
+new file mode 100644
+index 00000000..627d6da2
+--- /dev/null
++++ b/dbt_project/macros/withheld_when_conflicting.sql
+@@ -0,0 +1,7 @@
++{#
++  A value whose tied records hold two real values is blank until a correction row settles it:
++  null where the records conflict and no correction row exists, the value otherwise.
++#}
++{% macro withheld_when_conflicting(has_conflict, has_correction, value) -%}
++if(({{ has_conflict }}) and not ({{ has_correction }}), null, {{ value }})
++{%- endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index fcf14135..18062630 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -654,10 +654,12 @@ models:
+       - name: player_api_id
+         description: "{{ doc('player_api_id') }}"
+         tests: [not_null]
+-      - name: has_conflicting_birth_date
+-        description: "True when the player's rows from the delivery that gave his birth date hold two real birth dates. A row in player_bio_corrections settles it."
+-      - name: has_conflicting_nationality
+-        description: "True when the player's rows from the delivery that gave his nationality hold two real nationalities. A row in player_bio_corrections settles it."
++      - name: birth_date_needs_research
++        description: "True when the player's rows from the delivery that gave his birth date hold two real birth dates and player_bio_corrections has no row for it. His birth date is then blank."
++        tests: [not_null]
++      - name: nationality_needs_research
++        description: "True when the player's rows from the delivery that gave his nationality hold two real nationalities and player_bio_corrections has no row for it. His nationality is then blank."
++        tests: [not_null]
+ 
+   - name: base_apif__player_profiles
+     description: >
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index bc07ba58..533596ad 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -223,17 +223,23 @@ corrected as (
+         latest.player_last_name,
+         latest.player_photo_url,
+         latest.raw_ingested_at,
+-        latest.has_conflicting_birth_date,
+-        latest.has_conflicting_nationality,
++        latest.has_conflicting_birth_date and birth_date_fix.player_api_id is null as birth_date_needs_research,
++        latest.has_conflicting_nationality and nationality_fix.player_api_id is null as nationality_needs_research,
+         safe_cast(
+-            {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
++            {{ withheld_when_conflicting(
++                'latest.has_conflicting_birth_date',
++                'birth_date_fix.player_api_id is not null',
++                bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)')
++            ) }} as date
+         ) as player_birth_date,
+         nullif(
+             trim(
+-                coalesce(
+-                    nationality_overrides.country_name,
+-                    {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
+-                )
++                {{ withheld_when_conflicting(
++                    'latest.has_conflicting_nationality',
++                    'nationality_fix.player_api_id is not null',
++                    'coalesce(nationality_overrides.country_name, '
++                    ~ bio_correction('nationality_fix', 'latest.player_nationality') ~ ')'
++                ) }}
+             ),
+             ''
+         ) as player_nationality
+@@ -258,8 +264,8 @@ select
+     player_birth_date,
+     player_photo_url,
+     raw_ingested_at,
+-    has_conflicting_birth_date,
+-    has_conflicting_nationality,
++    birth_date_needs_research,
++    nationality_needs_research,
+     {{ repair_garbled_text('player_name') }} as player_name,
+     {{ repair_garbled_text('player_first_name') }} as player_first_name,
+     {{ repair_garbled_text('player_last_name') }} as player_last_name,
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 874f76a3..14da3178 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -108,6 +108,8 @@ match stats are good enough.
+   withheld until a standings_table_kinds pattern names it.
+ - A team's country that is missing, or that changed between deliveries, is withheld until a
+   team_country_corrections row settles it.
++- A player's tied records can hold two real birth dates or two real nationalities. That value is
++  withheld until a player_bio_corrections row settles it.
+ {% enddocs %}
+ 
+ {% docs stat_corrections_cleaned_value %}
+diff --git a/dbt_project/tests/assert_identity_fields_never_blanked.sql b/dbt_project/tests/assert_identity_fields_never_blanked.sql
+index ae48826f..11bbba59 100644
+--- a/dbt_project/tests/assert_identity_fields_never_blanked.sql
++++ b/dbt_project/tests/assert_identity_fields_never_blanked.sql
+@@ -1,8 +1,11 @@
+ {#
+   A delivery that leaves an identity field empty never blanks it: a player's birth date or
+   nationality, or a team's country, is filled in base wherever any stored delivery holds one,
+-  unless player_bio_corrections left it blank because the sources disagree. A team's country that
+-  changed between deliveries is the exception: it is withheld, blank and flagged, until a
++  unless player_bio_corrections left it blank because the sources disagree. A player whose newest
++  delivery of the field holds two real values is the exception, read from the staged records
++  (players_with_conflicting_bio) and not from the flag: his value is withheld, blank and flagged,
++  until a player_bio_corrections row settles it. A team's country that
++  changed between deliveries is the exception too: it is withheld, blank and flagged, until a
+   team_country_corrections row settles it.
+   Named case: H. Abe (33085), whose latest delivery is blank and an earlier one says Japan and
+   1999-01-28, has both.
+@@ -26,6 +29,14 @@ checked_fields as (
+     from {{ ref('player_bio_corrections') }}
+ ),
+ 
++birth_date_conflicts as (
++    {{ players_with_conflicting_bio(possible_birth_date('birth_date', 'raw_ingested_at')) }}
++),
++
++nationality_conflicts as (
++    {{ players_with_conflicting_bio("nullif(trim(nationality), '')") }}
++),
++
+ team_deliveries as (
+     select
+         team_api_id,
+@@ -57,7 +68,9 @@ inner join player_deliveries as d
+     on p.player_api_id = d.player_api_id
+ left join checked_fields as c
+     on p.player_api_id = c.player_api_id and c.corrected_field = 'player_birth_date'
+-where d.has_birth_date and p.player_birth_date is null and c.player_api_id is null
++left join birth_date_conflicts as w
++    on p.player_api_id = w.player_api_id
++where d.has_birth_date and p.player_birth_date is null and c.player_api_id is null and w.player_api_id is null
+ 
+ union all
+ 
+@@ -70,7 +83,9 @@ inner join player_deliveries as d
+     on p.player_api_id = d.player_api_id
+ left join checked_fields as c
+     on p.player_api_id = c.player_api_id and c.corrected_field = 'player_nationality'
+-where d.has_nationality and p.player_nationality is null and c.player_api_id is null
++left join nationality_conflicts as w
++    on p.player_api_id = w.player_api_id
++where d.has_nationality and p.player_nationality is null and c.player_api_id is null and w.player_api_id is null
+ 
+ union all
+ 
+diff --git a/dbt_project/tests/assert_player_bio_conflicts_settled.sql b/dbt_project/tests/assert_player_bio_conflicts_settled.sql
+index a32caf82..8ad42472 100644
+--- a/dbt_project/tests/assert_player_bio_conflicts_settled.sql
++++ b/dbt_project/tests/assert_player_bio_conflicts_settled.sql
+@@ -1,25 +1,74 @@
+--- A player whose tied records hold two real values needs a checked correction: a profile can be
+--- wrong too, so it settles nothing here.
+-with corrections as (
++{#
++  A player whose newest delivery of a bio field holds two real values has that field withheld in
++  base_apif__players, blank and flagged, until a row in player_bio_corrections settles it: a
++  profile can be wrong too, so it settles nothing here. The conflict is read from the staged
++  records (players_with_conflicting_bio), never from the flag. Returns a conflict without a
++  correction whose value is shown or whose flag is false, and a flag with no conflict or with a
++  correction.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with birth_date_conflicts as (
++    {{ players_with_conflicting_bio(possible_birth_date('birth_date', 'raw_ingested_at')) }}
++),
++
++nationality_conflicts as (
++    {{ players_with_conflicting_bio("nullif(trim(nationality), '')") }}
++),
++
++corrections as (
+     select
+         player_api_id,
+         corrected_field
+     from {{ ref('player_bio_corrections') }}
++),
++
++players as (
++    select
++        p.player_api_id,
++        p.player_birth_date,
++        p.player_nationality,
++        p.birth_date_needs_research,
++        p.nationality_needs_research,
++        bc.player_api_id is not null as birth_date_conflicts,
++        nc.player_api_id is not null as nationality_conflicts,
++        bk.player_api_id is not null as birth_date_corrected,
++        nk.player_api_id is not null as nationality_corrected
++    from {{ ref('base_apif__players') }} as p
++    left join birth_date_conflicts as bc
++        on p.player_api_id = bc.player_api_id
++    left join nationality_conflicts as nc
++        on p.player_api_id = nc.player_api_id
++    left join corrections as bk
++        on p.player_api_id = bk.player_api_id and bk.corrected_field = 'player_birth_date'
++    left join corrections as nk
++        on p.player_api_id = nk.player_api_id and nk.corrected_field = 'player_nationality'
+ )
+ 
+ select
+-    players.player_api_id,
+-    players.has_conflicting_birth_date,
+-    players.has_conflicting_nationality
+-from {{ ref('base_apif__players') }} as players
+-left join corrections as birth_date_fix
+-    on
+-        players.player_api_id = birth_date_fix.player_api_id
+-        and birth_date_fix.corrected_field = 'player_birth_date'
+-left join corrections as nationality_fix
+-    on
+-        players.player_api_id = nationality_fix.player_api_id
+-        and nationality_fix.corrected_field = 'player_nationality'
++    player_api_id,
++    'birth date of a conflict is shown or not flagged' as failure
++from players
+ where
+-    (players.has_conflicting_birth_date and birth_date_fix.player_api_id is null)
+-    or (players.has_conflicting_nationality and nationality_fix.player_api_id is null)
++    birth_date_conflicts and not birth_date_corrected
++    and (player_birth_date is not null or not birth_date_needs_research)
++union all
++select
++    player_api_id,
++    'birth date flagged without a conflict, or despite a correction' as failure
++from players
++where birth_date_needs_research and not (birth_date_conflicts and not birth_date_corrected)
++union all
++select
++    player_api_id,
++    'nationality of a conflict is shown or not flagged' as failure
++from players
++where
++    nationality_conflicts and not nationality_corrected
++    and (player_nationality is not null or not nationality_needs_research)
++union all
++select
++    player_api_id,
++    'nationality flagged without a conflict, or despite a correction' as failure
++from players
++where nationality_needs_research and not (nationality_conflicts and not nationality_corrected)
+diff --git a/dbt_project/tests/assert_player_bio_withheld_listed.sql b/dbt_project/tests/assert_player_bio_withheld_listed.sql
+new file mode 100644
+index 00000000..95752c64
+--- /dev/null
++++ b/dbt_project/tests/assert_player_bio_withheld_listed.sql
+@@ -0,0 +1,15 @@
++{#
++  The players whose birth date or nationality is withheld (birth_date_needs_research,
++  nationality_needs_research) because their tied records hold two real values: the list to research.
++  A player is no match, so he is not on mart_competition_research_list. The fix is a row in
++  player_bio_corrections with its sources. Warn severity: the listing is the result, and the value
++  is already withheld.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
++
++select
++    player_api_id,
++    birth_date_needs_research,
++    nationality_needs_research
++from {{ ref('base_apif__players') }}
++where birth_date_needs_research or nationality_needs_research
+diff --git a/dbt_project/tests/assert_withhold_rules_answer_key.sql b/dbt_project/tests/assert_withhold_rules_answer_key.sql
+new file mode 100644
+index 00000000..cf72e1e5
+--- /dev/null
++++ b/dbt_project/tests/assert_withhold_rules_answer_key.sql
+@@ -0,0 +1,43 @@
++{#
++  Hand-written provider errors run through the rules that withhold them, and the cases our own
++  data must keep. Each rule is the macro the models call: withheld_when_conflicting. Returns each
++  case whose answer differs from the hand-worked one: a provider error that is not caught is a
++  value that would be shown, and a correct value that is caught is one withheld for nothing.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with bio_records as (
++    select *
++    from unnest([
++        struct(
++            'two real values and no correction' as case_name, true as has_conflict,
++            false as has_correction, 'Japan' as provider_value, cast(null as string) as expected_value
++        ),
++        struct('two real values with a correction', true, true, 'Japan', 'Japan'),
++        struct('one real value', false, false, 'Japan', 'Japan')
++    ])
++),
++
++bio_cases as (
++    select
++        'conflicting_bio: ' || case_name as test_case,
++        true as expected,
++        expected_value is not distinct from
++        {{ withheld_when_conflicting('has_conflict', 'has_correction', 'provider_value') }} as actual
++    from bio_records
++),
++
++all_cases as (
++    select
++        test_case,
++        expected,
++        actual
++    from bio_cases
++)
++
++select
++    test_case,
++    expected,
++    actual
++from all_cases
++where expected is distinct from actual
+diff --git a/tests/test_withhold_wiring.py b/tests/test_withhold_wiring.py
+new file mode 100644
+index 00000000..fed674f8
+--- /dev/null
++++ b/tests/test_withhold_wiring.py
+@@ -0,0 +1,73 @@
++"""The models that withhold a provider error call the withholding macros where the value leaves them.
++
++dbt 1.7 has no unit tests and prod holds no input that triggers a withhold, so a call site that is
++reverted leaves every data test green. These tests render the real model text, with the real
++macros, and check the rendered SQL at the column that carries the value.
++"""
++
++import pathlib
++import re
++
++import jinja2
++import pytest
++
++DBT = pathlib.Path(__file__).resolve().parents[1] / "dbt_project"
++MACROS = DBT / "macros"
++BASE = DBT / "models" / "2_base" / "api_football"
++
++
++def _environment() -> jinja2.Environment:
++    environment = jinja2.Environment()
++    environment.globals.update(
++        ref=lambda name: f"`{name}`",
++        source=lambda source, name: f"`{source}.{name}`",
++        config=lambda **kwargs: "",
++        var=lambda name, default=None: default,
++    )
++    text = "\n".join(path.read_text(encoding="utf-8") for path in sorted(MACROS.glob("*.sql")))
++    module = environment.from_string(text).module
++    environment.globals.update({name: getattr(module, name) for name in dir(module) if not name.startswith("_")})
++    return environment
++
++
++def render_model(file_name: str) -> str:
++    """The model's SQL with every dbt macro and ref expanded, whitespace collapsed."""
++    environment = _environment()
++    template = environment.from_string((BASE / file_name).read_text(encoding="utf-8"))
++    return " ".join(template.render().split())
++
++
++@pytest.fixture(scope="module")
++def players_sql():
++    return render_model("base_apif__players.sql")
++
++
++def _withhold(field: str) -> str:
++    return (
++        rf"if\(\(latest\.has_conflicting_{field}\) and not \({field}_fix\.player_api_id is not null\), "
++        r"null, "
++    )
++
++
++def test_a_birth_date_is_blank_while_its_records_conflict_and_no_correction_settles_it(players_sql):
++    assert re.search(r"safe_cast\( " + _withhold("birth_date") + r".*? as date \) as player_birth_date\b", players_sql)
++
++
++def test_a_nationality_is_blank_while_its_records_conflict_and_no_correction_settles_it(players_sql):
++    assert re.search(
++        r"nullif\( trim\( " + _withhold("nationality") + r".*?\) \), '' \) as player_nationality\b", players_sql
++    )
++
++
++@pytest.mark.parametrize("field", ["birth_date", "nationality"])
++def test_the_flag_is_true_exactly_where_the_value_is_withheld(players_sql, field):
++    flag = (
++        rf"latest\.has_conflicting_{field} and {field}_fix\.player_api_id is null "
++        rf"as {field}_needs_research"
++    )
++    assert re.search(flag, players_sql)
++
++
++def test_the_flags_reach_the_model_output(players_sql):
++    output = players_sql.rsplit(" select player_api_id,", 1)[1]
++    assert "birth_date_needs_research, nationality_needs_research," in output
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../review_input.patch                             | 512 +++++++++++++++++++++
+#    1 file changed, 512 insertions(+)
+# ============================================================================
