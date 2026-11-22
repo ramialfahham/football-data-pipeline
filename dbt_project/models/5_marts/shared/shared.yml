@@ -73,8 +73,8 @@ models:
           From dim_league.league_name. NULL when the competition has never been ingested.
       - name: logo_url
         description: >
-          From dim_league.league_logo_url. NULL for a competition with no crest ingested, or
-          never ingested at all.
+          From dim_league.league_logo_url, the path of the logo on this site. NULL for a
+          competition with no logo stored, or never ingested at all.
       - name: region_label_en
         description: >
           The competition's country if it has one (league_country), otherwise its region's English
@@ -2772,7 +2772,7 @@ models:
       - name: home_team_slug
         description: "The home team's permanent URL segment from dim_team."
       - name: home_team_logo_url
-        description: "The home team's crest URL from dim_team."
+        description: "The path of the home team's crest on this site, from dim_team."
       - name: home_team_formation
         description: "{{ doc('team_formation') }} Here, the home team's; NULL unless lineup_state is confirmed or researched."
       - name: home_team_country
@@ -2790,7 +2790,7 @@ models:
       - name: away_team_slug
         description: "The away team's permanent URL segment from dim_team."
       - name: away_team_logo_url
-        description: "The away team's crest URL from dim_team."
+        description: "The path of the away team's crest on this site, from dim_team."
       - name: away_team_formation
         description: "{{ doc('team_formation') }} Here, the away team's; NULL unless lineup_state is confirmed or researched."
       - name: away_team_country

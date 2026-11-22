@@ -199,3 +199,14 @@ sources:
           after that first capture are missing until they are fetched again.
         identifier: RAW_APIF_PLAYER_TEAMS
         loaded_at_field: ingested_at
+
+      - name: raw_apif_crest_objects
+        description: >
+          The team crests and league logos held in the crest bucket. One row per RUN
+          that fetched or checked at least one image, holding the whole state in one
+          JSON payload: one entry per crest or logo with its status (ok or missing),
+          the SHA-256 of the provider's image, and when it was fetched and last
+          checked. A night with nothing to check writes no row. Append-only, so the
+          newest row is current. An operational table written by the crest phase of
+          the ingest, not provider data.
+        identifier: RAW_APIF_CREST_OBJECTS

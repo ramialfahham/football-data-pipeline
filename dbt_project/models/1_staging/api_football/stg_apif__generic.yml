@@ -726,3 +726,38 @@ models:
         description: "The date this career stint started, as the provider returns it ($.start)."
       - name: end_date
         description: "The date this career stint ended, as the provider returns it ($.end)."
+
+  - name: stg_apif__crest_objects
+    description: >
+      One row per crest or league logo in the newest state the crest phase wrote, from
+      RAW_APIF_CREST_OBJECTS. Grain: (crest_kind, provider_id).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: stg_apif__crest_objects_keys_unique
+          combination_of_columns: [crest_kind, provider_id]
+    columns:
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
+        tests: [not_null]
+      - name: crest_kind
+        description: "What the image shows: teams for a team crest, leagues for a league logo."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["teams", "leagues"]
+      - name: provider_id
+        description: "The provider's id of the team or league the image belongs to."
+        tests: [not_null]
+      - name: crest_status
+        description: "ok when the image is stored in the crest bucket, missing when the provider answered 404 for it."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["ok", "missing"]
+      - name: source_sha256
+        description: "The SHA-256 of the provider's image as last fetched. NULL for a missing image."
+      - name: fetched_at
+        description: "When the stored files were last written."
+      - name: checked_at
+        description: "When the provider's image was last fetched to look for a change."
+        tests: [not_null]

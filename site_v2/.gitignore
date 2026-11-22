@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .astro/
+# The crest files the site build copies from the crest bucket (scripts/sync_crests.py).
+public/crests/
 
 # The repo-root .gitignore has a Python-packaging `lib/` pattern (unanchored, so it
 # matches **/lib/ — dead boilerplate here). Re-include our frontend source dir.

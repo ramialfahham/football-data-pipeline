@@ -235,7 +235,10 @@ models:
               to: ref('dim_country')
               field: country_name
       - name: league_logo_url
-        description: "League logo URL."
+        description: "The path of the league logo on this site (\"/crests/leagues/{id}-104.webp\"). NULL when no logo is stored for the league."
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "not like '%api-sports.io%'"
       - name: country_flag_url
         description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
       - name: competition_type
@@ -424,6 +427,9 @@ models:
         description: "Year the team was founded."
       - name: team_logo_url
         description: "{{ doc('team_logo_url') }}"
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "not like '%api-sports.io%'"
       - name: venue_api_id
         description: "API-Football venue id for the current home venue."
       - name: venue_name

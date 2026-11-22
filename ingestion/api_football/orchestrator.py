@@ -72,6 +72,7 @@ from .loads.competition_runner import (
 from .loads.squads import captured_player_team_seasons
 from .loads.player_universe import query_player_universe
 from .loads.player_profiles import load_player_profiles_global
+from .loads import crests
 from .loads.player_teams import load_player_teams_global
 from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
 
@@ -223,6 +224,14 @@ def _load_api_football(request):
             shared_universe = None
         load_player_profiles_global(ctx, universe=shared_universe)
         load_player_teams_global(ctx, universe=shared_universe)
+
+        # Phase 6: team crests and league logos into the private crest bucket, after the team and
+        # league lists they are read from. Never fails the ingest: a crest that is not stored shows
+        # its initials until the next run.
+        try:
+            print(f"[crests] {crests.run(ctx)}", flush=True)
+        except Exception as e:
+            print(f"[crests] phase failed, ingest continues: {e}", flush=True)
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:

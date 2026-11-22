@@ -21,6 +21,10 @@ GCP_PROJECT_ID = "football-data-pipeline-gcp"
 # BigQuery dataset for 1:1 loads (medallion "raw" layer). Override to match dbt `sources` schema.
 DATASET_ID = (os.getenv("API_FOOTBALL_BIGQUERY_DATASET", "raw").strip() or "raw")
 
+# The private bucket that holds the shrunk crests and league logos; the site build copies it into
+# `dist/crests/` (scripts/sync_crests.py).
+CREST_BUCKET = "football-data-pipeline-gcp-crests"
+
 APISPORTS_BASE = "https://v3.football.api-sports.io"
 RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
 

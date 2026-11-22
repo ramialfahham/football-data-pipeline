@@ -31,6 +31,8 @@
 //    logo, any other host) and held to `IMAGE_PINS`, a ceiling per kind that only goes down. A pin at
 //    0 holds on every build. A pin above 0 holds on a build of the committed sample (no manifest) and
 //    is only reported on a full export. The change that removes a kind lowers its pin to 0.
+//    A crest path on our own domain (`/crests/…`) must be a file under `dist/` on a full export, and
+//    is only counted on a sample build, which carries no crest files.
 //
 // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
 // components, and the pure functions below are unit-tested on string literals.
@@ -474,17 +476,47 @@ export function imageKind(url) {
 
 export const emptyImageCounts = () => ({
   playerPhoto: 0, providerImage: 0, foreign: 0, examples: { playerPhoto: [], providerImage: [], foreign: [] },
+  crestPaths: new Set(),
 });
 
-/** The count of non-ours images by kind on one page, with the addresses of the first few of each. */
+/** The site path of a crest address on this site: a path under `/crests/`, or the same path on our
+ *  own host (the social cards and the JSON-LD name it absolute); null for any other address. */
+export function crestPath(url) {
+  if (url.startsWith("/crests/")) return url.split(/[?#]/)[0];
+  if (!/^(?:https?:)?\/\//i.test(url)) return null;
+  try {
+    const { hostname, pathname } = new URL(url.startsWith("//") ? `https:${url}` : url);
+    return OUR_HOSTS.includes(hostname) && pathname.startsWith("/crests/") ? pathname : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The count of non-ours images by kind on one page, with the addresses of the first few of each,
+ *  and the crest paths the page names. */
 export function countImages(html, path = "", into = emptyImageCounts()) {
   for (const url of imageUrls(html)) {
+    const crest = crestPath(url);
+    if (crest) into.crestPaths.add(crest);
     const kind = imageKind(url);
     if (kind === "ours") continue;
     into[kind] += 1;
     if (into.examples[kind].length < IMAGE_EXAMPLES) into.examples[kind].push(`${path} ${url}`);
   }
   return into;
+}
+
+/** Issues from the crest paths the built pages name. On a full export (the manifest is present) every
+ *  path must be a file under `dist/`, so a crest sync that did not run cannot ship a broken image; on
+ *  the committed sample, which carries no crest files, the count is reported and not failed. */
+export function checkCrestFiles(paths, { exists, fullBuild }) {
+  const missing = [...paths].filter((p) => !exists(p)).sort();
+  if (!fullBuild || missing.length === 0) return { issues: [], missing: missing.length };
+  const shown = missing.slice(0, IMAGE_EXAMPLES).join(", ");
+  return {
+    issues: [`${missing.length} crest path(s) named by the pages are no file under dist/ (first: ${shown}): the crest sync did not copy them`],
+    missing: missing.length,
+  };
 }
 
 const IMAGE_LABELS = {
@@ -573,6 +605,11 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR, pins = IMAGE_PINS) 
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
   issues.push(...checkImageOrigins(images, { fullBuild: Boolean(manifest), pins }));
+  const crestFiles = checkCrestFiles(images.crestPaths, {
+    exists: (p) => existsSync(join(distDir, p)),
+    fullBuild: Boolean(manifest),
+  });
+  issues.push(...crestFiles.issues);
   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
   if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
     issues.push("a team payload serves the deserved points scatter but no Team page carried one");
@@ -588,7 +625,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR, pins = IMAGE_PINS) 
         : " (no manifest: sample build)") +
       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
       ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked;` +
-      ` ${images.providerImage} provider crest/logo image(s), ${images.playerPhoto} player photo(s), ${images.foreign} other foreign image(s). OK.`,
+      ` ${images.providerImage} provider crest/logo image(s), ${images.playerPhoto} player photo(s), ${images.foreign} other foreign image(s);` +
+      ` ${images.crestPaths.size} crest path(s) on our domain, ${crestFiles.missing} not a file under dist/. OK.`,
   );
   return 0;
 }

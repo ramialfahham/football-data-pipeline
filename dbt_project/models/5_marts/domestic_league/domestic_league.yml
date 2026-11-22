@@ -306,7 +306,7 @@ models:
         description: "The home team's display name, taken from the team dimension rather than from the fixture feed, so it carries any correction made to that team's name."
         tests: [not_null]
       - name: home_team_logo_url
-        description: "Home team crest URL from dim_team (API-Football); nullable."
+        description: "Path of the home team's crest on this site, from dim_team; nullable."
       - name: away_team_sk
         description: "{{ doc('away_team_sk') }}"
         tests:
@@ -318,7 +318,7 @@ models:
         description: "The away team's display name, taken from the team dimension rather than from the fixture feed, so it carries any correction made to that team's name."
         tests: [not_null]
       - name: away_team_logo_url
-        description: "Away team crest URL from dim_team (API-Football); nullable."
+        description: "Path of the away team's crest on this site, from dim_team; nullable."
       - name: league_name
         description: "Human-readable league name from dim_league."
       - name: home_league_rank
