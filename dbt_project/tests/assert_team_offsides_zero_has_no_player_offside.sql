@@ -1,20 +1,10 @@
 -- A team's offsides count is not 0 while a player of it, by the cleaned team id, has an offside
--- above 0. The clause that cleans a blank offsides count to 0 (the cleaning_rules Blank rule) is
--- guarded by the players' offsides under the same team id, so this fails when a team id remap
--- leaves the guard looking at the wrong team. Not counted: a zero that follows the other team's
--- value above 0 (the opponent rule), and fixture 1149592, whose line has the provider's 0 for
--- both teams.
+-- above 0 (the cleaning_rules Blank rule). It holds whether the 0 came from the provider, from the
+-- other team's line or from the team's own full line, and fails when a team id remap leaves the
+-- guard looking at the wrong team.
 {{ config(store_failures = true) }}
 
-with team_lines as (
-    select
-        fixture_sk,
-        team_sk,
-        offsides
-    from {{ ref('fct_fixture_team_stats') }}
-),
-
-players_with_an_offside as (
+with players_with_an_offside as (
     select
         fixture_sk,
         team_sk
@@ -26,12 +16,7 @@ players_with_an_offside as (
 select
     t.fixture_sk,
     t.team_sk
-from team_lines as t
+from {{ ref('fct_fixture_team_stats') }} as t
 inner join players_with_an_offside as p
     on t.fixture_sk = p.fixture_sk and t.team_sk = p.team_sk
-inner join team_lines as o
-    on t.fixture_sk = o.fixture_sk and t.team_sk != o.team_sk
-where
-    t.offsides = 0
-    and coalesce(o.offsides, 0) = 0
-    and t.fixture_sk != 1149592
+where t.offsides = 0

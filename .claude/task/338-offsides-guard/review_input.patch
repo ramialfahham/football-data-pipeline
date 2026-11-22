@@ -1,0 +1,1318 @@
+diff --git a/.claude/task/338-offsides-guard/contract.md b/.claude/task/338-offsides-guard/contract.md
+new file mode 100644
+index 00000000..c62a09e4
+--- /dev/null
++++ b/.claude/task/338-offsides-guard/contract.md
+@@ -0,0 +1,102 @@
++# Task contract — a team never shows 0 offsides when one of its players was offside
++
++objective: >
++  Issue #338: no team-match shows a team offsides count of 0 while a player of that team (by the
++  cleaned team id) has an offside above 0 in the match. The Blank rule gets a guard: a blank that
++  the other team's line would zero stays blank when a player of the team has an offside, and a
++  provider 0 that its players contradict is withheld. The guard reads the player's cleaned
++  offsides, the value the player has in base_apif__fixture_players, so a later fetch that corrects
++  a player's offside to 0 leaves the team's 0 standing.
++
++refs: "#338; cleaning_rules (Blank rule); #335 (the full-line clause it extends); #339 (listing, not here)"
++
++scope_paths:
++  - .claude/task/338-offsides-guard/**
++  - dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
++  - dbt_project/tests/assert_team_stat_blank_counts_follow_the_blank_rule.sql
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
++  - dbt_project/seeds/team_match_cleaning_answer_key.csv
++
++impact_map: >
++  writers: base_apif__fixture_statistics (the Blank rule, offsides) and base_apif__fixture_players
++  (its first half moves, unchanged, into the new base model base_apif__fixture_player_lines, so
++  that the statistics model can read the players' cleaned offsides without a cycle: the players
++  model reads the statistics model for its shots fill and its zero fill).
++  downstream: output of `dbt ls --select base_apif__fixture_player_lines+ --resource-type model
++  --output name`, 87 models (it covers both changed models, since the statistics model reads the new
++  one):
++  base_apif__fixture_events_checked base_apif__fixture_player_lines base_apif__fixture_players
++  base_apif__fixture_players_checked base_apif__fixture_players_from_lineups
++  base_apif__fixture_statistics base_apif__lineup_sheets base_apif__lineups base_apif__players
++  dim_player fct_fixture_event fct_fixture_lineup fct_fixture_player_stats fct_fixture_team_stats
++  int_competition_season__player_stat_corrections int_legs__player_match
++  int_legs__team_from_players int_legs__team_match int_pipeline__corrections_no_longer_needed
++  int_player__national_team_minutes int_player__page_profile int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_match__metrics int_player_momentum__metrics int_player_page__window_seasons
++  int_player_profile__contribution int_player_season__metrics int_player_season__team
++  int_player_season_position__metrics int_player_season_record int_player_squad_window__metrics
++  int_player_window__metrics int_standings__official_rank int_team__current_national_competitions
++  int_team__featured_season int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks int_team_competition_phase__metrics int_team_momentum__metrics
++  int_team_momentum_window int_team_profile__streaks int_team_season__biggest_results
++  int_team_season__deserved_vs_actual int_team_season__longest_runs int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season__standings_primary
++  int_team_season__table_by_time int_team_season__table_legs int_team_season__table_state
++  int_team_season_record int_team_window__metrics mart_competition_fixtures mart_competition_index
++  mart_competition_research_list mart_competition_season_summary mart_fixture_standing_context
++  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats mart_player_index
++  mart_player_momentum mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_competitions mart_team_fixtures mart_team_index mart_team_leaderboards
++  mart_team_momentum_window mart_team_page_window_metrics mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record mart_team_window_metrics
++  The opponent clause reads the other team's offsides as delivered, so a team's blank is still
++  zeroed by the other team's provider 0 even where that 0 is withheld for the other team; no
++  prod team-match shows it (the 7 changed rows are the only differences measured).
++  A team offsides count that goes from 0 to blank can only change offsides per match and its
++  windows and boards for the team-matches measured below. The players model is meant to be row and
++  column identical: its offsides fill (offsides_counted or team_offsides = 0) cannot change where a
++  player of the match has an offside above 0, which holds in every changed team-match.
++  layer_rules: base reads staging and base only; the new model reads no statistics model, so the
++  statistics model reads it with no cycle; one table per grain, no per-competition model.
++  deploy_order: the nightly rebuilds base and downstream in order; the new table is built before
++  both models that read it; no consumer reads a new column.
++  blast_radius: measured read-only on prod (base_apif__fixture_statistics against
++  base_apif__fixture_players): 7 team-matches have offsides 0 and a player with an offside above
++  0: 974184/81, 1035960/3490, 1099022/10137, 1149592/2546, 1149592/3700, 1187488/11, 1629940/2938.
++  The new table is one row per player line of a match (about 2 million), a few hundred MB.
++
++approved_design:
++  - none: no page output changes by design; a team value that was a wrong 0 shows blank where a value is served
++
++depends_on:
++  - none: base models on main alone
++shared_files:
++  - none: no design, registry, font or chart baseline changes
++
++decisions_taken: >
++  A cleaning-rule extension (working_agreement §10, rule extensions): the issue text states it and
++  the CPO approves it by merging; the rule sentence stands at the top of the MR head. A model
++  split for a dependency cycle is an engineering call: the first half of the players model moves
++  without change into its own base model. No new run, dependency or recurring cost beyond one more
++  base table. The withheld provider 0 is not recorded in stat_corrections: no consumer reads the
++  team entries and listing it for research is #339.
++
++decisions_reserved:
++  - none: the rule and its scope are the approved issue text.
++
++done_when:
++  - dbt parse and sqlfluff lint of the changed models and tests pass, check_description_hygiene.py and check_layer_contract.py pass.
++  - On the MR's ci_mr tables against prod, base_apif__fixture_statistics differs only in offsides of the wrong 0s (0 to blank), every other row and column identical, and base_apif__fixture_players is row and column identical.
++  - assert_team_offsides_zero_has_no_player_offside has no exclusion and returns 0 rows; the tests that recompute the Blank rule agree with the rule.
++  - python scripts/ci_local.py --mr is green and python scripts/merge_ready.py <MR> says ready.
++
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 63a9f4db..2f524df9 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -388,6 +388,36 @@ models:
+       - name: stat_corrections.rule
+         description: "{{ doc('stat_corrections_rule') }}"
+ 
++  - name: base_apif__fixture_player_lines
++    description: >
++      One row per player per fixture before the blank rule: the player's line in the match's picked
++      fetch (its newest in the provider's complete format, else its newest), his goals, assists,
++      cards and minutes settled by the match's events where the fetches disagree, and for each
++      fillable stat the newest value another fetch gives him that agrees with him on those results,
++      as donated_<stat>. Players of a team-match are filed under the team id the players model
++      keeps them under. Grain: (league_code, fixture_id, team_id, player_id).
++
++      It is the first half of base_apif__fixture_players, split out so that
++      base_apif__fixture_statistics can read a player's offsides without a cycle.
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_id, team_id, player_id]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "The player's team id, as base_apif__fixture_players keeps it."
++        tests: [not_null]
++      - name: player_id
++        description: "{{ doc('player_api_id') }}"
++        tests: [not_null]
++
+   - name: base_apif__fixture_players
+     description: >
+       One row per player per fixture with that player's match statistics, from the generic
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
+new file mode 100644
+index 00000000..c693ffcb
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
+@@ -0,0 +1,450 @@
++{#
++  One row per player per fixture, before the blank rule: the player's line in the match's picked
++  fetch, his goals, assists, cards and minutes settled by the match's events where the fetches
++  disagree, and the newest value of each blank stat from another fetch that gives him the same
++  results (step 0 of the cleaning_rules doc block). It is its own model so that the team
++  statistics read the player's offsides without a cycle: the players model reads the statistics
++  for its shots fill and its zero fill.
++#}
++with stat_lines as (
++    select
++        stat_line.*,
++        {{ fixture_player_id(
++            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
++        ) }} as kept_player_id
++    from {{ ref('stg_apif__fixture_players') }} as stat_line
++    where
++        stat_line.fixture_id is not null
++        and stat_line.team_id is not null
++),
++
++src as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        kept_player_id as player_id,
++        minutes_played,
++        shirt_number,
++        is_captain,
++        is_substitute,
++        offsides,
++        shots_total,
++        shots_on,
++        goals_total,
++        goals_against,
++        goals_assists,
++        saves,
++        passes_total,
++        passes_key,
++        passes_accuracy_percent,
++        tackles_total,
++        tackles_blocks,
++        tackles_interceptions,
++        duels_total,
++        duels_won,
++        dribbles_attempts,
++        dribbles_success,
++        dribbles_past,
++        fouls_drawn,
++        fouls_committed,
++        cards_yellow,
++        cards_red,
++        penalty_won,
++        penalty_committed,
++        penalty_scored,
++        penalty_missed,
++        penalty_saved,
++        raw_ingested_at,
++        if(position_code in ('G', 'D', 'M', 'F'), position_code, null) as position_code
++    from stat_lines
++    where
++        kept_player_id is not null
++        -- player_id = 0 is the API placeholder for an unknown player (no real id);
++        -- it is not a real player and produces phantom cross-team duplicate legs.
++        and kept_player_id != 0
++),
++
++-- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting
++-- override condition below. base_apif__fixtures_next grain is one row per fixture_id. Only
++-- fixtures whose two participants are BOTH known are kept, so the IN / NOT IN participant checks
++-- in the reattribute join never hit the NOT IN (value, NULL) -> UNKNOWN trap (a fixture with a
++-- missing participant id is a separate defect; the override conservatively does not fire there).
++fixture_participants as (
++    select
++        fixture_id,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where
++        home_team_id is not null
++        and away_team_id is not null
++),
++
++-- Hand-curated corrections for known provider team-id defects, from
++-- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
++-- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
++-- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
++-- club's own legitimate lineups are never touched). Same seed and same two modes the events model
++-- has used since #526; it was simply never wired to this feed, which is how one stub team block --
++-- id 22722, name null -- put a lineup under a club that does not exist and stopped the nightly.
++-- `reattribute_in_fixture` replaces the id inside the one fixture named, where two clubs share it.
++overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id,
++        mode,
++        cast(fixture_id as int64) as fixture_id
++    from {{ ref('fixture_team_id_overrides') }}
++),
++
++-- The player's team where his row and his events disagree, decided in base_apif__fixture_events.
++resolved_teams as (
++    select
++        fixture_id,
++        player_id,
++        {{ one_value('resolved_player_team_id') }} as team_id
++    from {{ ref('base_apif__fixture_events') }}
++    where resolved_player_team_id is not null
++    group by fixture_id, player_id
++),
++
++-- The player's team on a researched line-up, which an official source settles.
++researched_teams as (
++    select distinct
++        fixture_id,
++        player_id,
++        team_id
++    from {{ ref('fixture_lineup_corrections') }}
++),
++
++-- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
++-- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
++-- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
++-- under both a wrong id and its correct one was never two players, and dropping that leg as
++-- unattributable would discard a real appearance.
++corrected as (
++    select
++        src.* except (team_id),
++        coalesce(
++            researched_teams.team_id,
++            resolved_teams.team_id,
++            fixture_override.correct_team_api_id,
++            alias_override.correct_team_api_id,
++            reattribute_override.correct_team_api_id,
++            src.team_id
++        ) as team_id,
++        (
++            select countif(stat is not null)
++            from unnest([
++                src.minutes_played, src.offsides, src.shots_total, src.shots_on, src.goals_total,
++                src.goals_against, src.goals_assists, src.saves, src.passes_total, src.passes_key,
++                src.passes_accuracy_percent, src.tackles_total, src.tackles_blocks, src.tackles_interceptions,
++                src.duels_total, src.duels_won, src.dribbles_attempts, src.dribbles_success, src.dribbles_past,
++                src.fouls_drawn, src.fouls_committed, src.cards_yellow, src.cards_red, src.penalty_won,
++                src.penalty_committed, src.penalty_scored, src.penalty_missed, src.penalty_saved
++            ]) as stat
++        ) as delivered_values,
++        logical_or(src.goals_against is not null)
++            over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
++    from src
++    left join overrides as fixture_override
++        on
++            src.team_id = fixture_override.wrong_team_api_id
++            and src.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
++    left join overrides as alias_override
++        on
++            src.team_id = alias_override.wrong_team_api_id
++            and alias_override.mode = 'alias'
++    left join fixture_participants
++        on src.fixture_id = fixture_participants.fixture_id
++    left join overrides as reattribute_override
++        on
++            src.team_id = reattribute_override.wrong_team_api_id
++            and reattribute_override.mode = 'reattribute_if_cohabiting'
++            and reattribute_override.correct_team_api_id in (
++                fixture_participants.home_team_id, fixture_participants.away_team_id
++            )
++            and reattribute_override.wrong_team_api_id not in (
++                fixture_participants.home_team_id, fixture_participants.away_team_id
++            )
++    left join resolved_teams
++        on
++            src.fixture_id = resolved_teams.fixture_id
++            and src.player_id = resolved_teams.player_id
++    left join researched_teams
++        on
++            src.fixture_id = researched_teams.fixture_id
++            and src.player_id = researched_teams.player_id
++),
++
++-- The provider's values under our names, one row per player per fixture and fetch. A player the
++-- provider lists twice in one fetch keeps the row with more values, and the rows' own values break a
++-- tie, so every build keeps the same row. A match's picked fetch is its newest fetch in the
++-- provider's complete format, else its newest fetch. The newer format leaves goals conceded and
++-- dribbled past blank for every player, so a fetch counts as complete when any player in it has goals
++-- conceded. A fetch whose accurate passes add up to more than its passes sent percentages.
++fetch_rows as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number,
++        position_code,
++        is_captain,
++        is_substitute,
++        raw_ingested_at,
++        minutes_played as minutes,
++        offsides,
++        shots_total as shots,
++        shots_on as shots_on_target,
++        goals_total as goals,
++        goals_against,
++        goals_assists as assists,
++        saves,
++        passes_total as passes,
++        passes_key,
++        passes_accuracy_percent as passes_accurate,
++        tackles_total as tackles,
++        tackles_blocks as blocks,
++        tackles_interceptions as interceptions,
++        duels_total as duels,
++        duels_won,
++        dribbles_attempts as dribbles,
++        dribbles_success,
++        dribbles_past as dribbles_against,
++        fouls_committed as fouls,
++        fouls_drawn as fouls_against,
++        cards_yellow,
++        cards_red,
++        penalty_won as penalties_won,
++        penalty_committed as penalties_committed,
++        penalty_scored as penalties_scored,
++        penalty_missed as penalties_missed,
++        penalty_saved as penalties_saved,
++        raw_ingested_at = coalesce(
++            max(if(fetch_is_complete, raw_ingested_at, null)) over per_match,
++            max(raw_ingested_at) over per_match
++        ) as is_picked,
++        sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_accuracy_percent, null))
++            over per_fetch
++        > sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_total, null))
++            over per_fetch as fetch_sent_percentages
++    from corrected
++    qualify
++        row_number() over (
++            partition by league_code, fixture_id, team_id, player_id, raw_ingested_at
++            order by delivered_values desc, to_json_string(corrected) asc
++        ) = 1
++    window
++        per_match as (partition by league_code, fixture_id),
++        per_fetch as (partition by league_code, fixture_id, raw_ingested_at)
++),
++
++-- One row per player per fixture: his row in the picked fetch, and his rows in the other fetches,
++-- newest first.
++player_fetches as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        array_agg(if(fetch_row.is_picked, fetch_row, null) ignore nulls limit 1)[offset(0)] as picked,
++        array_agg(if(fetch_row.is_picked, null, fetch_row) ignore nulls order by fetch_row.raw_ingested_at desc)
++            as others
++    from fetch_rows as fetch_row
++    group by league_code, fixture_id, team_id, player_id
++    having logical_or(fetch_row.is_picked)
++    -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
++    -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
++    -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
++    -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
++    -- downstream (int_legs__player_match / mart_player_match_log).
++    qualify
++        min(team_id) over (partition by league_code, fixture_id, player_id)
++        = max(team_id) over (partition by league_code, fixture_id, player_id)
++),
++
++events as (
++    select
++        fixture_id,
++        team_id,
++        player_id,
++        minute_elapsed,
++        event_type,
++        event_detail,
++        event_comments,
++        assist_player_name,
++        assist_player_id,
++        is_goal,
++        is_own_goal,
++        is_missed_penalty,
++        has_full_events,
++        is_goal and not is_own_goal as is_scorer_goal
++    from {{ ref('base_apif__fixture_events') }}
++),
++
++fixtures_with_events as (
++    select fixture_id
++    from events
++    where has_full_events
++    group by fixture_id
++),
++
++-- The provider marks a coach's card "Not on pitch".
++player_cards as (
++    select
++        fixture_id,
++        player_id,
++        {{ one_value('team_id') }} as team_id,
++        countif(event_detail = 'Yellow Card') as yellow_cards,
++        countif(event_detail = 'Red Card') as red_cards
++    from events
++    where
++        event_type = 'Card'
++        and coalesce(event_comments, '') != 'Not on pitch'
++        and has_full_events
++        and player_id is not null
++    group by fixture_id, player_id
++),
++
++event_results as (
++    select
++        fixture_id,
++        player_id,
++        sum(goal) as goals,
++        sum(assist) as assists
++    from (
++        select
++            fixture_id,
++            player_id,
++            1 as goal,
++            0 as assist
++        from events
++        where is_scorer_goal and player_id is not null
++        union all
++        select
++            fixture_id,
++            assist_player_id as player_id,
++            0 as goal,
++            1 as assist
++        from events
++        where is_scorer_goal and assist_player_id is not null
++    )
++    group by fixture_id, player_id
++),
++
++-- The minute a substitution brought the player on.
++minutes_on as (
++    select
++        fixture_id,
++        assist_player_id as player_id,
++        max(minute_elapsed) as minute_on
++    from events
++    where event_type = 'subst' and assist_player_id is not null
++    group by fixture_id, assist_player_id
++),
++
++-- 0. Results where the fetches disagree: where another fetch gives a player the goals, assists or
++-- cards of the match's events and the picked fetch does not, the events' count is his. Where the
++-- picked fetch leaves his minutes blank, another fetch's minutes stand when a substitution brought
++-- him on that many minutes before the 90th, the minute of entry counted or not.
++{%- set event_counts = {
++    'goals': 'r.goals', 'assists': 'r.assists', 'cards_yellow': 'c.yellow_cards', 'cards_red': 'c.red_cards'
++} %}
++decided as (
++    select
++        p.picked.* except (is_picked, minutes, goals, assists, cards_yellow, cards_red),
++        p.others,
++        coalesce(
++            p.picked.minutes,
++            (
++                select o.minutes
++                from unnest(p.others) as o with offset as fetch_order
++                where o.minutes between 90 - s.minute_on and 91 - s.minute_on
++                order by fetch_order
++                limit 1
++            )
++        ) as minutes,
++        {%- for result, event_count in event_counts.items() %}
++        if(
++            e.fixture_id is not null
++            and coalesce(p.picked.{{ result }}, 0) != coalesce({{ event_count }}, 0)
++            and exists (
++                select 1
++                from unnest(p.others) as o
++                where coalesce(o.{{ result }}, 0) = coalesce({{ event_count }}, 0)
++            ),
++            coalesce({{ event_count }}, 0),
++            p.picked.{{ result }}
++        ) as {{ result }},
++        {%- endfor %}
++        e.fixture_id is not null as has_match_events
++    from player_fetches as p
++    left join fixtures_with_events as e
++        on p.fixture_id = e.fixture_id
++    left join event_results as r
++        on e.fixture_id = r.fixture_id and p.player_id = r.player_id
++    left join player_cards as c
++        on e.fixture_id = c.fixture_id and p.player_id = c.player_id
++    left join minutes_on as s
++        on p.fixture_id = s.fixture_id and p.player_id = s.player_id
++),
++
++-- The other fetches that give the player the same results, blank counted as 0, newest first.
++donors as (
++    select
++        d.* except (others),
++        array(
++            select as struct o.*
++            from unnest(d.others) as o with offset as fetch_order
++            where
++                coalesce(o.goals, 0) = coalesce(d.goals, 0)
++                and coalesce(o.assists, 0) = coalesce(d.assists, 0)
++                and coalesce(o.cards_yellow, 0) = coalesce(d.cards_yellow, 0)
++                and coalesce(o.cards_red, 0) = coalesce(d.cards_red, 0)
++                and coalesce(o.minutes, 0) = coalesce(d.minutes, 0)
++                and coalesce(o.goals_against, 0) = coalesce(d.goals_against, 0)
++                and coalesce(o.saves, 0) = coalesce(d.saves, 0)
++                and coalesce(o.penalties_won, 0) = coalesce(d.penalties_won, 0)
++                and coalesce(o.penalties_committed, 0) = coalesce(d.penalties_committed, 0)
++                and coalesce(o.penalties_scored, 0) = coalesce(d.penalties_scored, 0)
++                and coalesce(o.penalties_missed, 0) = coalesce(d.penalties_missed, 0)
++                and coalesce(o.penalties_saved, 0) = coalesce(d.penalties_saved, 0)
++            order by fetch_order
++        ) as donor_fetches
++    from decided as d
++),
++
++-- The newest value of each blank stat such a fetch carries; accurate passes only from a fetch that
++-- sent them in the picked fetch's form.
++{%- set fillable = [
++    'shirt_number', 'position_code', 'offsides', 'shots', 'shots_on_target', 'passes', 'passes_key',
++    'tackles', 'blocks', 'interceptions', 'duels', 'duels_won', 'dribbles', 'dribbles_success',
++    'dribbles_against', 'fouls', 'fouls_against'
++] %}
++donated as (
++    select
++        d.* except (donor_fetches),
++        {%- for stat in fillable %}
++        (
++            select o.{{ stat }}
++            from unnest(d.donor_fetches) as o with offset as fetch_order
++            where o.{{ stat }} is not null
++            order by fetch_order
++            limit 1
++        ) as donated_{{ stat }},
++        {%- endfor %}
++        (
++            select o.passes_accurate
++            from unnest(d.donor_fetches) as o with offset as fetch_order
++            where o.passes_accurate is not null and o.fetch_sent_percentages = d.fetch_sent_percentages
++            order by fetch_order
++            limit 1
++        ) as donated_passes_accurate
++    from donors as d
++)
++
++select * from donated
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 2cb48dc4..f56b6d5c 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -3,7 +3,8 @@
+   words. The rules are the cleaning_rules doc block in models/docs/cleaning_rules.md; the steps
+   below apply them in this order:
+ 
+-  0. the fetches: results the events settle between fetches, then blank stats from another fetch;
++  0. the fetches, in base_apif__fixture_player_lines: results the events settle between fetches,
++     then blank stats from another fetch;
+   1. the blank rule;
+   2. accurate passes as a count;
+   3. goals and penalty goals, the results;
+@@ -11,266 +12,8 @@
+ 
+   Every change made by steps 3 and 4 is listed on its row in stat_corrections.
+ #}
+-
+-with stat_lines as (
+-    select
+-        stat_line.*,
+-        {{ fixture_player_id(
+-            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
+-        ) }} as kept_player_id
+-    from {{ ref('stg_apif__fixture_players') }} as stat_line
+-    where
+-        stat_line.fixture_id is not null
+-        and stat_line.team_id is not null
+-),
+-
+-src as (
+-    select
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        kept_player_id as player_id,
+-        minutes_played,
+-        shirt_number,
+-        is_captain,
+-        is_substitute,
+-        offsides,
+-        shots_total,
+-        shots_on,
+-        goals_total,
+-        goals_against,
+-        goals_assists,
+-        saves,
+-        passes_total,
+-        passes_key,
+-        passes_accuracy_percent,
+-        tackles_total,
+-        tackles_blocks,
+-        tackles_interceptions,
+-        duels_total,
+-        duels_won,
+-        dribbles_attempts,
+-        dribbles_success,
+-        dribbles_past,
+-        fouls_drawn,
+-        fouls_committed,
+-        cards_yellow,
+-        cards_red,
+-        penalty_won,
+-        penalty_committed,
+-        penalty_scored,
+-        penalty_missed,
+-        penalty_saved,
+-        raw_ingested_at,
+-        if(position_code in ('G', 'D', 'M', 'F'), position_code, null) as position_code
+-    from stat_lines
+-    where
+-        kept_player_id is not null
+-        -- player_id = 0 is the API placeholder for an unknown player (no real id);
+-        -- it is not a real player and produces phantom cross-team duplicate legs.
+-        and kept_player_id != 0
+-),
+-
+--- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting
+--- override condition below. base_apif__fixtures_next grain is one row per fixture_id. Only
+--- fixtures whose two participants are BOTH known are kept, so the IN / NOT IN participant checks
+--- in the reattribute join never hit the NOT IN (value, NULL) -> UNKNOWN trap (a fixture with a
+--- missing participant id is a separate defect; the override conservatively does not fire there).
+-fixture_participants as (
+-    select
+-        fixture_id,
+-        cast(home_team_id as int64) as home_team_id,
+-        cast(away_team_id as int64) as away_team_id
+-    from {{ ref('base_apif__fixtures_next') }}
+-    where
+-        home_team_id is not null
+-        and away_team_id is not null
+-),
+-
+--- Hand-curated corrections for known provider team-id defects, from
+--- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
+--- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
+--- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
+--- club's own legitimate lineups are never touched). Same seed and same two modes the events model
+--- has used since #526; it was simply never wired to this feed, which is how one stub team block --
+--- id 22722, name null -- put a lineup under a club that does not exist and stopped the nightly.
+--- `reattribute_in_fixture` replaces the id inside the one fixture named, where two clubs share it.
+-overrides as (
+-    select
+-        cast(wrong_team_api_id as int64) as wrong_team_api_id,
+-        cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode,
+-        cast(fixture_id as int64) as fixture_id
+-    from {{ ref('fixture_team_id_overrides') }}
+-),
+-
+--- The player's team where his row and his events disagree, decided in base_apif__fixture_events.
+-resolved_teams as (
+-    select
+-        fixture_id,
+-        player_id,
+-        {{ one_value('resolved_player_team_id') }} as team_id
+-    from {{ ref('base_apif__fixture_events') }}
+-    where resolved_player_team_id is not null
+-    group by fixture_id, player_id
+-),
+-
+--- The player's team on a researched line-up, which an official source settles.
+-researched_teams as (
+-    select distinct
+-        fixture_id,
+-        player_id,
+-        team_id
+-    from {{ ref('fixture_lineup_corrections') }}
+-),
+-
+--- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
+--- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
+--- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
+--- under both a wrong id and its correct one was never two players, and dropping that leg as
+--- unattributable would discard a real appearance.
+-corrected as (
+-    select
+-        src.* except (team_id),
+-        coalesce(
+-            researched_teams.team_id,
+-            resolved_teams.team_id,
+-            fixture_override.correct_team_api_id,
+-            alias_override.correct_team_api_id,
+-            reattribute_override.correct_team_api_id,
+-            src.team_id
+-        ) as team_id,
+-        (
+-            select countif(stat is not null)
+-            from unnest([
+-                src.minutes_played, src.offsides, src.shots_total, src.shots_on, src.goals_total,
+-                src.goals_against, src.goals_assists, src.saves, src.passes_total, src.passes_key,
+-                src.passes_accuracy_percent, src.tackles_total, src.tackles_blocks, src.tackles_interceptions,
+-                src.duels_total, src.duels_won, src.dribbles_attempts, src.dribbles_success, src.dribbles_past,
+-                src.fouls_drawn, src.fouls_committed, src.cards_yellow, src.cards_red, src.penalty_won,
+-                src.penalty_committed, src.penalty_scored, src.penalty_missed, src.penalty_saved
+-            ]) as stat
+-        ) as delivered_values,
+-        logical_or(src.goals_against is not null)
+-            over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
+-    from src
+-    left join overrides as fixture_override
+-        on
+-            src.team_id = fixture_override.wrong_team_api_id
+-            and src.fixture_id = fixture_override.fixture_id
+-            and fixture_override.mode = 'reattribute_in_fixture'
+-    left join overrides as alias_override
+-        on
+-            src.team_id = alias_override.wrong_team_api_id
+-            and alias_override.mode = 'alias'
+-    left join fixture_participants
+-        on src.fixture_id = fixture_participants.fixture_id
+-    left join overrides as reattribute_override
+-        on
+-            src.team_id = reattribute_override.wrong_team_api_id
+-            and reattribute_override.mode = 'reattribute_if_cohabiting'
+-            and reattribute_override.correct_team_api_id in (
+-                fixture_participants.home_team_id, fixture_participants.away_team_id
+-            )
+-            and reattribute_override.wrong_team_api_id not in (
+-                fixture_participants.home_team_id, fixture_participants.away_team_id
+-            )
+-    left join resolved_teams
+-        on
+-            src.fixture_id = resolved_teams.fixture_id
+-            and src.player_id = resolved_teams.player_id
+-    left join researched_teams
+-        on
+-            src.fixture_id = researched_teams.fixture_id
+-            and src.player_id = researched_teams.player_id
+-),
+-
+--- The provider's values under our names, one row per player per fixture and fetch. A player the
+--- provider lists twice in one fetch keeps the row with more values, and the rows' own values break a
+--- tie, so every build keeps the same row. A match's picked fetch is its newest fetch in the
+--- provider's complete format, else its newest fetch. The newer format leaves goals conceded and
+--- dribbled past blank for every player, so a fetch counts as complete when any player in it has goals
+--- conceded. A fetch whose accurate passes add up to more than its passes sent percentages.
+-fetch_rows as (
+-    select
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        player_id,
+-        shirt_number,
+-        position_code,
+-        is_captain,
+-        is_substitute,
+-        raw_ingested_at,
+-        minutes_played as minutes,
+-        offsides,
+-        shots_total as shots,
+-        shots_on as shots_on_target,
+-        goals_total as goals,
+-        goals_against,
+-        goals_assists as assists,
+-        saves,
+-        passes_total as passes,
+-        passes_key,
+-        passes_accuracy_percent as passes_accurate,
+-        tackles_total as tackles,
+-        tackles_blocks as blocks,
+-        tackles_interceptions as interceptions,
+-        duels_total as duels,
+-        duels_won,
+-        dribbles_attempts as dribbles,
+-        dribbles_success,
+-        dribbles_past as dribbles_against,
+-        fouls_committed as fouls,
+-        fouls_drawn as fouls_against,
+-        cards_yellow,
+-        cards_red,
+-        penalty_won as penalties_won,
+-        penalty_committed as penalties_committed,
+-        penalty_scored as penalties_scored,
+-        penalty_missed as penalties_missed,
+-        penalty_saved as penalties_saved,
+-        raw_ingested_at = coalesce(
+-            max(if(fetch_is_complete, raw_ingested_at, null)) over per_match,
+-            max(raw_ingested_at) over per_match
+-        ) as is_picked,
+-        sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_accuracy_percent, null))
+-            over per_fetch
+-        > sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_total, null))
+-            over per_fetch as fetch_sent_percentages
+-    from corrected
+-    qualify
+-        row_number() over (
+-            partition by league_code, fixture_id, team_id, player_id, raw_ingested_at
+-            order by delivered_values desc, to_json_string(corrected) asc
+-        ) = 1
+-    window
+-        per_match as (partition by league_code, fixture_id),
+-        per_fetch as (partition by league_code, fixture_id, raw_ingested_at)
+-),
+-
+--- One row per player per fixture: his row in the picked fetch, and his rows in the other fetches,
+--- newest first.
+-player_fetches as (
+-    select
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        player_id,
+-        array_agg(if(fetch_row.is_picked, fetch_row, null) ignore nulls limit 1)[offset(0)] as picked,
+-        array_agg(if(fetch_row.is_picked, null, fetch_row) ignore nulls order by fetch_row.raw_ingested_at desc)
+-            as others
+-    from fetch_rows as fetch_row
+-    group by league_code, fixture_id, team_id, player_id
+-    having logical_or(fetch_row.is_picked)
+-    -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
+-    -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
+-    -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
+-    -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
+-    -- downstream (int_legs__player_match / mart_player_match_log).
+-    qualify
+-        min(team_id) over (partition by league_code, fixture_id, player_id)
+-        = max(team_id) over (partition by league_code, fixture_id, player_id)
++with donated as (
++    select * from {{ ref('base_apif__fixture_player_lines') }}
+ ),
+ 
+ fixtures as (
+@@ -344,142 +87,11 @@ player_cards as (
+     group by fixture_id, player_id
+ ),
+ 
+-event_results as (
+-    select
+-        fixture_id,
+-        player_id,
+-        sum(goal) as goals,
+-        sum(assist) as assists
+-    from (
+-        select
+-            fixture_id,
+-            player_id,
+-            1 as goal,
+-            0 as assist
+-        from events
+-        where is_scorer_goal and player_id is not null
+-        union all
+-        select
+-            fixture_id,
+-            assist_player_id as player_id,
+-            0 as goal,
+-            1 as assist
+-        from events
+-        where is_scorer_goal and assist_player_id is not null
+-    )
+-    group by fixture_id, player_id
+-),
+-
+--- The minute a substitution brought the player on.
+-minutes_on as (
+-    select
+-        fixture_id,
+-        assist_player_id as player_id,
+-        max(minute_elapsed) as minute_on
+-    from events
+-    where event_type = 'subst' and assist_player_id is not null
+-    group by fixture_id, assist_player_id
+-),
+-
+--- 0. Results where the fetches disagree: where another fetch gives a player the goals, assists or
+--- cards of the match's events and the picked fetch does not, the events' count is his. Where the
+--- picked fetch leaves his minutes blank, another fetch's minutes stand when a substitution brought
+--- him on that many minutes before the 90th, the minute of entry counted or not.
+-{%- set event_counts = {
+-    'goals': 'r.goals', 'assists': 'r.assists', 'cards_yellow': 'c.yellow_cards', 'cards_red': 'c.red_cards'
+-} %}
+-decided as (
+-    select
+-        p.picked.* except (is_picked, minutes, goals, assists, cards_yellow, cards_red),
+-        p.others,
+-        coalesce(
+-            p.picked.minutes,
+-            (
+-                select o.minutes
+-                from unnest(p.others) as o with offset as fetch_order
+-                where o.minutes between 90 - s.minute_on and 91 - s.minute_on
+-                order by fetch_order
+-                limit 1
+-            )
+-        ) as minutes,
+-        {%- for result, event_count in event_counts.items() %}
+-        if(
+-            e.fixture_id is not null
+-            and coalesce(p.picked.{{ result }}, 0) != coalesce({{ event_count }}, 0)
+-            and exists (
+-                select 1
+-                from unnest(p.others) as o
+-                where coalesce(o.{{ result }}, 0) = coalesce({{ event_count }}, 0)
+-            ),
+-            coalesce({{ event_count }}, 0),
+-            p.picked.{{ result }}
+-        ) as {{ result }},
+-        {%- endfor %}
+-        e.fixture_id is not null as has_match_events
+-    from player_fetches as p
+-    left join fixtures_with_events as e
+-        on p.fixture_id = e.fixture_id
+-    left join event_results as r
+-        on e.fixture_id = r.fixture_id and p.player_id = r.player_id
+-    left join player_cards as c
+-        on e.fixture_id = c.fixture_id and p.player_id = c.player_id
+-    left join minutes_on as s
+-        on p.fixture_id = s.fixture_id and p.player_id = s.player_id
+-),
+-
+--- The other fetches that give the player the same results, blank counted as 0, newest first.
+-donors as (
+-    select
+-        d.* except (others),
+-        array(
+-            select as struct o.*
+-            from unnest(d.others) as o with offset as fetch_order
+-            where
+-                coalesce(o.goals, 0) = coalesce(d.goals, 0)
+-                and coalesce(o.assists, 0) = coalesce(d.assists, 0)
+-                and coalesce(o.cards_yellow, 0) = coalesce(d.cards_yellow, 0)
+-                and coalesce(o.cards_red, 0) = coalesce(d.cards_red, 0)
+-                and coalesce(o.minutes, 0) = coalesce(d.minutes, 0)
+-                and coalesce(o.goals_against, 0) = coalesce(d.goals_against, 0)
+-                and coalesce(o.saves, 0) = coalesce(d.saves, 0)
+-                and coalesce(o.penalties_won, 0) = coalesce(d.penalties_won, 0)
+-                and coalesce(o.penalties_committed, 0) = coalesce(d.penalties_committed, 0)
+-                and coalesce(o.penalties_scored, 0) = coalesce(d.penalties_scored, 0)
+-                and coalesce(o.penalties_missed, 0) = coalesce(d.penalties_missed, 0)
+-                and coalesce(o.penalties_saved, 0) = coalesce(d.penalties_saved, 0)
+-            order by fetch_order
+-        ) as donor_fetches
+-    from decided as d
+-),
+-
+--- The newest value of each blank stat such a fetch carries; accurate passes only from a fetch that
+--- sent them in the picked fetch's form.
+ {%- set fillable = [
+     'shirt_number', 'position_code', 'offsides', 'shots', 'shots_on_target', 'passes', 'passes_key',
+     'tackles', 'blocks', 'interceptions', 'duels', 'duels_won', 'dribbles', 'dribbles_success',
+     'dribbles_against', 'fouls', 'fouls_against'
+ ] %}
+-donated as (
+-    select
+-        d.* except (donor_fetches),
+-        {%- for stat in fillable %}
+-        (
+-            select o.{{ stat }}
+-            from unnest(d.donor_fetches) as o with offset as fetch_order
+-            where o.{{ stat }} is not null
+-            order by fetch_order
+-            limit 1
+-        ) as donated_{{ stat }},
+-        {%- endfor %}
+-        (
+-            select o.passes_accurate
+-            from unnest(d.donor_fetches) as o with offset as fetch_order
+-            where o.passes_accurate is not null and o.fetch_sent_percentages = d.fetch_sent_percentages
+-            order by fetch_order
+-            limit 1
+-        ) as donated_passes_accurate
+-    from donors as d
+-),
+ 
+ -- Shots and shots on target are taken from other fetches for a team-match only where its players'
+ -- total with them is no further from the team line's figure than without them.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index 4b819946..71d6d327 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -92,30 +92,13 @@ overrides as (
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
+ 
+--- The most offsides any player line of a team shows in a match, over every fetch, under the
+--- provider's team id.
+-player_lines as (
+-    select
+-        fixture_id,
+-        team_id,
+-        max(offsides) as player_offsides_max
+-    from {{ ref('stg_apif__fixture_players') }}
+-    where fixture_id is not null and team_id is not null
+-    group by fixture_id, team_id
+-),
+-
+--- Every (fixture, provider team id) the statistics lines and the player lines name, mapped once
+--- to the team id both are kept under.
++-- Every (fixture, provider team id) the statistics lines name, mapped once to the team id they are
++-- kept under.
+ team_id_pairs as (
+-    select
++    select distinct
+         fixture_id,
+         team_id as provider_team_id
+     from pivoted
+-    union distinct
+-    select
+-        fixture_id,
+-        team_id as provider_team_id
+-    from player_lines
+ ),
+ 
+ team_id_map as (
+@@ -376,18 +359,16 @@ team_events as (
+     group by fixture_id, team_id
+ ),
+ 
+--- The same, under the team id the statistics lines are kept under.
++-- The most offsides a player of the team has in the match: the value the player keeps in
++-- base_apif__fixture_players, from the picked fetch or the one that fills it, under the team id the
++-- players are kept under.
+ player_offsides as (
+     select
+-        player_lines.fixture_id,
+-        team_id_map.team_id,
+-        max(player_lines.player_offsides_max) as player_offsides_max
+-    from player_lines
+-    inner join team_id_map
+-        on
+-            player_lines.fixture_id = team_id_map.fixture_id
+-            and player_lines.team_id = team_id_map.provider_team_id
+-    group by player_lines.fixture_id, team_id_map.team_id
++        fixture_id,
++        team_id,
++        max(coalesce(offsides, donated_offsides)) as player_offsides_max
++    from {{ ref('base_apif__fixture_player_lines') }}
++    group by fixture_id, team_id
+ ),
+ 
+ in_context as (
+@@ -449,7 +430,9 @@ in_context as (
+ -- 1. The blank rule: a blank count is a zero where the other team's line, as delivered, has a value
+ -- for the stat; a card where the match's events were delivered and none of them stands against that
+ -- zero; saves where the opponent had no shot on target. Every other blank stays blank, possession
+--- always: it is a share, not a count.
++-- always: it is a share, not a count. An offsides count of a team that has a player with an offside
++-- is never 0: a 0 the provider sent is blank, and a blank the other team's line or the team's own
++-- full line would zero stays blank.
+ -- 2. The goal split: penalty and own goals are the team's goal events where the match's events
+ -- were delivered and they add up to its score, 0 where it scored none, blank otherwise.
+ filled as (
+@@ -463,15 +446,13 @@ filled as (
+         coalesce(shots_outside_box, if(opponent_shots_outside_box is not null, 0, null)) as shots_outside_box_filled,
+         coalesce(fouls, if(opponent_fouls is not null, 0, null)) as fouls_filled,
+         coalesce(corners, if(opponent_corners is not null, 0, null)) as corners_filled,
+-        coalesce(
+-            offsides,
+-            if(
+-                opponent_offsides is not null
+-                or (fouls is not null and possession_pct is not null and coalesce(player_offsides_max, 0) = 0),
+-                0,
+-                null
++        case
++            when player_offsides_max > 0 then nullif(offsides, 0)
++            else coalesce(
++                offsides,
++                if(opponent_offsides is not null or (fouls is not null and possession_pct is not null), 0, null)
+             )
+-        ) as offsides_filled,
++        end as offsides_filled,
+         coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
+         coalesce(
+             cards_yellow,
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 495b5346..874f76a3 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -17,7 +17,9 @@ match stats are good enough.
+   second source proves the zero; every other blank stays blank. Counted in the match: for a team,
+   the other team's line has a value for it; for a player, another player in the match has one,
+   and for a goalkeeper's saves, another goalkeeper. A team's blank offsides count is also a zero
+-  when its own line has fouls and possession and no player of it has an offside. A goalkeeper's
++  when its own line has fouls and possession and no player of it has an offside. A team's offsides
++  count is never 0 while a player of it has an offside. A 0 the provider sent is then blank. A
++  blank that the other team's line or its own full line would zero stays blank. A goalkeeper's
+   goals conceded come from the
+   match. The only goalkeeper of a whole match has all the team conceded. One who came on or went
+   off has those between the minute on and off, read from the substitution or a sending-off. That
+diff --git a/dbt_project/seeds/team_match_cleaning_answer_key.csv b/dbt_project/seeds/team_match_cleaning_answer_key.csv
+index e97ae1ac..28ccbf82 100644
+--- a/dbt_project/seeds/team_match_cleaning_answer_key.csv
++++ b/dbt_project/seeds/team_match_cleaning_answer_key.csv
+@@ -38,3 +38,6 @@ fixture_id,team_id,stat,expected_value,rule,working
+ 1311456,5277,shots,2,raised_to_shots_on_target,"Same line: 1 shot against its 2 shots on target, a gap of 1: raised to 2."
+ 1180382,119,offsides,,,"Brasileirao 2024: fouls 6 and possession 54 on its line and no offsides value on either line, but one of its players has 1 offside, so nothing proves a team zero: blank."
+ 1145521,9,offsides,0,,"EURO 2024: fouls 17 and possession 57 on its line, no offsides value on either line, and none of its 26 player lines shows an offside: 0."
++1149592,3700,offsides,,,"Provider line with 0 offsides for both teams while its player 214013 has 1 offside: the 0 is contradicted by the player, so blank."
++1099022,10137,offsides,,,"Provider line with 0 offsides while its players 31348 and 432074 each have 1 offside in the same fetch: the 0 is contradicted by the players, so blank."
++1575511,211,offsides,0,,"The first fetch gave the team 1 offside and its player 36798 one; the two later fetches give the team 0 and no player of it an offside, so the newest line stands: 0."
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 5eeb5251..55f0b80f 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -5,7 +5,8 @@
+   - missing_team_row: a team of a finished match has no row.
+   - blank_where_counted: a count is blank although the other team's line, as the provider delivered
+     it in its newest fetch (read from stg_apif__fixture_statistics), carries a value for it.
+-    Possession is a share, not a count, and is not checked.
++    Possession is a share, not a count, and is not checked. An offsides count stays blank where a
++    player of the team has an offside.
+   - card_blank_where_events_prove_none: a card count is blank in a match whose events were
+     delivered (a substitution or a card) while the team has no event against that zero: a card of
+     that colour or of none, or a video review of a card (an upgrade or a cancelled red counts as red).
+@@ -127,6 +128,15 @@ matches_with_events as (
+     where has_full_events
+ ),
+ 
++players_with_an_offside as (
++    select
++        fixture_id,
++        team_id
++    from {{ ref('base_apif__fixture_players') }}
++    where offsides > 0
++    group by fixture_id, team_id
++),
++
+ team_events as (
+     select
+         fixture_id,
+@@ -175,6 +185,7 @@ in_context as (
+         f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') and f.goals_home is not null and f.goals_away is not null
+             as is_finished,
+         me.fixture_id is not null as match_has_events,
++        po.fixture_id is not null as player_has_offside,
+         coalesce(te.goal_events, 0) as goal_events,
+         coalesce(te.penalty_goal_events, 0) as penalty_goal_events,
+         coalesce(te.own_goal_events, 0) as own_goal_events,
+@@ -195,6 +206,8 @@ in_context as (
+             and o.team_id = if(l.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
+     left join matches_with_events as me
+         on l.fixture_id = me.fixture_id
++    left join players_with_an_offside as po
++        on l.fixture_id = po.fixture_id and l.team_id = po.team_id
+     left join team_events as te
+         on l.fixture_id = te.fixture_id and l.team_id = te.team_id
+     left join team_events as oe
+@@ -229,7 +242,11 @@ violations as (
+         '{{ stat }}',
+         null
+     from in_context
+-    where {{ stat }} is null and opponent_{{ stat }}_delivered and '{{ stat }}' not in unnest(corrected_stats)
++    where
++        {{ stat }} is null and opponent_{{ stat }}_delivered and '{{ stat }}' not in unnest(corrected_stats)
++        {%- if stat == 'offsides' %}
++        and not player_has_offside
++        {%- endif %}
+     {% endfor %}
+ 
+     union all
+diff --git a/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql b/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
+index 8aaea854..46589a7b 100644
+--- a/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
++++ b/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
+@@ -2,7 +2,8 @@
+   A team's match stat is the newest value any fetch's line carried. Returns one row per team-match
+   and stat blank in base_apif__fixture_statistics while a fetch in stg_apif__fixture_statistics
+   carries it, unless the cleaning blanked it (a stat_corrections entry) or, for a card count, the
+-  match's events hold fewer cards that could be of that colour, or more that certainly are.
++  match's events hold fewer cards that could be of that colour, or more that certainly are, or,
++  for offsides, the team has a player with an offside above 0 (the 0 is withheld).
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -62,6 +63,15 @@ card_bounds as (
+     group by e.fixture_id, e.team_id
+ ),
+ 
++players_with_an_offside as (
++    select
++        fixture_id,
++        team_id
++    from {{ ref('base_apif__fixture_players') }}
++    where offsides > 0
++    group by fixture_id, team_id
++),
++
+ held as (
+     select
+         b.league_code,
+@@ -89,9 +99,12 @@ held as (
+             struct('Total passes', 'passes', b.passes),
+             struct('Passes accurate', 'passes_accurate', b.passes_accurate)
+         ]) as stat
++    left join players_with_an_offside as po
++        on b.fixture_id = po.fixture_id and b.team_id = po.team_id
+     where
+         stat.stat_value is null
+         and stat.stat_name not in (select c.stat from unnest(b.stat_corrections) as c)
++        and not (stat.stat_name = 'offsides' and po.fixture_id is not null)
+ )
+ 
+ select
+diff --git a/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql b/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
+index 5d98c962..0dec4e27 100644
+--- a/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
++++ b/dbt_project/tests/assert_team_offsides_zero_has_no_player_offside.sql
+@@ -1,20 +1,10 @@
+ -- A team's offsides count is not 0 while a player of it, by the cleaned team id, has an offside
+--- above 0. The clause that cleans a blank offsides count to 0 (the cleaning_rules Blank rule) is
+--- guarded by the players' offsides under the same team id, so this fails when a team id remap
+--- leaves the guard looking at the wrong team. Not counted: a zero that follows the other team's
+--- value above 0 (the opponent rule), and fixture 1149592, whose line has the provider's 0 for
+--- both teams.
++-- above 0 (the cleaning_rules Blank rule). It holds whether the 0 came from the provider, from the
++-- other team's line or from the team's own full line, and fails when a team id remap leaves the
++-- guard looking at the wrong team.
+ {{ config(store_failures = true) }}
+ 
+-with team_lines as (
+-    select
+-        fixture_sk,
+-        team_sk,
+-        offsides
+-    from {{ ref('fct_fixture_team_stats') }}
+-),
+-
+-players_with_an_offside as (
++with players_with_an_offside as (
+     select
+         fixture_sk,
+         team_sk
+@@ -26,12 +16,7 @@ players_with_an_offside as (
+ select
+     t.fixture_sk,
+     t.team_sk
+-from team_lines as t
++from {{ ref('fct_fixture_team_stats') }} as t
+ inner join players_with_an_offside as p
+     on t.fixture_sk = p.fixture_sk and t.team_sk = p.team_sk
+-inner join team_lines as o
+-    on t.fixture_sk = o.fixture_sk and t.team_sk != o.team_sk
+-where
+-    t.offsides = 0
+-    and coalesce(o.offsides, 0) = 0
+-    and t.fixture_sk != 1149592
++where t.offsides = 0
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/338-offsides-guard/review_input.patch | 1275 ++++++++++++++++++++
+#    1 file changed, 1275 insertions(+)
+# ============================================================================
