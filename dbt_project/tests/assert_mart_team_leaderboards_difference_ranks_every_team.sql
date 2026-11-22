@@ -9,7 +9,15 @@ with expected as (
         team_sk,
         season_sk
     from {{ ref('int_team_season__metrics') }}
-    where season_games_played >= 1 and shots_on_goal_difference_per_match is not null
+    where
+        season_games_played >= 1
+        and shots_on_goal_difference_per_match is not null
+        -- a board is withheld for a competition-season in which a team has no value (ranking_rules)
+        and season_sk in (
+            select season_sk
+            from {{ ref('mart_team_leaderboards') }}
+            where metric_key = 'shots_on_goal_difference_per_match'
+        )
 ),
 
 served as (

@@ -26,7 +26,8 @@
   carry window_type 'season_to_date'. Grain of a match row: (fixture_sk, player_sk, metric_key).
 
   A competition-season whose player stats need research (stats_need_research in
-  int_competition_season__player_stat_corrections) has no rows: its boards are withheld.
+  int_competition_season__player_stat_corrections), or in which a finished match has no player
+  statistics, has no season rows: its boards are withheld.
 #}
 
 {# The season boards. Adding or removing a key here must also move shared.yml's accepted_values. #}
@@ -172,6 +173,33 @@ competition_seasons as (
     from {{ ref('dim_competition_season') }}
 ),
 
+-- The competition-seasons with a finished match that has no player statistics: their boards would
+-- rank a part of the field.
+matches_with_player_stats as (
+    select fixture_sk
+    from {{ ref('fct_fixture_player_stats') }}
+    where coalesce(minutes, 0) > 0
+    group by fixture_sk
+),
+
+latest_played_season as (
+    select
+        league_code as played_league_code,
+        max(season_api_year) as latest_played_season
+    from {{ ref('fct_fixture') }}
+    where status_short in ('FT', 'AET', 'PEN')
+    group by league_code
+),
+
+seasons_missing_player_stats as (
+    select f.season_sk
+    from {{ ref('fct_fixture') }} as f
+    left join matches_with_player_stats as s
+        on f.fixture_sk = s.fixture_sk
+    where f.status_short in ('FT', 'AET', 'PEN') and s.fixture_sk is null
+    group by f.season_sk
+),
+
 -- The direction and format of each board's metric, from the catalogue: the one place a metric's
 -- meaning is defined.
 catalogue as (
@@ -258,9 +286,21 @@ season_scored as (
     where d.rank_order = 'asc' or d.metric_value > 0
 ),
 
-ranked as (
+-- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE with a
+-- finished match, so every row of a league agrees. A latest season with no player rows, or one
+-- withheld below, never hands the flag to the season before it.
+season_flagged as (
     select
         season_scored.*,
+        coalesce(season_scored.season_api_year = latest.latest_played_season, false) as is_current_season
+    from season_scored
+    left join latest_played_season as latest
+        on season_scored.league_code = latest.played_league_code
+),
+
+ranked as (
+    select
+        season_flagged.*,
         rank() over (
             partition by league_code, season_api_year, metric_key
             order by display_key asc
@@ -272,15 +312,8 @@ ranked as (
         row_number() over (
             partition by league_code, season_api_year, metric_key
             order by sort_key asc, minutes asc nulls last, player_sk asc
-        ) as league_leader_order,
-        -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so
-        -- every row of a league agrees. Computed before a withheld season leaves the board, so a
-        -- withheld latest season never hands the flag to the season before it.
-        rank() over (
-            partition by league_code
-            order by season_api_year desc
-        ) = 1 as is_current_season
-    from season_scored
+        ) as league_leader_order
+    from season_flagged
 ),
 
 match_base as (
@@ -490,6 +523,7 @@ where
         from {{ ref('int_competition_season__player_stat_corrections') }} as c
         where c.stats_need_research and c.season_sk is not null
     )
+    and season_sk not in (select m.season_sk from seasons_missing_player_stats as m)
 
 union all
 

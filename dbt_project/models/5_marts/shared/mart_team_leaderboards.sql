@@ -12,7 +12,8 @@
   season_api_year): teams whose shown values are equal share a place and the next place is skipped.
 
   Who enters a board is the ranking_rules doc block in models/docs/metric_rules.md; its zero rule
-  is the cut `metric_value > 0`, on most-first boards other than a difference.
+  is the cut `metric_value > 0`, on most-first boards other than a difference. A board of a
+  competition-season is withheld unless every team that played has a value for its metric.
 
   UNPIVOT rather than mart_leaderboards' union-all loop, because every team board shares one rule.
   BigQuery UNPIVOT excludes nulls, so a metric with no value for a team (a coverage gap) yields no
@@ -95,7 +96,7 @@ catalogue as (
 ),
 
 -- One row per (team-season, board). UNPIVOT drops nulls, so a team missing a metric through a
--- coverage gap is absent from that board rather than ranked on a null.
+-- coverage gap has no row on that board; the board is then withheld below.
 long as (
     select
         team_sk,
@@ -114,6 +115,16 @@ long as (
             {% endfor %}
         )
     )
+),
+
+-- The teams that played in each competition-season: the field every board of it must cover.
+field as (
+    select
+        league_code,
+        season_api_year,
+        count(*) as teams_played
+    from season
+    group by league_code, season_api_year
 ),
 
 -- Identity only. dim_team is unique on team_sk, so the left join cannot fan the row count out.
@@ -148,6 +159,9 @@ base as (
         t.team_slug,
         t.team_logo_url,
         cs.competition_group,
+        f.teams_played,
+        -- counted before the zero rule: a team with a value of 0 has a value
+        count(*) over (partition by l.league_code, l.season_api_year, l.metric_key) as teams_with_value,
         case
             when l.metric_key in (
                 {% for key in most_first_by_ruling %}
@@ -158,6 +172,8 @@ base as (
             else 'desc'
         end as rank_order
     from long as l
+    inner join field as f
+        on l.league_code = f.league_code and l.season_api_year = f.season_api_year
     left join teams as t on l.team_sk = t.team_sk
     left join competition_seasons as cs on l.season_sk = cs.season_sk
     -- inner: a board whose metric the catalogue does not define has no direction and no rows,
@@ -170,7 +186,14 @@ signed as (
     select
         *,
         if(rank_order = 'asc', metric_value, -metric_value) as sort_key,
-        if(rank_order = 'asc', display_value, -display_value) as display_key
+        if(rank_order = 'asc', display_value, -display_value) as display_key,
+        -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so
+        -- every row of a league agrees. Computed before a withheld board leaves, so a withheld
+        -- latest season never hands the flag to the season before it.
+        rank() over (
+            partition by league_code
+            order by season_api_year desc
+        ) = 1 as is_current_season
     from base
 ),
 
@@ -190,12 +213,18 @@ ranked as (
             order by sort_key asc, team_sk asc
         ) as league_leader_order
     from signed
-    -- a zero is not a ranking on a most-first board; on a fewest-first board it is the top row, and
-    -- on a difference it is a value like any other
+    -- a board is withheld unless every team that played has a value for its metric
     where
-        rank_order = 'asc'
-        or metric_value > 0
-        or metric_key in ({% for key in difference_boards %}'{{ key }}'{% if not loop.last %}, {% endif %}{% endfor %})
+        teams_with_value = teams_played
+        -- a zero is not a ranking on a most-first board; on a fewest-first board it is the top row,
+        -- and on a difference it is a value like any other
+        and (
+            rank_order = 'asc'
+            or metric_value > 0
+            or metric_key in (
+                {% for key in difference_boards %}'{{ key }}'{% if not loop.last %}, {% endif %}{% endfor %}
+            )
+        )
 )
 
 select
@@ -217,12 +246,7 @@ select
     team_slug,
     team_logo_url,
     season_games_played,
-    -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so every
-    -- row of a league agrees.
-    rank() over (
-        partition by league_code
-        order by season_api_year desc
-    ) = 1 as is_current_season,
+    is_current_season,
     -- The order the league leaders appear in on a board, across every league, by the same rule.
     -- Partitioned by metric_key alone: the order is total, so any pool of leagues keeps its
     -- relative sequence and the values come out sparse within a pool. NULL on any row that is not a
