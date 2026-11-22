@@ -157,7 +157,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
   --win: #157f43; --draw: #6f756d; --loss: #b23b3b; --pill-ink: #fff; --track: #e7e6e0;
 }
 #t-phone:checked ~ .wrap .fx .inner { max-width: 375px; box-shadow: 0 0 0 1px var(--line); }
-.crest.xs svg { width: 15px; height: 15px; display: block; color: var(--muted); }
+.xs > svg { width: 15px; height: 15px; display: block; color: var(--muted); }
 
 .wrap { max-width: 820px; margin: 0 auto; padding: 26px clamp(16px, 4vw, 28px) 70px; }
 h1 { font-size: 25px; margin: 0 0 6px; }
