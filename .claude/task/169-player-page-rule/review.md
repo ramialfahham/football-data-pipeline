@@ -1,6 +1,6 @@
 # Review — claude/169-player-page-rule-b028ed — 2026-11-22
 
-diff_sha256: 84976a269cd7671017f0be2f714baf84270ba0e617cee38cb909c61bf78b2069
+diff_sha256: 82a8ebf29e281d1a4853d6afbbf39671aa3c287472c042d689db97f2a686df6a
 
 rounds: 2
 
@@ -26,3 +26,9 @@ risks_checked:
 
 ## escalations
 (none)
+
+## after the first pipeline
+The test national_tab_basis_follows_the_tab moved from the column to the model in
+int_player_page.yml, because a column-level expression_is_true prefixes the column name to the
+expression. Its compiled SQL was read, and run against the new profile logic on prod data: 0
+failing rows. The change is that one test, so the verdicts above stand.

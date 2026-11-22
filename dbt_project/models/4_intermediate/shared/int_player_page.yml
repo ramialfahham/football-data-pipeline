@@ -155,6 +155,10 @@ models:
       Grain: (player_sk).
     config:
       tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "(national_tab_basis is not null) = has_national_team_tab"
+          name: national_tab_basis_follows_the_tab
     columns:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
@@ -210,9 +214,6 @@ models:
         tests:
           - accepted_values:
               values: ["squad", "earned"]
-          - dbt_utils.expression_is_true:
-              expression: "(national_tab_basis is not null) = has_national_team_tab"
-              name: national_tab_basis_follows_the_tab
       - name: has_club_tab
         description: "True when the player has played club football."
         tests: [not_null]

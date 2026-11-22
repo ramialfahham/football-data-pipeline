@@ -233,7 +233,7 @@ index 619282df..e0c1e839 100644
  left join players_with_a_page as pp
      on fe.player_sk = pp.player_sk
 diff --git a/dbt_project/models/4_intermediate/shared/int_player_page.yml b/dbt_project/models/4_intermediate/shared/int_player_page.yml
-index db7c0917..fc6f83a1 100644
+index db7c0917..b846379b 100644
 --- a/dbt_project/models/4_intermediate/shared/int_player_page.yml
 +++ b/dbt_project/models/4_intermediate/shared/int_player_page.yml
 @@ -78,6 +78,32 @@ models:
@@ -269,7 +269,18 @@ index db7c0917..fc6f83a1 100644
    - name: int_team__current_national_competitions
      description: >
        A nation's current competitions: every national-team competition of the nation between its
-@@ -171,14 +197,22 @@ models:
+@@ -129,6 +155,10 @@ models:
+       Grain: (player_sk).
+     config:
+       tags: ["intermediate", "football", "player"]
++    tests:
++      - dbt_utils.expression_is_true:
++          expression: "(national_tab_basis is not null) = has_national_team_tab"
++          name: national_tab_basis_follows_the_tab
+     columns:
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+@@ -171,14 +201,19 @@ models:
                to: ref('dim_team')
                field: team_sk
        - name: national_team_sk
@@ -288,13 +299,10 @@ index db7c0917..fc6f83a1 100644
 +        tests:
 +          - accepted_values:
 +              values: ["squad", "earned"]
-+          - dbt_utils.expression_is_true:
-+              expression: "(national_tab_basis is not null) = has_national_team_tab"
-+              name: national_tab_basis_follows_the_tab
        - name: has_club_tab
          description: "True when the player has played club football."
          tests: [not_null]
-@@ -189,7 +223,9 @@ models:
+@@ -189,7 +224,9 @@ models:
    - name: int_player_page__window_seasons
      description: >
        The competition-seasons of each window on a player's page: the club competitions of this and
@@ -615,6 +623,7 @@ index b0af844e..5d9baba6 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .../task/169-player-page-rule/review_input.patch   | 620 +++++++++++++++++++++
-#    1 file changed, 620 insertions(+)
+#   .claude/task/169-player-page-rule/review.md        |  28 +
+#    .../task/169-player-page-rule/review_input.patch   | 620 +++++++++++++++++++++
+#    2 files changed, 648 insertions(+)
 # ============================================================================
