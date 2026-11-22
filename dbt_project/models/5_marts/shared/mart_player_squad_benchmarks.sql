@@ -59,7 +59,7 @@ select
     coalesce(p.position_group, '') != 'GK'
     and (
         (m.page_tab = 'club' and m.team_sk = p.featured_team_sk and m.anchor_season_sk = p.featured_season_sk)
-        or (m.page_tab = 'national_team' and m.team_sk = p.national_team_sk and p.has_national_team_tab)
+        or (m.page_tab = 'national_team' and m.team_sk = p.national_team_sk and p.national_tab_basis = 'squad')
     ) as has_squad_filter
 from metrics as m
 inner join squad_size as n

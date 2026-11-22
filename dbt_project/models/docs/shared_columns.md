@@ -219,8 +219,9 @@ the team 2 points instead of 1. A shoot-out in a cup or play-off round is false.
 
 {% docs has_player_page %}
 True when the player gets a Player page. That takes 3 matches played this season or last, in any
-competition we hold, club or national team, and at least one tab. A match played means minutes
-above 0.
+competition we hold, club or national team. A match played means minutes above 0. A national-team
+edition counts when its last match is on or after 1 July of last season. Then every match of it
+counts.
 {% enddocs %}
 
 {% docs has_stat_line__player %}

@@ -26,7 +26,7 @@ squad_keys as (
         national_team_sk as team_sk,
         cast(null as string) as anchor_season_sk
     from profile
-    where has_national_team_tab
+    where national_tab_basis = 'squad'
 ),
 
 squads as (

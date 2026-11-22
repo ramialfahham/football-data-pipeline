@@ -5,7 +5,9 @@
   beats (club before national, domestic league before any other, the later year, the later last match),
   a nation whose current competitions are not those running now or, with none running, the one that
   finished last, a club tab for a player with no club match, and a national-team tab that differs from
-  the player's presence on a team sheet or stat line of a current competition, or on its squad list.
+  the player's presence on a team sheet or stat line of a current competition, or on its squad list,
+  or, for a player with a page, a played match in a national edition whose last fixture is on or
+  after 1 July of last season.
   A nation with a competition starting or ending within a day of the run is left out, because the
   models read the clock when they were built. A birth date on 29 February is left out of the age check,
   because a whole-year step from it lands on 28 February in a common year, and so is a birthday today,
@@ -219,6 +221,25 @@ expected_national as (
         on c.season_sk = n.season_sk and sq.league_code = n.league_code
 ),
 
+edition_ends as (
+    select
+        season_sk,
+        max(date(kickoff_datetime)) as last_match_on
+    from {{ ref('fct_fixture') }}
+    group by season_sk
+),
+
+expected_earned as (
+    select distinct l.player_sk
+    from {{ ref('int_legs__player_match') }} as l
+    inner join edition_ends as e
+        on l.season_sk = e.season_sk
+    where
+        l.entity_type != 'club'
+        and l.minutes > 0
+        and e.last_match_on >= date(extract(year from date_sub(current_date(), interval 6 month)) - 1, 7, 1)
+),
+
 national_tab_wrong as (
     select
         'national-team tab' as failure,
@@ -226,9 +247,17 @@ national_tab_wrong as (
     from {{ ref('int_player__page_profile') }} as p
     left join expected_national as e
         on p.player_sk = e.player_sk
+    left join expected_earned as r
+        on p.player_sk = r.player_sk
     where
         (p.national_team_sk is null or p.national_team_sk not in (select team_sk from unsettled_teams))
-        and p.has_national_team_tab != (e.player_sk is not null)
+        and (
+            p.has_national_team_tab != (e.player_sk is not null or (r.player_sk is not null and p.has_player_page))
+            or p.national_tab_basis is distinct from case
+                when e.player_sk is not null then 'squad'
+                when r.player_sk is not null and p.has_player_page then 'earned'
+            end
+        )
 )
 
 select * from age_wrong
