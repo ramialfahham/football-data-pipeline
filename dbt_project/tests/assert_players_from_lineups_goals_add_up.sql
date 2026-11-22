@@ -14,7 +14,7 @@ with fixtures as (
         goals_home,
         goals_away,
         cast(home_team_id as int64) as home_team_id
-    from {{ ref('base_apif__fixtures_next') }}
+    from {{ ref('base_apif__fixtures_checked') }}
 ),
 
 own_goals as (
