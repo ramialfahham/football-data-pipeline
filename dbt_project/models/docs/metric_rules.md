@@ -39,7 +39,9 @@ outfield players. A percentage ranking also needs 10 attempts. The attempts are 
 shooting accuracy, dribbles for dribble success, duels for duels won and shots on target faced for
 save percentage. Only goalkeepers enter the goals-against ranking. A team enters a ranking from
 its first finished match. A ranking that lists the most first leaves out a zero, except on a
-difference, where zero is a value. A player enters a benchmark from 270 minutes in a position, the
+difference, where zero is a value. A board is shown only when every team or player in its field
+has a value. A competition-season with a match missing the input has no board of that metric. A
+player enters a benchmark from 270 minutes in a position, the
 finishing one also from 10 shots on target there; a benchmark compares players of one position
 group, goalkeepers on saves, goals against and passing and outfield players on every other metric.
 A team enters a benchmark from 3 finished matches.

@@ -44,13 +44,34 @@ latest_seasons as (
     qualify row_number() over (partition by league_code order by season_api_year desc) = 1
 ),
 
--- A league whose latest season is withheld (stats_need_research) has no board to lead.
+-- The competition-seasons with a finished match that has no player statistics: withheld.
+matches_with_player_stats as (
+    select fixture_sk
+    from {{ ref('fct_fixture_player_stats') }}
+    where coalesce(minutes, 0) > 0
+    group by fixture_sk
+),
+
+seasons_missing_player_stats as (
+    select f.season_sk
+    from {{ ref('fct_fixture') }} as f
+    left join matches_with_player_stats as s
+        on f.fixture_sk = s.fixture_sk
+    where f.status_short in ('FT', 'AET', 'PEN') and s.fixture_sk is null
+    group by f.season_sk
+),
+
+-- A league whose latest season is withheld (stats_need_research, or a finished match without
+-- player statistics) has no board to lead.
 elite_leagues as (
     select l.league_code
     from latest_seasons as l
     left join {{ ref('int_competition_season__player_stat_corrections') }} as w
         on l.season_sk = w.season_sk and w.stats_need_research
-    where l.competition_group = 'elite' and w.season_sk is null
+    where
+        l.competition_group = 'elite'
+        and w.season_sk is null
+        and l.season_sk not in (select m.season_sk from seasons_missing_player_stats as m)
 ),
 
 expected as (

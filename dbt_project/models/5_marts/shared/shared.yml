@@ -2102,8 +2102,8 @@ models:
       identifies a team as well as a player. The club is null when the player has no finished
       match in that competition-season.
 
-      is_current_season marks the latest season a competition has, so a consumer showing one season
-      filters on a served fact instead of choosing a season itself.
+      is_current_season marks the latest season of a competition with a finished match, so a
+      consumer showing one season filters on a served fact instead of choosing a season itself.
 
       Rows with window_type match are one played match's boards, for the match's Match leaders
       block: eight count boards across both teams, each its first three players by
@@ -2228,13 +2228,13 @@ models:
         tests: [not_null]
       - name: is_current_season
         description: >
-          True on every row of a competition's latest season, false on earlier ones. It answers
-          "is this the season the site currently shows for this competition", so a surface that
-          displays one season filters on it rather than deciding which season to show.
+          True on every row of a competition's latest season with a finished match, false on earlier
+          ones. It answers "is this the season the site currently shows for this competition", so a
+          surface that displays one season filters on it rather than deciding which season to show.
 
-          Per LEAGUE, not per player, so all rows of a league's latest season agree. Latest by
-          season_api_year alone; it does not ask whether that season has started or how many
-          matches have been played. NULL on match rows.
+          Per LEAGUE, not per player, so all rows of a league's latest season agree. A latest
+          season whose boards are withheld has no rows, so the league then has no current season
+          and the flag never moves to the season before it. NULL on match rows.
         tests:
           - not_null:
               config:
@@ -2363,8 +2363,8 @@ models:
       which rank most first by ruling.
 
       The rank is per league by design: a board is each league's leading team collected and ordered,
-      never a ranking across competitions. A team with no value for a metric is absent from that
-      board rather than ranked on a null.
+      never a ranking across competitions. A competition-season in which a team that played has no
+      value for a metric has no board of that metric.
 
       {{ doc('ranking_rules') }}
     meta:

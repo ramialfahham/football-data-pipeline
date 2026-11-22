@@ -54,14 +54,45 @@ per_league as (
     group by league_code
 ),
 
--- A league whose latest season is withheld (stats_need_research) keeps no current season: the flag
--- never moves to the season before it.
+matches_with_player_stats as (
+    select fixture_sk
+    from {{ ref('fct_fixture_player_stats') }}
+    where coalesce(minutes, 0) > 0
+    group by fixture_sk
+),
+
+seasons_missing_player_stats as (
+    select f.season_sk
+    from {{ ref('fct_fixture') }} as f
+    left join matches_with_player_stats as s
+        on f.fixture_sk = s.fixture_sk
+    where f.status_short in ('FT', 'AET', 'PEN') and s.fixture_sk is null
+    group by f.season_sk
+),
+
+withheld_seasons as (
+    select
+        c.league_code,
+        c.season_api_year
+    from {{ ref('int_competition_season__player_stat_corrections') }} as c
+    where c.stats_need_research
+    union distinct
+    select
+        d.league_code,
+        d.season_api_year
+    from seasons_missing_player_stats as m
+    inner join {{ ref('dim_competition_season') }} as d
+        on m.season_sk = d.season_sk
+),
+
+-- A league whose latest season is withheld (stats_need_research, or a finished match without
+-- player statistics) keeps no current season: the flag never moves to the season before it.
 withheld_latest as (
     select distinct p.league_code
     from per_league as p
-    inner join {{ ref('int_competition_season__player_stat_corrections') }} as w
+    inner join withheld_seasons as w
         on p.league_code = w.league_code
-    where w.stats_need_research and w.season_api_year > p.latest_season
+    where w.season_api_year > p.latest_season
 )
 
 select
