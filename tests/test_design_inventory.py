@@ -525,7 +525,7 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
 def test_a_class_the_component_registry_lists_is_not_counted_as_unknown(tmp_path):
     page = tmp_path / "probe.html"
     page.write_text('<!doctype html><html lang="en"><body><span class="zz-listed">a</span>'
-                    '<span class="zz-unlisted">b</span><span class="crest">c</span></body></html>', encoding="utf-8")
+                    '<span class="zz-unlisted">b</span><span class="xs">c</span></body></html>', encoding="utf-8")
     registry = tmp_path / "components.yml"
     registry.write_text("components:\n  probe:\n    parts:\n      listed: {class: zz-listed, gap: mock-css}\n",
                         encoding="utf-8")
@@ -540,7 +540,7 @@ def test_a_class_the_component_registry_lists_is_not_counted_as_unknown(tmp_path
         return json.loads((art / "counts.json").read_text(encoding="utf-8"))["classes"]["probe"]
 
     assert classes() == ["zz-listed", "zz-unlisted"]
-    assert classes("--registry", str(registry)) == ["crest", "zz-unlisted"]
+    assert classes("--registry", str(registry)) == ["xs", "zz-unlisted"]
 
 
 @needs_browser

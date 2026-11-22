@@ -145,7 +145,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 #t-fi:checked ~ .stage .en { display: none; }
 #t-fi:checked ~ .stage .fi { display: inline; }
 #t-fi:checked ~ .stage .probe { text-decoration: underline dotted currentColor; text-underline-offset: 3px; }
-.crest.xs svg { width: 15px; height: 15px; display: block; color: var(--muted); }
+.xs > svg { width: 15px; height: 15px; display: block; color: var(--muted); }
 .blocknote { font-size: 11px; color: var(--muted); margin: 12px 0 0; font-style: italic; opacity: .8; line-height: 1.5; }
 .pagelabel { max-width: 680px; margin: 34px auto 0; padding: 0 16px; color: #7c828c;
              font: 700 11px/1.6 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }

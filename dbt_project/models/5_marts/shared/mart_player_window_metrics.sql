@@ -2,7 +2,8 @@
   What a Player page shows for a whole tab, in long form: the six cards, and on the Club tab each
   metric of the player's position this season against last season. The Club tab's window is the club
   competitions of the featured season at any club; the National team tab's is the nation's current
-  competitions. metric_value_prev_season is the same metric over the whole of last season. A blank
+  competitions, or for a player with no squad place the editions counted as this season or last that
+  the player played in. metric_value_prev_season is the same metric over the whole of last season. A blank
   value is rule R4 in models/docs/metric_rules.md.
 
   A squad member with no match in the National team window has the cards at 0 and the rates blank.
@@ -43,9 +44,9 @@ tabs as (
         'current_competitions' as window_type,
         p.position_group,
         p.national_team_sk as team_sk,
-        n.window_is_complete as unused_counts_as_zero
+        p.national_tab_basis = 'squad' and n.window_is_complete as unused_counts_as_zero
     from profile as p
-    inner join nation_windows as n
+    left join nation_windows as n
         on p.national_team_sk = n.team_sk
     where p.has_national_team_tab
 ),

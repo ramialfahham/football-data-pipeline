@@ -1,6 +1,6 @@
 # Review — claude/36-crest-hosting — 2026-11-22
 
-diff_sha256: 56b38dd3a7c435e4e51f0a1cdb21b5ec3d5bbdba8a24a219ddd0db028fa74bb2
+diff_sha256: e93c0663d4174e5316c7a7c09f211539a2d4908372de7077322697af7bfc9ef3
 
 rounds: 3
 

@@ -1613,7 +1613,7 @@ models:
       - name: has_club_tab
         description: "True when the player has played club football."
       - name: has_national_team_tab
-        description: "True when the player is in a nation's squad for a current competition: on a team sheet, a stat line or the provider's squad list."
+        description: "True when the player is in a nation's squad for a current competition (on a team sheet, a stat line or the provider's squad list), or has a page and has played in a national edition that counts as this season or last."
       - name: national_team_sk
         description: "The nation of the National team tab. NULL when the player has none."
         tests:

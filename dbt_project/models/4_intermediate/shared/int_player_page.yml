@@ -78,6 +78,32 @@ models:
         description: "True when the player played at least a third of the team's minutes."
         tests: [not_null]
 
+  - name: int_competition_season__national_editions
+    description: >
+      The national-team competition-seasons that count as this season or last: an edition counts
+      when its last match is on or after 1 July of last split-year season, and then every match of
+      it counts. Grain: (season_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    columns:
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: last_match_on
+        description: "The date of the edition's last fixture, played or scheduled."
+        tests: [not_null]
+
   - name: int_team__current_national_competitions
     description: >
       A nation's current competitions: every national-team competition of the nation between its
@@ -129,6 +155,10 @@ models:
       Grain: (player_sk).
     config:
       tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "(national_tab_basis is not null) = has_national_team_tab"
+          name: national_tab_basis_follows_the_tab
     columns:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
@@ -171,14 +201,19 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: national_team_sk
-        description: "The nation whose squad the player is in for a current competition. NULL when there is none."
+        description: "The nation of the National team tab: the one whose squad the player is in for a current competition, else the one of the player's latest match in a counted national edition. NULL when there is none."
         tests:
           - relationships:
               to: ref('dim_team')
               field: team_sk
       - name: has_national_team_tab
-        description: "True when the player is in a nation's squad for a current competition."
+        description: "True when the player is in a nation's squad for a current competition, or has a page and has played in a national edition that counts as this season or last."
         tests: [not_null]
+      - name: national_tab_basis
+        description: "squad when the player is in a nation's squad for a current competition; earned when the tab rests on matches in counted national editions only; NULL without a tab."
+        tests:
+          - accepted_values:
+              values: ["squad", "earned"]
       - name: has_club_tab
         description: "True when the player has played club football."
         tests: [not_null]
@@ -189,7 +224,9 @@ models:
   - name: int_player_page__window_seasons
     description: >
       The competition-seasons of each window on a player's page: the club competitions of this and
-      last season, and the nation's current competitions. Grain: (player_sk, window_type, season_sk).
+      last season, and the nation's current competitions, or for a player with no squad place the
+      national editions counted as this season or last that the player played in. Grain:
+      (player_sk, window_type, season_sk).
     config:
       tags: ["intermediate", "football", "player"]
     tests:

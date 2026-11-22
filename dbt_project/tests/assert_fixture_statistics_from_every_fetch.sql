@@ -2,7 +2,8 @@
   A team's match stat is the newest value any fetch's line carried. Returns one row per team-match
   and stat blank in base_apif__fixture_statistics while a fetch in stg_apif__fixture_statistics
   carries it, unless the cleaning blanked it (a stat_corrections entry) or, for a card count, the
-  match's events hold fewer cards that could be of that colour, or more that certainly are.
+  match's events hold fewer cards that could be of that colour, or more that certainly are, or,
+  for offsides, the team has a player with an offside above 0 (the 0 is withheld).
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -62,6 +63,15 @@ card_bounds as (
     group by e.fixture_id, e.team_id
 ),
 
+players_with_an_offside as (
+    select
+        fixture_id,
+        team_id
+    from {{ ref('base_apif__fixture_players') }}
+    where offsides > 0
+    group by fixture_id, team_id
+),
+
 held as (
     select
         b.league_code,
@@ -89,9 +99,12 @@ held as (
             struct('Total passes', 'passes', b.passes),
             struct('Passes accurate', 'passes_accurate', b.passes_accurate)
         ]) as stat
+    left join players_with_an_offside as po
+        on b.fixture_id = po.fixture_id and b.team_id = po.team_id
     where
         stat.stat_value is null
         and stat.stat_name not in (select c.stat from unnest(b.stat_corrections) as c)
+        and not (stat.stat_name = 'offsides' and po.fixture_id is not null)
 )
 
 select

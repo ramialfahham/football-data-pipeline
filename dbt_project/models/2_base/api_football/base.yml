@@ -388,6 +388,36 @@ models:
       - name: stat_corrections.rule
         description: "{{ doc('stat_corrections_rule') }}"
 
+  - name: base_apif__fixture_player_lines
+    description: >
+      One row per player per fixture before the blank rule: the player's line in the match's picked
+      fetch (its newest in the provider's complete format, else its newest), his goals, assists,
+      cards and minutes settled by the match's events where the fetches disagree, and for each
+      fillable stat the newest value another fetch gives him that agrees with him on those results,
+      as donated_<stat>. Players of a team-match are filed under the team id the players model
+      keeps them under. Grain: (league_code, fixture_id, team_id, player_id).
+
+      It is the first half of base_apif__fixture_players, split out so that
+      base_apif__fixture_statistics can read a player's offsides without a cycle.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id, player_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "The player's team id, as base_apif__fixture_players keeps it."
+        tests: [not_null]
+      - name: player_id
+        description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+
   - name: base_apif__fixture_players
     description: >
       One row per player per fixture with that player's match statistics, from the generic

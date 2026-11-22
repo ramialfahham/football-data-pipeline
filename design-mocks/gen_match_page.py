@@ -361,7 +361,7 @@ a.mk-rlink:active { background: var(--sunk); }
 .mk-rm .rmeta { grid-area: meta; text-align: left; white-space: normal; }
 /* The player row: the numbers stay on the right at every width and only the name wraps, never cut off. */
 .mk-pr { grid-template-columns: 34px 1fr auto; grid-template-areas: "photo name stat" "photo pos stat"; row-gap: 2px; align-content: start; }
-.mk-pr .pphoto { grid-area: photo; }
+.mk-pr > :first-child { grid-area: photo; }
 .mk-pr .pname { display: contents; }
 .mk-pr .pname .nm { grid-area: name; white-space: normal; overflow: visible; text-overflow: clip; }
 .mk-pr .pname .ps { grid-area: pos; }
@@ -470,7 +470,7 @@ ADAPT_CSS = """
   .mk-stack .mk-team { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 4px;
                        align-items: center; text-align: left; padding: 12px 4px; border-bottom: 1px solid var(--line); }
   .mk-stack .mk-team + .vs + .mk-team { border-bottom: 0; }
-  .mk-stack .mk-team .crest { grid-row: span 2; }
+  .mk-stack .mk-team > :first-child { grid-row: span 2; }
   .mk-stack .mk-team .tname { font-size: 20px; text-wrap: pretty; }
   .mk-stack .mk-team .stand { grid-column: 2; }
 }
