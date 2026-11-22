@@ -67,7 +67,7 @@ td.k { color: var(--ink); font-weight: 600; white-space: nowrap; }
 ol.rules { margin: 10px 0 0; padding-left: 20px; }
 ol.rules li { font-size: 13.5px; color: var(--ink-2); line-height: 1.7; padding: 5px 0; }
 .try { font-size: 12px; color: var(--muted); font-style: italic; margin: 10px 0 0; }
-.crest.xs svg { width: 15px; height: 15px; display: block; color: var(--muted); }
+.xs > svg { width: 15px; height: 15px; display: block; color: var(--muted); }
 .clogo svg { color: var(--muted); }
 """
 

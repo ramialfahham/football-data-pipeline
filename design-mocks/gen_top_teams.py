@@ -233,7 +233,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 /* strings that do NOT exist in strings.ts yet -- plausible worst case, not approved copy */
 #t-fi:checked ~ .stage .probe { text-decoration: underline dotted currentColor; text-underline-offset: 3px; }
 
-.crest.xs svg { width: 15px; height: 15px; display: block; color: var(--muted); }
+.xs > svg { width: 15px; height: 15px; display: block; color: var(--muted); }
 """
 
 

@@ -366,8 +366,8 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 #t-fi:checked ~ .stage .fi { display: inline; }
 #t-fi:checked ~ .stage .probe { text-decoration: underline dotted currentColor; text-underline-offset: 3px; }
 
-.crest svg { width: 26px; height: 26px; display: block; color: var(--muted); }
-.crest.xs svg { width: 15px; height: 15px; }
+.stage header > :first-child > svg { width: 26px; height: 26px; display: block; color: var(--muted); }
+.xs > svg { width: 15px; height: 15px; display: block; color: var(--muted); }
 """
 
 

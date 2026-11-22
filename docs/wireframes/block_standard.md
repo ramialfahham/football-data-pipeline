@@ -156,6 +156,7 @@
 | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
 | Player row position | `.plrow .pname .ps` | 13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom | `font-size=13px; color=muted` | ruled | the match page review |
 | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+| Player row parts | `.pphoto` | the player row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Column head | `.rcol .colhead` | a list column's name in the block heading's style, 13px bold capitals muted; one fact may follow on a second 13px muted line (a team's formation); a second head inside the column opens its second list, 12px under the first | `font-size=13px; font-weight=700; text-transform=uppercase; color=muted` | ruled | the played match page review; the design standard |
 | Two columns formation | `.rcol .colhead .formation` | the two columns's formation, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
 | Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
@@ -208,6 +209,7 @@
 | Index row parts | `.comp-row, .comp-meta` | the index row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Team list parts | `.teamindex, .tblock, .tgroups-region, .tview-all, .tview-region` | the team list's other parts: registered, no text of their own |  | ruled | the component registry |
 | Fitted block parts | `.fit-one` | the fitted block's other parts: registered, no text of their own |  | ruled | the component registry |
+| Crest parts | `.crest` | the crest's other parts: registered, no text of their own |  | ruled | the component registry |
 | Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |
 | Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, p.bsub.cmp-p, .cmp-p .chart-legend` | a team name wraps only between words; no word splits or runs past the name's space; in the Finnish Player intro and legend the team name stays with the hyphen that joins it to its Finnish compound; below 700px the match header's names take 20px, 18px or 15px. A step down comes only where the larger size leaves a team's longest word and chevron outside its space. The crest stays 52px | `whole-words` | ruled | the narrow-screen fix |
 | Legacy board value | `.brow .v b` | the legacy Home mocks' boards: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
@@ -215,6 +217,7 @@
 | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11%; the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
 | Prose link | `p a, .lede a, .sub a, .bnote a` | the one place an underline stays: a link inside running text | `text-decoration-line=underline` | ruled | #52 |
 | Tag | `.nexttag, .fxrow .topmatch, .stag` | Next (on the picker's title), Top match (on the flagged row, before the kick-off) and a match's status. Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix; the design standard |
+| Image spot | `.crest, .pphoto` | A crest, a league logo or a photo fills its spot, with no tile, box, border or filled background, in light and dark mode. With no image, a spot shows its initials on the bare background: ink on a crest, muted ink on a player spot | `background-color=transparent; border-bottom-width=0px` | ruled | the crest and placeholder ruling |
 | Page width | `body:not(.legacy-width) :is(.header-in, .footer-in)` | the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths | `max-width=960px` | ruled | the page width review |
 
 Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
