@@ -95,7 +95,7 @@ section { margin-top: 36px; }
 .mast .kick b { color: var(--muted); font-weight: 700; }
 .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin-top: 24px; }
 .team { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; }
-.crest { width: 52px; height: 52px; border-radius: 4px; display: grid; place-items: center; background: var(--sunk); border: 1px solid var(--line); color: var(--ink); font-weight: 700; font-size: 15px; overflow: hidden; }
+.crest { width: 52px; height: 52px; display: grid; place-items: center; color: var(--ink); font-weight: 700; font-size: 15px; overflow: hidden; }
 .crest img { width: 100%; height: 100%; object-fit: contain; }
 .tname { font-size: 20px; font-weight: 700; line-height: 1.05; text-wrap: balance; }
 .vs { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -171,7 +171,7 @@ section { margin-top: 36px; }
 .noclick .rscore,
 .noclick .ropp { opacity: .55; }
 
-.pphoto { width: 34px; height: 34px; border-radius: 50%; background: var(--sunk); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--muted); overflow: hidden; }
+.pphoto { width: 34px; height: 34px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--muted); overflow: hidden; }
 .pphoto img { width: 100%; height: 100%; object-fit: cover; }
 .pname { min-width: 0; }
 .pname .nm { font-size: 15px; font-weight: 400; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -505,7 +505,7 @@ a.fold-ctl .chev { transform: none; }
 .tblock > .sechead + div:not([class]) > .comp-grid { margin-top: -8px; }
 .fold-rest > .fxrow:last-child { border-bottom: 1px solid var(--line); }
 /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
-.crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 11px; flex: 0 0 auto; }
+.crest.xs { width: 24px; height: 24px; font-size: 11px; flex: 0 0 auto; }
 
 /* ============================================================ *
  *  RANKED BOARD — the Home page's Top players (#40) and, when   *

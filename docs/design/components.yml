@@ -407,7 +407,7 @@ components:
       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
       position: {class: ps, selector: ".plrow .pname .ps", text: 13-400-muted, element: Player row position, rule: "13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=13px; color=muted", ruled-on: the match page review}
       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
-      photo: {class: pphoto, gap: mock-css}
+      photo: {class: pphoto, gap: mock-css, rule: "the player spot follows the crest rule: no tile, box, border or fill behind a photo, and the initials in ink on the bare background when there is no photo. Measured once the mocks adopt it: #340"}
     wide: "photo / name over position / numbers at the right; the row links to the player page"
     narrow: {below: w280, form: "the name across the row, the position and the numbers on the second line"}
     short-forms: [minutes]
@@ -619,8 +619,8 @@ components:
     file: site_v2/src/components/ui/Crest.astro
     used-on: [every page]
     parts:
-      crest: {class: crest, gap: mock-css}
-      small: {class: xs, gap: mock-css}
+      crest: {class: crest, gap: mock-css, rule: "a crest or logo fills its spot as large as the spot allows, with no tile, box, border or filled background behind it, in light and dark mode; with no image the spot shows its initials in ink on the bare background. The same rule holds for every image spot (the player photo spot, `pphoto`). Measured once the mocks adopt it: #340"}
+      small: {class: xs, gap: mock-css, rule: "the 24px crest follows the crest rule above: no tile, box, border or fill. Measured once the mocks adopt it: #340"}
     wide: "a team's or competition's crest, 24px; 52px in the match header"
   unit:
     name: Unbreakable unit
