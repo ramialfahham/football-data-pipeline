@@ -47,6 +47,7 @@ order by research_tier nulls last, fixture_date
 - Research only the current season. A row with no `research_tier` is not researched.
 - Report every row you do not research, with its reason, in the final report.
 - A `correction_no_longer_needed` row needs no research. Go to section 9.
+- A `misfiled_team_withheld` row is not researched. Its seed, `fixture_team_id_overrides`, is not one this skill edits. Report the row.
 
 ## 2. Choose the matches
 

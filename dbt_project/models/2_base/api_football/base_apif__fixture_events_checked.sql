@@ -2,6 +2,14 @@ with events as (
     select * from {{ ref('base_apif__fixture_events') }}
 ),
 
+participants as (
+    select
+        fixture_id,
+        cast(home_team_id as int64) as home_team_id,
+        cast(away_team_id as int64) as away_team_id
+    from {{ ref('base_apif__fixtures_next') }}
+),
+
 -- Minutes as elapsed * 100 + added time. A minute at the end of a period with no added minute can
 -- be any minute of that period's added time.
 sheet as (
@@ -86,10 +94,14 @@ select
     if(coalesce(checked.assist_needs_research, false), null, events.assist_player_id) as assist_player_id,
     if(coalesce(checked.assist_needs_research, false), null, events.assist_player_name) as assist_player_name,
     coalesce(checked.scorer_needs_research, false) as scorer_needs_research,
-    coalesce(checked.assist_needs_research, false) as assist_needs_research
+    coalesce(checked.assist_needs_research, false) as assist_needs_research,
+    {{ team_not_in_fixture('events.team_id', 'participants.home_team_id', 'participants.away_team_id') }}
+        as team_needs_research
 from events
 left join checked
     on
         events.league_code = checked.league_code
         and events.fixture_id = checked.fixture_id
         and events.event_index = checked.event_index
+left join participants
+    on events.fixture_id = participants.fixture_id

@@ -320,6 +320,12 @@ goals, shoot-out and winner are then withheld, blank until research stands in th
 fixture_result_corrections seed.
 {% enddocs %}
 
+{% docs team_needs_research %}
+True where the line is filed under a team that did not play the match. Both of the match's
+teams must be known. The line is then left out of the facts and is on
+mart_competition_research_list, until a fixture_team_id_overrides row files it under the right team.
+{% enddocs %}
+
 {% docs scorer_needs_research %}
 True on a provider goal whose scorer was not on the pitch at its minute on a confirmed or
 researched line-up; the scorer is then blank, and so are his goals in the match. Where is_goal is

@@ -4,7 +4,8 @@
     is the zero-based array position from the API-Football /fixtures/events response.
     API-Football does not emit event IDs; array position is the only stable unique
     identifier within a fixture's event list. A goal from fixture_goal_corrections stands
-    at event_index 10000 plus its place in the match.
+    at event_index 10000 plus its place in the match. An event filed under a team that did not
+    play the match (team_needs_research) is left out and is on mart_competition_research_list.
 #}
 
 with src as (
@@ -42,3 +43,4 @@ select
     assist_needs_research,
     src.raw_ingested_at
 from src
+where not team_needs_research

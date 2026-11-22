@@ -3,7 +3,11 @@
   Each fact is its base keyed and renamed, rebuilt in full every night, so every column it takes
   from base must match on every row. One row per disagreeing row, with the side it is missing from.
   The team fact also holds sides that base has no row for, with no stat columns and no ingest
-  time; those rows are left out of the comparison.
+  time; those rows are left out of the comparison. A base line filed under a team that did not
+  play the match is left out of its fact, so it is left out of the base side here. Which lines
+  those are is derived from the match's two teams in fct_fixture, never from the flag, so a flag
+  that withholds a line of a team of the match still fails this test. assert_misfiled_team_lines_withheld
+  holds the withheld lines to account.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -29,6 +33,14 @@
                  'passes_accurate', 'goals_penalty', 'goals_own', 'raw_ingested_at']},
 ] %}
 
+with participants as (
+    select
+        fixture_api_id as fixture_id,
+        home_team_api_id as home_team_id,
+        away_team_api_id as away_team_id
+    from {{ ref('fct_fixture') }}
+)
+
 {% for f in facts %}
 {% set fact_columns %}{% for k in f['renamed'] %}{{ k }}, {% endfor %}{{ f['columns'] | join(', ') }}{% endset %}
 {% set base_columns %}{% for k, v in f['renamed'].items() %}{{ v }} as {{ k }}, {% endfor %}{{ f['columns'] | join(', ') }}{% endset %}
@@ -49,7 +61,18 @@ select
     'missing from the fact' as side,
     to_json_string(t) as fact_row
 from (
-    select {{ base_columns }} from {{ ref(f.base) }}
+    select {{ base_columns }}
+    from {{ ref(f.base) }} as b
+    where not exists (
+        select 1
+        from participants as p
+        where
+            p.fixture_id = b.fixture_id
+            and b.team_id is not null
+            and p.home_team_id is not null
+            and p.away_team_id is not null
+            and b.team_id not in (p.home_team_id, p.away_team_id)
+    )
     except distinct
     select {{ fact_columns }} from {{ ref(f.fact) }} where {{ f.fact_rows }}
 ) as t

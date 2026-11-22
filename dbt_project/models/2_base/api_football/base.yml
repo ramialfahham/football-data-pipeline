@@ -377,6 +377,9 @@ models:
         description: "{{ doc('goals_own') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }} Here, the newest fetch among the inputs the row rests on: the team's and the other team's statistics lines, the match events and the fixture."
+      - name: team_needs_research
+        description: "{{ doc('team_needs_research') }}"
+        tests: [not_null]
       - name: stat_corrections
         description: "Every value the cleaning changed on this row because a stat contradicted a result, a stat vouched for by its own check or its own total: one entry per changed stat. Empty on a row nothing changed. The blank rule's zeros are not listed."
       - name: stat_corrections.stat
@@ -493,6 +496,9 @@ models:
         tests: [not_null]
       - name: goals_need_research
         description: "True where the team scored and its goal events do not add up to its score. Its players' goals are then withheld, blank until sourced research stands in fixture_goal_corrections."
+        tests: [not_null]
+      - name: team_needs_research
+        description: "{{ doc('team_needs_research') }}"
         tests: [not_null]
 
   - name: base_apif__lineup_sheets
@@ -778,6 +784,9 @@ models:
         description: "The player's scored penalties in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
       - name: assists
         description: "The player's assists in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld assister of a goal that counts."
+      - name: team_needs_research
+        description: "{{ doc('team_needs_research') }}"
+        tests: [not_null]
 
   - name: base_apif__fixture_events_checked
     description: >
@@ -814,6 +823,9 @@ models:
         tests: [not_null]
       - name: assist_needs_research
         description: "{{ doc('assist_needs_research') }}"
+        tests: [not_null]
+      - name: team_needs_research
+        description: "{{ doc('team_needs_research') }}"
         tests: [not_null]
 
   - name: base_apif__player_team_season
