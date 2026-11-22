@@ -1,11 +1,10 @@
-# Metric display contract — groups, order
+# Metric display contract — groups
 
 > The CPO-ruled display contract for metric lists everywhere they render (fixture
 > comparison, team profile, player profile, leaderboards). The
-> `metric_catalogue.csv` seed stays the single source of metric definitions (the
-> SSoT); this document records the **display**
-> rulings (grouping, order) until they are codified as catalogue
-> columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
+> `metric_catalogue.csv` seed stays the single source of metric definitions and of their order
+> (`metric_group_order`, `metric_order`). This document records the **display**
+> rulings (grouping). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
 > (CPO, 2026-06-11).**
 
 ## Key metrics (ruled)
@@ -89,12 +88,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
 
 ## Team metrics — LOCKED (CPO, 2026-06-11)
 
-Display order top to bottom. MVP rows keep their relative order; new blocks slot
-into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
-`docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
-Defending → Goalkeeping → Set pieces → Discipline → Results → Playing time, on every surface. The
-group this table calls Duels is One-on-one. Row order WITHIN a block on the team page is what this
-table locks.
+The order of the blocks and of the rows inside a block is the catalogue's `metric_group_order` and
+`metric_order`, on every surface (`docs/metric_layer.md`, "A group is defined once"). This table
+locks the rows below, in that order. The group this table calls Duels is One-on-one.
 
 | # | metric_id | Group | Status |
 |---|---|---|---|
@@ -102,18 +98,18 @@ table locks.
 | 2 | `goals_against_per_match` | Goals | live |
 | 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | live |
 | 4 | `shots_per_match` | Shooting | live |
-| 5 | `shots_inside_box_pct` | Shooting | live |
-| 6 | `shots_on_target_per_match` | Shooting | **new** (GAP-11) |
+| 5 | `shots_on_target_per_match` | Shooting | **new** (GAP-11) |
+| 6 | `shots_inside_box_pct` | Shooting | live |
 | 7 | `finishing_efficiency_pct` | Shooting | live |
-| 8 | `duels_per_match` | One-on-one | **new** (GAP-11) |
-| 9 | `duels_won_pct` | One-on-one | live |
-| 10 | `defensive_actions_per_match` | Defending | **new aggregate** (GAP-11) |
-| 11 | `passes_per_match` | Passing | live |
-| 12 | `passes_accuracy_pct` | Passing | live |
-| 13 | `passes_key_per_match` | Passing | live |
-| 14 | `corners_per_match` | Set pieces | live |
-| 15 | `corners_against_per_match` | Set pieces | live |
-| 16 | `saves_pct` | Goalkeeping | live |
+| 8 | `passes_per_match` | Passing | live |
+| 9 | `passes_accuracy_pct` | Passing | live |
+| 10 | `passes_key_per_match` | Passing | live |
+| 11 | `duels_per_match` | One-on-one | **new** (GAP-11) |
+| 12 | `duels_won_pct` | One-on-one | live |
+| 13 | `defensive_actions_per_match` | Defending | **new aggregate** (GAP-11) |
+| 14 | `saves_pct` | Goalkeeping | live |
+| 15 | `corners_per_match` | Set pieces | live |
+| 16 | `corners_against_per_match` | Set pieces | live |
 
 ### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
 
@@ -123,7 +119,7 @@ A value averaged over several matches shows "per match" on a small second line, 
 value shows none. A share without a football word of its own shows "percentage" there.
 
 ⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
-id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
+id. For row 5 it reads `shots_on_target_per_match`. The catalogue calls that metric
 `shots_on_goal_per_match`. The catalogue reconciles them in its `label_i18n_key` column, which for
 that row is `metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during
 #370: the key was read as a metric id, judged dangling, and replaced with one the catalogue declares
@@ -168,17 +164,15 @@ the display contract.** The hero tile label box is 71px and the Performance row'
 
 Any locale that compounds (Dutch is next) inherits all of this.
 
-**Defined but not displayed** (stay in catalogue/marts, render nowhere in the
-comparison): `shots_on_goal_pct` (superseded by the shots and shots on target rows side by
-side), `tackles_per_match` / `interceptions_per_match` /
-`blocks_per_match` (sub-display of row 10 only), `dribbles_success_player_pct`
-(dropped team-side; stays a player metric), `points_won` + `league_rank`
-(window header / standing chip, not metric rows).
+**Defined but not displayed.** These stay in the catalogue and the marts and render nowhere in the
+comparison:
 
-### The shooting funnel (rationale, ruled with fix "a")
+- `shots_on_goal_pct`: superseded by the shots and shots on target rows side by side.
+- `tackles_per_match`, `interceptions_per_match`, `blocks_per_match`: sub-display of row 13 only.
+- `dribbles_success_player_pct`: dropped team-side; stays a player metric.
+- `points_won`, `league_rank`: window header and standing chip, not metric rows.
 
-Volume (shots) → location quality (shots inside box percentage) → on-target volume (shots on
-target) → finishing (goals per shot on target).
+### The finishing metric
 
 What the finishing metric counts is its catalogue row; how it is computed and when it
 is blank are the catalogue table's rules.
@@ -188,29 +182,27 @@ is blank are the catalogue table's rules.
 The player display unit is the **bundled row** (1–3 related atomics per row with a
 defined display string) — NOT one metric per row. That part stands.
 
-Per-surface rules still apply where a surface needs an ordering of its own (e.g. the
-fixture top-players strip ranks goals → assists → key passes, GK variant saves_player + save %).
+The order of the rows is the catalogue's, as for the team table.
 
 Changes vs the legacy player rows (definitions / formulas now live in the
-`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows
-resequenced into the shared block order; (2) every
+`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) every
 bundle carries the `metric_group` it inherits from its atomics — a bundle never
-mixes groups; (3) ratio displays standardized to the full triple
-`{num} of {den} · {pct}%`; (4) the GK row gains the triple (two new atomics).
+mixes groups; (2) ratio displays standardized to the full triple
+`{num} of {den} · {pct}%`; (3) the GK row gains the triple (two new atomics).
 
 | # | Row | Display string | Atomics | Group |
 |---|---|---|---|---|
 | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
 | 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
-| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
-| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
-| 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
-| 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
-| 7 | Key passes | `{count}` | passes_key_player | Passing |
-| 8 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
-| 9 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
+| 3 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
+| 4 | Key passes | `{count}` | passes_key_player | Passing |
+| 5 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
+| 6 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
+| 7 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
+| 8 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
+| 9 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
 
-- Row 9 renders only for `position_code = 'G'`; whether a GK profile pulls the
+- Row 8 renders only for `position_code = 'G'`; whether a GK profile pulls the
   Goalkeeping block forward is a design call (#366).
 - The **zero-denominator rule** is unchanged and now self-explanatory:
   `0 of 0 · —`.
@@ -240,10 +232,8 @@ mixes groups; (3) ratio displays standardized to the full triple
 
 | Date | Ruling |
 |---|---|
-| 2026-06-11 | Groups = MVP blocks; MVP row order untouched; new metrics slot into blocks. |
-| 2026-06-11 | Duels + Defending blocks placed before Passing. |
 | 2026-06-11 | Clean sheets added (new metric); team dribbles dropped; T·I·B aggregated. |
-| 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
+| 2026-06-11 | Shooting block reshaped: shots on target (new) added; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
 | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
 | 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
 | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |

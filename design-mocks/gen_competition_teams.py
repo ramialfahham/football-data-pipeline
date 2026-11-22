@@ -7,6 +7,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 
+from catalogue_order import groups_in_catalogue_order  # noqa: E402
 from gen_competition_hub import COPY, E, MOCK_CSS, SYSTEM_CSS, loc, slugify, team_cell  # noqa: E402
 from gen_top_teams import FI, board_title, label  # noqa: E402
 from interaction import CHEVRON  # noqa: E402
@@ -37,15 +38,12 @@ COPY.update({
 METRICS_FILE = HERE / "bl1_team_metrics.json"
 # The mock ranks from mart_team_profile the way mart_team_leaderboards does: dense rank by the
 # catalogue's direction, ties ordered by value then name.
-GROUPS = [
-    ("metricGroups.goals.label",      ["goals_per_match", "goals_against_per_match"]),
-    ("metricGroups.shooting.label",   ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
-                                       "shots_on_goal_difference_per_match"]),
-    ("metricGroups.passing.label",    ["passes_per_match", "passes_accuracy_pct"]),
-    ("metricGroups.one_on_one.label", ["duels_per_match", "duels_won_pct"]),
-    ("metricGroups.defending.label",  ["defensive_actions_per_match"]),
-    ("metricGroups.discipline.label", ["cards_yellow", "cards_red"]),
-]
+GROUPS = groups_in_catalogue_order((
+    "goals_per_match", "goals_against_per_match",
+    "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match",
+    "passes_per_match", "passes_accuracy_pct", "duels_per_match", "duels_won_pct",
+    "defensive_actions_per_match", "cards_yellow", "cards_red",
+), "team")
 TOP = 5
 
 # The card boards rank most first whatever direction the catalogue gives the metric.
@@ -156,15 +154,12 @@ def boards_html(boards):
 
 
 # ---- the player half ----
-PLAYER_GROUPS = [
-    ("metricGroups.goals.label",       ["goals_player", "assists_player"]),
-    ("metricGroups.shooting.label",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
-    ("metricGroups.passing.label",     ["passes_player", "passes_key_player", "passes_accuracy_player_pct"]),
-    ("metricGroups.one_on_one.label",  ["dribbles_attempts_player", "duels_player"]),
-    ("metricGroups.defending.label",   ["defensive_actions_player"]),
-    ("metricGroups.discipline.label",  ["cards_yellow_player", "cards_red_player"]),
-    ("metricGroups.goalkeeping.label", ["saves_player"]),
-]
+PLAYER_GROUPS = groups_in_catalogue_order((
+    "goals_player", "assists_player", "shots_on_goal_player", "finishing_efficiency_player_pct",
+    "passes_player", "passes_key_player", "passes_accuracy_player_pct",
+    "dribbles_attempts_player", "duels_player", "defensive_actions_player",
+    "cards_yellow_player", "cards_red_player", "saves_player",
+), "player")
 PLAYERS_FILE = HERE / "bl1_player_metrics.json"
 # The leaderboard mart's rate rules: minutes >= 270, plus a shots-on-goal floor for finishing.
 RATE_MIN_MINUTES = 270

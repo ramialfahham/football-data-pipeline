@@ -57,27 +57,28 @@ next to the %), both being separate metrics already in the set.
 │  [ Bundesliga 2025/26 ▾ ]                         │  (3) season selector
 │  ranked within Bundesliga 2025/26                 │      each row shows its own "of N" (§5)
 ├───────────────────────────────────────────────────┤
-│  GOALS                                            │  (4) group subhead (metrics_display order)
+│  GOALS                                            │  (4) group subhead (catalogue order)
 │  goals_per_match  2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
 │  goals_against_…  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
 │  clean_sheets_pct 43%   2nd of 18   +6pp  ▐███▌   │      the fixture windows show the count
-│  SHOOTING                                         │      order = the LOCKED shooting funnel
-│  shots_per_match 14.1   2nd of 18   +2.1  ▐███▌   │      volume →
-│  shots_inside_…   38%   6th of 18   +2pp  ▐██▌    │      location (the share; the volume is above) →
-│  shots_on_goal_…   5.3  3rd of 18   +0.8  ▐███▌   │      on-target volume →
-│  finishing_…      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
+│  SHOOTING                                         │      order = the catalogue's
+│  shots_per_match 14.1   2nd of 18   +2.1  ▐███▌   │
+│  shots_on_goal_…   5.3  3rd of 18   +0.8  ▐███▌   │
+│  shots_inside_…   38%   6th of 18   +2pp  ▐██▌    │      the share; the volume is above
+│  finishing_…      28%   5th of 18   +3pp  ▐██▌    │      shots_on_goal_pct mart-ranked but UNRENDERED — contract
 ├────────────────── fold (~700px) ──────────────────┤
-│  DUELS                                            │
+│  …Passing…                                        │
+│  ONE-ON-ONE                                       │
 │  duels_per_match  51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
 │  duels_won_pct    54%   3rd of 18   +4pp  ▐████▌  │
-│  …Defending → Passing → Set pieces → Goalkeeping…  │
+│  …the other groups in the catalogue's order…      │
 ├───────────────────────────────────────────────────┤
 │  ▸Overview ▸Table ▸Glossary                       │  (5) internal links
 └───────────────────────────────────────────────────┘
 ```
 
-Rows are grouped and ordered by the shared block order in [`metrics_display.md`](metrics_display.md):
-**Goals → Shooting → Duels → Defending → Passing → Set pieces → Goalkeeping**. Each row: metric label +
+Rows are grouped and ordered by the catalogue's `metric_group_order` and `metric_order`, as in
+[`metrics_display.md`](metrics_display.md). Each row: metric label +
 the team's value + **"{rank} of {team_count}"** + the signed **vs-median delta** + a schematic
 **spread bar** (the value on a p25–median–p75 track with a dashed median line). The bar column is
 schematic here. **Desktop (≥ ~900px)**: two columns of rows; header + selector full-width.
@@ -141,17 +142,17 @@ locked "defined but not displayed" list: `shots_on_goal_pct` (superseded by the 
 target rows side by side) and `tackles_per_match` / `interceptions_per_match` / `blocks_per_match` (the
 **T · I · B sub-display of the single `defensive_actions_per_match` row**, not separate ranked rows).
 Each row's name is its key's entry in `site_v2/src/i18n/strings.ts`. `02_team_profile.md` §8
-renders the same 16. Grouped and ordered per the metrics_display block order:
+renders the same 16. Grouped and in the catalogue's order:
 
 | Block | Rendered metrics (metric_key) |
 |---|---|
 | Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_pct` |
-| Shooting | `shots_per_match` · `shots_inside_box_pct` (%) · `shots_on_goal_per_match` · `finishing_efficiency_pct` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
-| Duels | `duels_per_match` · `duels_won_pct` (%) |
-| Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
+| Shooting | `shots_per_match` · `shots_on_goal_per_match` · `shots_inside_box_pct` (%) · `finishing_efficiency_pct` (%) |
 | Passing | `passes_per_match` · `passes_accuracy_pct` (%) · `passes_key_per_match` |
-| Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
+| One-on-one | `duels_per_match` · `duels_won_pct` (%) |
+| Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 13) |
 | Goalkeeping | `saves_pct` (%) |
+| Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
 
 The six `percent` ratios sit next to their volume count in the same block (`shots_per_match` →
 `shots_inside_box_pct`; `duels_per_match` → `duels_won_pct`; `passes_per_match` →

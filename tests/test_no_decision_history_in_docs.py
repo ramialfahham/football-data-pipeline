@@ -54,7 +54,7 @@ PINNED = {
     "docs/wireframes/14_team_stats.md": 9,
     "docs/wireframes/99_gaps_register.md": 29,
     "docs/wireframes/block_standard.md": 46,
-    "docs/wireframes/metrics_display.md": 30,
+    "docs/wireframes/metrics_display.md": 27,
     "site_v2/src/data/README.md": 5,
 }
 

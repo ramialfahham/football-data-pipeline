@@ -8,6 +8,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from catalogue_order import place  # noqa: E402
+
 REPO = Path(__file__).resolve().parent.parent
 CATALOGUE = REPO / "dbt_project/seeds/metric_catalogue.csv"
 SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
@@ -116,6 +119,7 @@ BOARDS = [
         ],
     },
 ]
+BOARDS.sort(key=lambda b: place(b["rank_metric"], "team"))
 
 # --------------------------------------------------------------------- build
 
