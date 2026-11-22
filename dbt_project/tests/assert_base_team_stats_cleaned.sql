@@ -5,7 +5,8 @@
   - missing_team_row: a team of a finished match has no row.
   - blank_where_counted: a count is blank although the other team's line, as the provider delivered
     it in its newest fetch (read from stg_apif__fixture_statistics), carries a value for it.
-    Possession is a share, not a count, and is not checked.
+    Possession is a share, not a count, and is not checked. An offsides count stays blank where a
+    player of the team has an offside.
   - card_blank_where_events_prove_none: a card count is blank in a match whose events were
     delivered (a substitution or a card) while the team has no event against that zero: a card of
     that colour or of none, or a video review of a card (an upgrade or a cancelled red counts as red).
@@ -127,6 +128,15 @@ matches_with_events as (
     where has_full_events
 ),
 
+players_with_an_offside as (
+    select
+        fixture_id,
+        team_id
+    from {{ ref('base_apif__fixture_players') }}
+    where offsides > 0
+    group by fixture_id, team_id
+),
+
 team_events as (
     select
         fixture_id,
@@ -175,6 +185,7 @@ in_context as (
         f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') and f.goals_home is not null and f.goals_away is not null
             as is_finished,
         me.fixture_id is not null as match_has_events,
+        po.fixture_id is not null as player_has_offside,
         coalesce(te.goal_events, 0) as goal_events,
         coalesce(te.penalty_goal_events, 0) as penalty_goal_events,
         coalesce(te.own_goal_events, 0) as own_goal_events,
@@ -195,6 +206,8 @@ in_context as (
             and o.team_id = if(l.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
     left join matches_with_events as me
         on l.fixture_id = me.fixture_id
+    left join players_with_an_offside as po
+        on l.fixture_id = po.fixture_id and l.team_id = po.team_id
     left join team_events as te
         on l.fixture_id = te.fixture_id and l.team_id = te.team_id
     left join team_events as oe
@@ -229,7 +242,11 @@ violations as (
         '{{ stat }}',
         null
     from in_context
-    where {{ stat }} is null and opponent_{{ stat }}_delivered and '{{ stat }}' not in unnest(corrected_stats)
+    where
+        {{ stat }} is null and opponent_{{ stat }}_delivered and '{{ stat }}' not in unnest(corrected_stats)
+        {%- if stat == 'offsides' %}
+        and not player_has_offside
+        {%- endif %}
     {% endfor %}
 
     union all

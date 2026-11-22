@@ -38,3 +38,6 @@ fixture_id,team_id,stat,expected_value,rule,working
 1311456,5277,shots,2,raised_to_shots_on_target,"Same line: 1 shot against its 2 shots on target, a gap of 1: raised to 2."
 1180382,119,offsides,,,"Brasileirao 2024: fouls 6 and possession 54 on its line and no offsides value on either line, but one of its players has 1 offside, so nothing proves a team zero: blank."
 1145521,9,offsides,0,,"EURO 2024: fouls 17 and possession 57 on its line, no offsides value on either line, and none of its 26 player lines shows an offside: 0."
+1149592,3700,offsides,,,"Provider line with 0 offsides for both teams while its player 214013 has 1 offside: the 0 is contradicted by the player, so blank."
+1099022,10137,offsides,,,"Provider line with 0 offsides while its players 31348 and 432074 each have 1 offside in the same fetch: the 0 is contradicted by the players, so blank."
+1575511,211,offsides,0,,"The first fetch gave the team 1 offside and its player 36798 one; the two later fetches give the team 0 and no player of it an offside, so the newest line stands: 0."

@@ -92,30 +92,13 @@ overrides as (
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
--- The most offsides any player line of a team shows in a match, over every fetch, under the
--- provider's team id.
-player_lines as (
-    select
-        fixture_id,
-        team_id,
-        max(offsides) as player_offsides_max
-    from {{ ref('stg_apif__fixture_players') }}
-    where fixture_id is not null and team_id is not null
-    group by fixture_id, team_id
-),
-
--- Every (fixture, provider team id) the statistics lines and the player lines name, mapped once
--- to the team id both are kept under.
+-- Every (fixture, provider team id) the statistics lines name, mapped once to the team id they are
+-- kept under.
 team_id_pairs as (
-    select
+    select distinct
         fixture_id,
         team_id as provider_team_id
     from pivoted
-    union distinct
-    select
-        fixture_id,
-        team_id as provider_team_id
-    from player_lines
 ),
 
 team_id_map as (
@@ -376,18 +359,16 @@ team_events as (
     group by fixture_id, team_id
 ),
 
--- The same, under the team id the statistics lines are kept under.
+-- The most offsides a player of the team has in the match: the value the player keeps in
+-- base_apif__fixture_players, from the picked fetch or the one that fills it, under the team id the
+-- players are kept under.
 player_offsides as (
     select
-        player_lines.fixture_id,
-        team_id_map.team_id,
-        max(player_lines.player_offsides_max) as player_offsides_max
-    from player_lines
-    inner join team_id_map
-        on
-            player_lines.fixture_id = team_id_map.fixture_id
-            and player_lines.team_id = team_id_map.provider_team_id
-    group by player_lines.fixture_id, team_id_map.team_id
+        fixture_id,
+        team_id,
+        max(coalesce(offsides, donated_offsides)) as player_offsides_max
+    from {{ ref('base_apif__fixture_player_lines') }}
+    group by fixture_id, team_id
 ),
 
 in_context as (
@@ -449,7 +430,9 @@ in_context as (
 -- 1. The blank rule: a blank count is a zero where the other team's line, as delivered, has a value
 -- for the stat; a card where the match's events were delivered and none of them stands against that
 -- zero; saves where the opponent had no shot on target. Every other blank stays blank, possession
--- always: it is a share, not a count.
+-- always: it is a share, not a count. An offsides count of a team that has a player with an offside
+-- is never 0: a 0 the provider sent is blank, and a blank the other team's line or the team's own
+-- full line would zero stays blank.
 -- 2. The goal split: penalty and own goals are the team's goal events where the match's events
 -- were delivered and they add up to its score, 0 where it scored none, blank otherwise.
 filled as (
@@ -463,15 +446,13 @@ filled as (
         coalesce(shots_outside_box, if(opponent_shots_outside_box is not null, 0, null)) as shots_outside_box_filled,
         coalesce(fouls, if(opponent_fouls is not null, 0, null)) as fouls_filled,
         coalesce(corners, if(opponent_corners is not null, 0, null)) as corners_filled,
-        coalesce(
-            offsides,
-            if(
-                opponent_offsides is not null
-                or (fouls is not null and possession_pct is not null and coalesce(player_offsides_max, 0) = 0),
-                0,
-                null
+        case
+            when player_offsides_max > 0 then nullif(offsides, 0)
+            else coalesce(
+                offsides,
+                if(opponent_offsides is not null or (fouls is not null and possession_pct is not null), 0, null)
             )
-        ) as offsides_filled,
+        end as offsides_filled,
         coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
         coalesce(
             cards_yellow,
