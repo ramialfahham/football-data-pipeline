@@ -3,7 +3,10 @@
   and stat blank in base_apif__fixture_statistics while a fetch in stg_apif__fixture_statistics
   carries it, unless the cleaning blanked it (a stat_corrections entry) or, for a card count, the
   match's events hold fewer cards that could be of that colour, or more that certainly are, or,
-  for offsides, the team has a player with an offside above 0 (the 0 is withheld).
+  for offsides, the team has a player with an offside above 0 (the 0 is withheld). The events of a
+  match with an event filed under a team that did not play it bound no count; those matches are
+  derived here from the match's two teams in base_apif__fixtures_next, not through the macro the
+  model calls.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -30,10 +33,22 @@ newest_card_counts as (
 ),
 
 matches_with_events as (
-    select fixture_id
-    from {{ ref('base_apif__fixture_events') }}
-    group by fixture_id
-    having logical_or(has_full_events)
+    select e.fixture_id
+    from {{ ref('base_apif__fixture_events') }} as e
+    left join {{ ref('base_apif__fixtures_next') }} as p
+        on e.fixture_id = p.fixture_id
+    group by e.fixture_id
+    having
+        logical_or(e.has_full_events)
+        and not coalesce(
+            logical_or(
+                e.team_id is not null
+                and p.home_team_id is not null
+                and p.away_team_id is not null
+                and e.team_id not in (cast(p.home_team_id as int64), cast(p.away_team_id as int64))
+            ),
+            false
+        )
 ),
 
 card_bounds as (

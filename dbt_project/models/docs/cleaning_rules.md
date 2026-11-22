@@ -19,7 +19,9 @@ match stats are good enough.
   and for a goalkeeper's saves, another goalkeeper. A team's blank offsides count is also a zero
   when its own line has fouls and possession and no player of it has an offside. A team's offsides
   count is never 0 while a player of it has an offside. A 0 the provider sent is then blank. A
-  blank that the other team's line or its own full line would zero stays blank. A goalkeeper's
+  blank that the other team's line or its own full line would zero stays blank. A team's blank
+  card count is also a zero where the match's events hold no card against it. A match with an event
+  filed under a team that did not play it proves no such zero. A goalkeeper's
   goals conceded come from the
   match. The only goalkeeper of a whole match has all the team conceded. One who came on or went
   off has those between the minute on and off, read from the substitution or a sending-off. That
