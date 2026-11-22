@@ -7,8 +7,8 @@
   - goals_not_reconciled: the match's goal events add up neither alone nor with the players' goals,
     so it serves no goal (goal_data_state not_recorded);
   - scorer_withheld, assist_withheld: a goal's scorer or assister was not on the pitch at its minute;
-  - cards_withheld: the match's stat lines and card events disagree, or a card's player is not on
-    the sheet (cards_need_research);
+  - cards_withheld: the match's stat lines and card events disagree, a card's player is not on
+    the sheet, or a player's card events name two teams (cards_need_research);
   - lineup_goals_withheld: a line-up team's player goals do not add up to its score
     (goals_need_research);
   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
@@ -83,12 +83,21 @@ items as (
     select distinct
         'cards_withheld' as check_name,
         'fixture_card_corrections' as seed,
-        cast(p.fixture_id as int64) as fixture_sk,
+        cast(card_matches.fixture_id as int64) as fixture_sk,
         cast(null as int64) as team_sk,
         cast(null as string) as correction
-    from {{ ref('base_apif__fixture_players') }} as p
-    cross join unnest(p.stat_corrections) as c
-    where c.rule = 'cards_need_research'
+    from (
+        select p.fixture_id
+        from {{ ref('base_apif__fixture_players') }} as p
+        cross join unnest(p.stat_corrections) as c
+        where c.rule = 'cards_need_research'
+        union all
+        select two_team_players.fixture_id
+        from ({{ card_events_naming_two_teams(ref('base_apif__fixture_events_checked')) }}) as two_team_players
+        left join {{ ref('fixture_card_corrections') }} as researched
+            on two_team_players.fixture_id = researched.fixture_id
+        where researched.fixture_id is null
+    ) as card_matches
     union all
     select distinct
         'lineup_goals_withheld' as check_name,

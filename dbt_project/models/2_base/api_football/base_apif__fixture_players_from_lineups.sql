@@ -126,6 +126,17 @@ player_cards as (
     group by fixture_id, team_id, player_id
 ),
 
+-- A player whose card events name two teams is no one team's: his cards are not proven, until the
+-- match is researched.
+cards_naming_two_teams as (
+    {{ card_events_naming_two_teams('events') }}
+),
+
+researched_card_matches as (
+    select distinct fixture_id
+    from {{ ref('fixture_card_corrections') }}
+),
+
 -- A card with no player on the sheet could be anyone's, so nobody of the team without a card is
 -- proven at 0. The provider marks a coach's card "Not on pitch". A researched match is settled.
 team_cards_off_sheet as (
@@ -208,7 +219,9 @@ played_spells as (
         coalesce(a.assists, 0) as event_assists,
         coalesce(c.yellow_cards, 0) as event_yellow_cards,
         coalesce(c.red_cards, 0) as event_red_cards,
-        coalesce(m.has_full_events, false) and (x.fixture_id is null or c.player_id is not null) as cards_are_proven,
+        coalesce(m.has_full_events, false)
+        and (x.fixture_id is null or c.player_id is not null)
+        and (tt.fixture_id is null or rm.fixture_id is not null) as cards_are_proven,
         nullif(least(coalesce(s.minute_off, 999), coalesce(o.minute_sent_off, 999)), 999) as minute_gone,
         if(s.status_short = 'AET' or (s.status_short = 'PEN' and coalesce(m.has_extra_time_event, false)), 120, 90)
             as match_minutes
@@ -225,6 +238,10 @@ played_spells as (
         on s.fixture_id = c.fixture_id and s.team_id = c.team_id and s.player_id = c.player_id
     left join team_cards_off_sheet as x
         on s.fixture_id = x.fixture_id and s.team_id = x.team_id
+    left join cards_naming_two_teams as tt
+        on s.fixture_id = tt.fixture_id and s.player_id = tt.player_id
+    left join researched_card_matches as rm
+        on s.fixture_id = rm.fixture_id
     left join sendings_off as o
         on s.fixture_id = o.fixture_id and s.player_id = o.player_id
 ),

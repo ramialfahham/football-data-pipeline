@@ -70,12 +70,17 @@ researched_cards as (
     group by e.fixture_id, e.player_id
 ),
 
+-- A player whose card events name two teams in one match is no one team's: his cards are withheld
+-- (cards_need_research).
+cards_naming_two_teams as (
+    {{ card_events_naming_two_teams('events') }}
+),
+
 -- The provider marks a coach's card "Not on pitch".
 player_cards as (
     select
         fixture_id,
         player_id,
-        {{ one_value('team_id') }} as team_id,
         countif(event_detail = 'Yellow Card') as yellow_cards,
         countif(event_detail = 'Red Card') as red_cards
     from events
@@ -85,6 +90,20 @@ player_cards as (
         and has_full_events
         and player_id is not null
     group by fixture_id, player_id
+),
+
+-- The teams a player's card events name: two for a player whose cards name two teams.
+player_card_teams as (
+    select distinct
+        fixture_id,
+        team_id,
+        player_id
+    from events
+    where
+        event_type = 'Card'
+        and coalesce(event_comments, '') != 'Not on pitch'
+        and has_full_events
+        and player_id is not null
 ),
 
 {%- set fillable = [
@@ -233,7 +252,7 @@ teams_with_an_ownerless_card as (
     select
         c.fixture_id,
         c.team_id
-    from player_cards as c
+    from player_card_teams as c
     inner join team_stat_cards as s
         on c.fixture_id = s.fixture_id and c.team_id = s.team_id
     left join delivered as d
@@ -395,6 +414,7 @@ in_context as (
         rm.fixture_id is null
         and (
             dp.fixture_id is not null
+            or tt.fixture_id is not null
             or (
                 ot.fixture_id is not null
                 and pc.fixture_id is null
@@ -433,6 +453,8 @@ in_context as (
         on d.fixture_id = ot.fixture_id and d.team_id = ot.team_id
     left join player_cards as pc
         on d.fixture_id = pc.fixture_id and d.player_id = pc.player_id
+    left join cards_naming_two_teams as tt
+        on d.fixture_id = tt.fixture_id and d.player_id = tt.player_id
     left join matches_with_researched_cards as rm
         on d.fixture_id = rm.fixture_id
     left join researched_cards as rc
