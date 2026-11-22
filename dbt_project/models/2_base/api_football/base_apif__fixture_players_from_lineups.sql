@@ -58,6 +58,14 @@ fixtures as (
         and goals_away is not null
 ),
 
+participants as (
+    select
+        fixture_id as participant_fixture_id,
+        cast(home_team_id as int64) as home_team,
+        cast(away_team_id as int64) as away_team
+    from {{ ref('base_apif__fixtures_next') }}
+),
+
 sheets as (
     select
         l.league_code,
@@ -100,16 +108,19 @@ events as (
         is_own_goal,
         is_shootout_kick,
         has_full_events,
+        team_needs_research,
         assist_player_name is not null or assist_needs_research as is_assisted
     from {{ ref('base_apif__fixture_events_checked') }}
 ),
 
+-- An event filed under a team that did not play the match leaves its card with no team to count
+-- for, so the match's events are not full.
 match_events as (
     select
         fixture_id,
         countif(is_goal and is_assisted) as assisted_goal_events,
         coalesce(logical_or(minute_elapsed > 90 and not is_shootout_kick), false) as has_extra_time_event,
-        logical_or(has_full_events) as has_full_events
+        logical_or(has_full_events) and not logical_or(team_needs_research) as has_full_events
     from events
     group by fixture_id
 ),
@@ -124,6 +135,17 @@ player_cards as (
     from events
     where event_type = 'Card' and player_id is not null
     group by fixture_id, team_id, player_id
+),
+
+-- A player whose card events name two teams is no one team's: his cards are not proven, until the
+-- match is researched.
+cards_naming_two_teams as (
+    {{ card_events_naming_two_teams('events') }}
+),
+
+researched_card_matches as (
+    select distinct fixture_id
+    from {{ ref('fixture_card_corrections') }}
 ),
 
 -- A card with no player on the sheet could be anyone's, so nobody of the team without a card is
@@ -208,7 +230,9 @@ played_spells as (
         coalesce(a.assists, 0) as event_assists,
         coalesce(c.yellow_cards, 0) as event_yellow_cards,
         coalesce(c.red_cards, 0) as event_red_cards,
-        coalesce(m.has_full_events, false) and (x.fixture_id is null or c.player_id is not null) as cards_are_proven,
+        coalesce(m.has_full_events, false)
+        and (x.fixture_id is null or c.player_id is not null)
+        and (tt.fixture_id is null or rm.fixture_id is not null) as cards_are_proven,
         nullif(least(coalesce(s.minute_off, 999), coalesce(o.minute_sent_off, 999)), 999) as minute_gone,
         if(s.status_short = 'AET' or (s.status_short = 'PEN' and coalesce(m.has_extra_time_event, false)), 120, 90)
             as match_minutes
@@ -225,6 +249,10 @@ played_spells as (
         on s.fixture_id = c.fixture_id and s.team_id = c.team_id and s.player_id = c.player_id
     left join team_cards_off_sheet as x
         on s.fixture_id = x.fixture_id and s.team_id = x.team_id
+    left join cards_naming_two_teams as tt
+        on s.fixture_id = tt.fixture_id and s.player_id = tt.player_id
+    left join researched_card_matches as rm
+        on s.fixture_id = rm.fixture_id
     left join sendings_off as o
         on s.fixture_id = o.fixture_id and s.player_id = o.player_id
 ),
@@ -382,6 +410,15 @@ cleaned as (
     left join stats_counted_in_match as n
         on g.fixture_id = n.fixture_id
     where g.team_has_no_stats or (g.has_no_stat_line and g.event_yellow_cards + g.event_red_cards > 0)
+),
+
+flagged as (
+    select
+        c.*,
+        {{ team_not_in_fixture('c.team_id', 'p.home_team', 'p.away_team') }} as team_needs_research
+    from cleaned as c
+    left join participants as p
+        on c.fixture_id = p.participant_fixture_id
 )
 
 select
@@ -424,5 +461,6 @@ select
     penalties_missed,
     penalties_saved,
     raw_ingested_at,
+    team_needs_research,
     goals_need_research
-from cleaned
+from flagged

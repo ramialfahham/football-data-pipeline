@@ -1,6 +1,6 @@
 # Review — claude/343-catalogue-order-everywhere
 
-diff_sha256: b8e8ad70cfbbfb593864d0dd1b400e58834aecc6795abbbe8931008a44b37e16
+diff_sha256: 28cbd81079507a3ae1a5153237194b690474064706b7fbf8418d8139e29d111b
 
 rounds: 4
 

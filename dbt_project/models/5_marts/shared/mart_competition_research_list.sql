@@ -7,10 +7,14 @@
   - goals_not_reconciled: the match's goal events add up neither alone nor with the players' goals,
     so it serves no goal (goal_data_state not_recorded);
   - scorer_withheld, assist_withheld: a goal's scorer or assister was not on the pitch at its minute;
-  - cards_withheld: the match's stat lines and card events disagree, or a card's player is not on
-    the sheet (cards_need_research);
+  - cards_withheld: the match's stat lines and card events disagree, a card's player is not on
+    the sheet, or a player's card events name two teams (cards_need_research);
   - lineup_goals_withheld: a line-up team's player goals do not add up to its score
     (goals_need_research);
+  - misfiled_team_withheld: an event, a player line or a statistics line is filed under a team that
+    did not play the match (team_needs_research). The line is left out of the facts; the repair is
+    a row in fixture_team_id_overrides. provider_team_id is the team id the provider filed it
+    under, and team_sk is that team only where it is in dim_team;
   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
     (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
   seed names the correction seed that fixes the row. research_tier is the research order of the
@@ -83,12 +87,21 @@ items as (
     select distinct
         'cards_withheld' as check_name,
         'fixture_card_corrections' as seed,
-        cast(p.fixture_id as int64) as fixture_sk,
+        cast(card_matches.fixture_id as int64) as fixture_sk,
         cast(null as int64) as team_sk,
         cast(null as string) as correction
-    from {{ ref('base_apif__fixture_players') }} as p
-    cross join unnest(p.stat_corrections) as c
-    where c.rule = 'cards_need_research'
+    from (
+        select p.fixture_id
+        from {{ ref('base_apif__fixture_players') }} as p
+        cross join unnest(p.stat_corrections) as c
+        where c.rule = 'cards_need_research'
+        union all
+        select two_team_players.fixture_id
+        from ({{ card_events_naming_two_teams(ref('base_apif__fixture_events_checked')) }}) as two_team_players
+        left join {{ ref('fixture_card_corrections') }} as researched
+            on two_team_players.fixture_id = researched.fixture_id
+        where researched.fixture_id is null
+    ) as card_matches
     union all
     select distinct
         'lineup_goals_withheld' as check_name,
@@ -97,7 +110,51 @@ items as (
         cast(team_id as int64) as team_sk,
         cast(null as string) as correction
     from {{ ref('base_apif__fixture_players_from_lineups') }}
-    where goals_need_research
+    where goals_need_research and not team_needs_research
+),
+
+misfiled_lines as (
+    select distinct
+        cast(fixture_id as int64) as fixture_sk,
+        cast(team_id as int64) as provider_team_id
+    from (
+        select
+            fixture_id,
+            team_id
+        from {{ ref('base_apif__fixture_events_checked') }}
+        where team_needs_research
+        union all
+        select
+            fixture_id,
+            team_id
+        from {{ ref('base_apif__fixture_players_checked') }}
+        where team_needs_research
+        union all
+        select
+            fixture_id,
+            team_id
+        from {{ ref('base_apif__fixture_players_from_lineups') }}
+        where team_needs_research
+        union all
+        select
+            fixture_id,
+            team_id
+        from {{ ref('base_apif__fixture_statistics') }}
+        where team_needs_research
+    )
+),
+
+misfiled_items as (
+    select
+        'misfiled_team_withheld' as check_name,
+        'fixture_team_id_overrides' as seed,
+        m.fixture_sk,
+        t.team_sk,
+        cast(null as string) as correction,
+        m.provider_team_id
+    from misfiled_lines as m
+    left join {{ ref('dim_team') }} as t
+        on m.provider_team_id = t.team_sk
 ),
 
 no_longer_needed as (
@@ -107,6 +164,7 @@ no_longer_needed as (
         cast(fixture_id as int64) as fixture_sk,
         cast(null as int64) as team_sk,
         correction,
+        cast(null as int64) as provider_team_id,
         league_code,
         season_api_year
     from {{ ref('int_pipeline__corrections_no_longer_needed') }}
@@ -119,6 +177,7 @@ all_items as (
         i.fixture_sk,
         i.team_sk,
         i.correction,
+        cast(null as int64) as provider_team_id,
         f.league_code,
         f.season_api_year
     from items as i
@@ -126,11 +185,25 @@ all_items as (
         on i.fixture_sk = f.fixture_sk
     union all
     select
+        m.check_name,
+        m.seed,
+        m.fixture_sk,
+        m.team_sk,
+        m.correction,
+        m.provider_team_id,
+        f.league_code,
+        f.season_api_year
+    from misfiled_items as m
+    inner join fixtures as f
+        on m.fixture_sk = f.fixture_sk
+    union all
+    select
         check_name,
         seed,
         fixture_sk,
         team_sk,
         correction,
+        provider_team_id,
         league_code,
         season_api_year
     from no_longer_needed
@@ -173,13 +246,14 @@ select
     a.correction,
     a.fixture_sk,
     a.team_sk,
+    a.provider_team_id,
     a.league_code,
     a.season_api_year,
     f.fixture_date,
     concat(
         a.check_name, ' ', a.seed, ' ',
         coalesce(a.correction, cast(a.fixture_sk as string)),
-        coalesce(concat(' ', cast(a.team_sk as string)), '')
+        coalesce(concat(' ', cast(coalesce(a.provider_team_id, a.team_sk) as string)), '')
     ) as item_key,
     coalesce(s.season_is_current, false) as is_current_season,
     case

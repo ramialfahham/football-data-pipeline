@@ -1,0 +1,646 @@
+diff --git a/.claude/task/262-two-team-cards-withheld/contract.md b/.claude/task/262-two-team-cards-withheld/contract.md
+new file mode 100644
+index 00000000..a59c55b7
+--- /dev/null
++++ b/.claude/task/262-two-team-cards-withheld/contract.md
+@@ -0,0 +1,119 @@
++# Task contract - a player whose card events name two teams has his cards withheld and listed, not a build error
++
++objective: >
++  Issue #262, box "Only a check that catches a defect in our own code stops the nightly." When the
++  card events of one player in one match name two teams, base_apif__fixture_players and
++  base_apif__fixture_player_lines call one_value('team_id') on his cards, which raises error() and
++  fails the build on a provider input; assert_card_events_name_one_team_per_player also fails at
++  error. Now the player's two card counts are blank, as cards_need_research already blanks them,
++  on the player-line path and on the line-up path, until sourced research stands in
++  fixture_card_corrections; the match is a cards_withheld row of mart_competition_research_list;
++  the error-severity test proves both paths withhold, against a set of two-team players it derives
++  from the card events, never from the flag. A researched match is settled on both paths.
++
++refs: >
++  #262 What exactly / How (approved in chat, 15 Nov 2026). Part of the three provider checks that
++  move from stopping the nightly to withholding; (d), the player bio conflict, is the first of them.
++
++depends_on:
++  - none: every file this change edits is on gitlab/main. The new Python test carries its own render helper, so it does not need the open merge request for the player bio conflict
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/macros/card_events_naming_two_teams.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
++  - dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/tests/assert_card_events_name_one_team_per_player.sql
++  - dbt_project/tests/assert_two_team_cards_listed.sql
++  - dbt_project/tests/assert_two_team_cards_answer_key.sql
++  - tests/test_two_team_cards_wiring.py
++  - .claude/task/262-two-team-cards-withheld/contract.md
++  - .claude/task/262-two-team-cards-withheld/review.md
++  - .claude/task/262-two-team-cards-withheld/review_input.patch
++
++impact_map: >
++  writers: the three base models and the mart are written by dbt only (no ingestion code, no raw
++  table). base_apif__fixture_player_lines is read by base_apif__fixture_players and
++  base_apif__fixture_statistics; base_apif__fixture_players by base_apif__fixture_players_checked,
++  base_apif__fixture_players_from_lineups, base_apif__lineup_sheets, base_apif__lineups,
++  int_competition_season__player_stat_corrections, int_pipeline__corrections_no_longer_needed and
++  mart_competition_research_list; base_apif__fixture_players_from_lineups by fct_fixture_player_stats
++  and mart_competition_research_list (`dbt ls --select "<model>+1" --exclude <model>
++  --resource-type model`). No column is added or renamed, so no reader changes shape; the
++  new macro is read by the two player models, the mart and the two tests.
++  downstream (`dbt ls --select "<model>+" --resource-type model`, from the repo root with
++  `--project-dir dbt_project`, on this branch cut from gitlab/main):
++  base_apif__fixture_players (67 models): base_apif__fixture_events_checked base_apif__fixture_players
++  base_apif__fixture_players_checked base_apif__fixture_players_from_lineups base_apif__lineup_sheets
++  base_apif__lineups base_apif__players dim_player fct_fixture_event fct_fixture_lineup
++  fct_fixture_player_stats int_competition_season__player_stat_corrections int_legs__player_match
++  int_legs__team_from_players int_pipeline__corrections_no_longer_needed int_player__national_team_minutes
++  int_player__page_profile int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_match__metrics int_player_momentum__metrics
++  int_player_page__window_seasons int_player_profile__contribution int_player_season__metrics
++  int_player_season__team int_player_season_position__metrics int_player_season_record
++  int_player_squad_window__metrics int_player_window__metrics int_team__current_national_competitions
++  int_team__featured_season int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_competition_phase__metrics int_team_momentum__metrics int_team_season__deserved_vs_actual
++  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
++  int_team_window__metrics mart_competition_fixtures mart_competition_research_list mart_leaderboards
++  mart_match_days mart_matchday_insights mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_index mart_player_momentum mart_player_profile
++  mart_player_season_record mart_player_squad_benchmarks mart_player_window_metrics mart_roster
++  mart_team_competition_benchmarks mart_team_competitions mart_team_index mart_team_leaderboards
++  mart_team_momentum_window mart_team_page_window_metrics mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record mart_team_window_metrics.
++  base_apif__fixture_players_from_lineups (55 models): a subset of the 67 above (itself
++  and the models after fct_fixture_player_stats and mart_competition_research_list in that list).
++  base_apif__fixture_player_lines (87 models): the 67 above plus base_apif__fixture_player_lines,
++  base_apif__fixture_statistics, fct_fixture_team_stats, int_legs__team_match,
++  int_standings__official_rank, int_team_momentum_window, int_team_profile__streaks,
++  int_team_season__biggest_results, int_team_season__longest_runs, int_team_season__standings_primary,
++  int_team_season__table_by_time, int_team_season__table_legs, int_team_season__table_state,
++  mart_competition_index, mart_competition_season_summary, mart_fixture_standing_context,
++  mart_head_to_head, mart_next_matchday, mart_standings, mart_team_fixtures.
++  mart_competition_research_list: no downstream model.
++  Tests downstream: 519, 478, 665 and 12 (`--resource-type test`). The two that read the changed
++  models directly and change here are assert_card_events_name_one_team_per_player (rewritten) and
++  the two new ones.
++  layer_rules: the withholding is cleaning and sits in base; the list is a mart that reads base, as
++  it does now; check_layer_contract applies unchanged: no new model, no materialisation change, no
++  per-competition file.
++  deploy_order: one build; the nightly picks it up after merge. A rule with no failing input changes
++  no value.
++  blast_radius: measured read-only on prod before the build: 0 players whose card events name two
++  teams (29.7 MB scanned), so no published value changes today. The MR states the same measure on
++  its ci_mr tables.
++
++approved_design:
++  - none: no page output changes; a withheld card count is blank, as the cards_need_research ones are
++
++decisions_taken: >
++  The smallest unit that is wrong is withheld: the player's two card counts (#262, approved in chat,
++  15 Nov 2026). The test that caught a provider input stays at error severity and proves the value
++  is withheld; no test gets a where exemption, a lower severity or a filter that hides rows. The
++  only exemption in the rewritten test and in the listing test is a researched match, whose cards
++  the research settles on both paths, which is how cards_need_research already works. The set of
++  two-team players is derived from the card events by the macro in the tests, not read from the
++  flag. The mart lists a researched match no more, as cards_need_research does not. The ownerless
++  card check of base_apif__fixture_players reads one row per team and player
++  (player_card_teams), so a player whose cards name two teams is checked under both teams; the
++  stat-line player_cards drops its team_id, which nothing else reads. base_apif__fixture_player_lines
++  drops its team_id too, which nothing reads.
++
++decisions_reserved: >
++  none: how a withheld value looks on a page is the existing withheld-value form; no page, metric,
++  name or rule is added.
++
++done_when:
++  - python scripts/ci_local.py --mr passes
++  - dbt parse passes and sqlfluff lint passes on every changed model and macro
++  - python -m pytest tests/test_two_team_cards_wiring.py passes, and fails with the tt join or the researched exemption removed from a model
++  - the MR pipeline is green, data:build:mr included
++
++amendments: (none)
+diff --git a/dbt_project/macros/card_events_naming_two_teams.sql b/dbt_project/macros/card_events_naming_two_teams.sql
+new file mode 100644
+index 00000000..fa861964
+--- /dev/null
++++ b/dbt_project/macros/card_events_naming_two_teams.sql
+@@ -0,0 +1,21 @@
++{#
++  The players whose card events in one match name two teams. The provider marks a coach's card
++  "Not on pitch", which is no player's card; the events count only where the match has full events.
++
++  events: a relation with fixture_id, player_id, team_id, event_type, event_comments and
++  has_full_events, taken as text so a test can pass hand-written rows.
++  Returns one row per match and player: fixture_id, player_id.
++#}
++{% macro card_events_naming_two_teams(events) -%}
++select
++    fixture_id,
++    player_id
++from {{ events }}
++where
++    event_type = 'Card'
++    and coalesce(event_comments, '') != 'Not on pitch'
++    and has_full_events
++    and player_id is not null
++group by fixture_id, player_id
++having count(distinct team_id) > 1
++{%- endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
+index c693ffcb..8d5e6de0 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_player_lines.sql
+@@ -298,7 +298,6 @@ player_cards as (
+     select
+         fixture_id,
+         player_id,
+-        {{ one_value('team_id') }} as team_id,
+         countif(event_detail = 'Yellow Card') as yellow_cards,
+         countif(event_detail = 'Red Card') as red_cards
+     from events
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index f56b6d5c..722bad68 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -70,12 +70,17 @@ researched_cards as (
+     group by e.fixture_id, e.player_id
+ ),
+ 
++-- A player whose card events name two teams in one match is no one team's: his cards are withheld
++-- (cards_need_research).
++cards_naming_two_teams as (
++    {{ card_events_naming_two_teams('events') }}
++),
++
+ -- The provider marks a coach's card "Not on pitch".
+ player_cards as (
+     select
+         fixture_id,
+         player_id,
+-        {{ one_value('team_id') }} as team_id,
+         countif(event_detail = 'Yellow Card') as yellow_cards,
+         countif(event_detail = 'Red Card') as red_cards
+     from events
+@@ -87,6 +92,20 @@ player_cards as (
+     group by fixture_id, player_id
+ ),
+ 
++-- The teams a player's card events name: two for a player whose cards name two teams.
++player_card_teams as (
++    select distinct
++        fixture_id,
++        team_id,
++        player_id
++    from events
++    where
++        event_type = 'Card'
++        and coalesce(event_comments, '') != 'Not on pitch'
++        and has_full_events
++        and player_id is not null
++),
++
+ {%- set fillable = [
+     'shirt_number', 'position_code', 'offsides', 'shots', 'shots_on_target', 'passes', 'passes_key',
+     'tackles', 'blocks', 'interceptions', 'duels', 'duels_won', 'dribbles', 'dribbles_success',
+@@ -233,7 +252,7 @@ teams_with_an_ownerless_card as (
+     select
+         c.fixture_id,
+         c.team_id
+-    from player_cards as c
++    from player_card_teams as c
+     inner join team_stat_cards as s
+         on c.fixture_id = s.fixture_id and c.team_id = s.team_id
+     left join delivered as d
+@@ -395,6 +414,7 @@ in_context as (
+         rm.fixture_id is null
+         and (
+             dp.fixture_id is not null
++            or tt.fixture_id is not null
+             or (
+                 ot.fixture_id is not null
+                 and pc.fixture_id is null
+@@ -433,6 +453,8 @@ in_context as (
+         on d.fixture_id = ot.fixture_id and d.team_id = ot.team_id
+     left join player_cards as pc
+         on d.fixture_id = pc.fixture_id and d.player_id = pc.player_id
++    left join cards_naming_two_teams as tt
++        on d.fixture_id = tt.fixture_id and d.player_id = tt.player_id
+     left join matches_with_researched_cards as rm
+         on d.fixture_id = rm.fixture_id
+     left join researched_cards as rc
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+index 87a93462..2e02e7ea 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+@@ -126,6 +126,17 @@ player_cards as (
+     group by fixture_id, team_id, player_id
+ ),
+ 
++-- A player whose card events name two teams is no one team's: his cards are not proven, until the
++-- match is researched.
++cards_naming_two_teams as (
++    {{ card_events_naming_two_teams('events') }}
++),
++
++researched_card_matches as (
++    select distinct fixture_id
++    from {{ ref('fixture_card_corrections') }}
++),
++
+ -- A card with no player on the sheet could be anyone's, so nobody of the team without a card is
+ -- proven at 0. The provider marks a coach's card "Not on pitch". A researched match is settled.
+ team_cards_off_sheet as (
+@@ -208,7 +219,9 @@ played_spells as (
+         coalesce(a.assists, 0) as event_assists,
+         coalesce(c.yellow_cards, 0) as event_yellow_cards,
+         coalesce(c.red_cards, 0) as event_red_cards,
+-        coalesce(m.has_full_events, false) and (x.fixture_id is null or c.player_id is not null) as cards_are_proven,
++        coalesce(m.has_full_events, false)
++        and (x.fixture_id is null or c.player_id is not null)
++        and (tt.fixture_id is null or rm.fixture_id is not null) as cards_are_proven,
+         nullif(least(coalesce(s.minute_off, 999), coalesce(o.minute_sent_off, 999)), 999) as minute_gone,
+         if(s.status_short = 'AET' or (s.status_short = 'PEN' and coalesce(m.has_extra_time_event, false)), 120, 90)
+             as match_minutes
+@@ -225,6 +238,10 @@ played_spells as (
+         on s.fixture_id = c.fixture_id and s.team_id = c.team_id and s.player_id = c.player_id
+     left join team_cards_off_sheet as x
+         on s.fixture_id = x.fixture_id and s.team_id = x.team_id
++    left join cards_naming_two_teams as tt
++        on s.fixture_id = tt.fixture_id and s.player_id = tt.player_id
++    left join researched_card_matches as rm
++        on s.fixture_id = rm.fixture_id
+     left join sendings_off as o
+         on s.fixture_id = o.fixture_id and s.player_id = o.player_id
+ ),
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+index bb4d1520..db29650f 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+@@ -7,8 +7,8 @@
+   - goals_not_reconciled: the match's goal events add up neither alone nor with the players' goals,
+     so it serves no goal (goal_data_state not_recorded);
+   - scorer_withheld, assist_withheld: a goal's scorer or assister was not on the pitch at its minute;
+-  - cards_withheld: the match's stat lines and card events disagree, or a card's player is not on
+-    the sheet (cards_need_research);
++  - cards_withheld: the match's stat lines and card events disagree, a card's player is not on
++    the sheet, or a player's card events name two teams (cards_need_research);
+   - lineup_goals_withheld: a line-up team's player goals do not add up to its score
+     (goals_need_research);
+   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
+@@ -83,12 +83,21 @@ items as (
+     select distinct
+         'cards_withheld' as check_name,
+         'fixture_card_corrections' as seed,
+-        cast(p.fixture_id as int64) as fixture_sk,
++        cast(card_matches.fixture_id as int64) as fixture_sk,
+         cast(null as int64) as team_sk,
+         cast(null as string) as correction
+-    from {{ ref('base_apif__fixture_players') }} as p
+-    cross join unnest(p.stat_corrections) as c
+-    where c.rule = 'cards_need_research'
++    from (
++        select p.fixture_id
++        from {{ ref('base_apif__fixture_players') }} as p
++        cross join unnest(p.stat_corrections) as c
++        where c.rule = 'cards_need_research'
++        union all
++        select two_team_players.fixture_id
++        from ({{ card_events_naming_two_teams(ref('base_apif__fixture_events_checked')) }}) as two_team_players
++        left join {{ ref('fixture_card_corrections') }} as researched
++            on two_team_players.fixture_id = researched.fixture_id
++        where researched.fixture_id is null
++    ) as card_matches
+     union all
+     select distinct
+         'lineup_goals_withheld' as check_name,
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 874f76a3..52e59cce 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -104,6 +104,8 @@ match stats are good enough.
+   player and team boards withheld.
+ - A line-up team's player goals that do not add up to its score stay blank until sourced research
+   stands.
++- A player's card events in one match can name two teams. His cards are then withheld, on a stat
++  line and on a line-up row, until sourced research stands in fixture_card_corrections.
+ - A standings section that resolves to a league table beside group or conference tables is
+   withheld until a standings_table_kinds pattern names it.
+ - A team's country that is missing, or that changed between deliveries, is withheld until a
+diff --git a/dbt_project/tests/assert_card_events_name_one_team_per_player.sql b/dbt_project/tests/assert_card_events_name_one_team_per_player.sql
+index 608fdbaf..70de7c9d 100644
+--- a/dbt_project/tests/assert_card_events_name_one_team_per_player.sql
++++ b/dbt_project/tests/assert_card_events_name_one_team_per_player.sql
+@@ -1,17 +1,48 @@
+ {#
+-  base_apif__fixture_players takes a carded player's team as min(team_id) over their card events in a
+-  match. That is exact only while a player's cards in one match name one team; this fails any
+-  player whose cards name two.
++  A player whose card events in one match name two teams has his cards withheld: both card counts
++  are blank in base_apif__fixture_players (cards_need_research), and in
++  base_apif__fixture_players_from_lineups where he is a sheet player with no stat line, until
++  sourced research stands in fixture_card_corrections. The two-team players are derived from the
++  card events, never from a flag. Returns one row per such player whose row in either model still
++  carries a card count, which means the withholding failed.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
++with two_teams as (
++    {{ card_events_naming_two_teams(ref('base_apif__fixture_events')) }}
++),
++
++researched as (
++    select distinct fixture_id
++    from {{ ref('fixture_card_corrections') }}
++),
++
++player_lines as (
++    select
++        fixture_id,
++        player_id,
++        cards_yellow,
++        cards_red
++    from {{ ref('base_apif__fixture_players') }}
++    union all
++    select
++        fixture_id,
++        player_id,
++        cards_yellow,
++        cards_red
++    from {{ ref('base_apif__fixture_players_from_lineups') }}
++)
++
+ select
+-    fixture_id,
+-    player_id,
+-    count(distinct team_id) as teams
+-from {{ ref('base_apif__fixture_events') }}
++    t.fixture_id,
++    t.player_id,
++    p.cards_yellow,
++    p.cards_red
++from two_teams as t
++inner join player_lines as p
++    on t.fixture_id = p.fixture_id and t.player_id = p.player_id
++left join researched as r
++    on t.fixture_id = r.fixture_id
+ where
+-    event_type = 'Card'
+-    and player_id is not null
+-group by fixture_id, player_id
+-having count(distinct team_id) > 1
++    r.fixture_id is null
++    and (p.cards_yellow is not null or p.cards_red is not null)
+diff --git a/dbt_project/tests/assert_two_team_cards_answer_key.sql b/dbt_project/tests/assert_two_team_cards_answer_key.sql
+new file mode 100644
+index 00000000..6aa2906b
+--- /dev/null
++++ b/dbt_project/tests/assert_two_team_cards_answer_key.sql
+@@ -0,0 +1,60 @@
++{#
++  Hand-written card events run through card_events_naming_two_teams, the rule the models and the
++  research list call. Returns each case whose answer differs from the hand-worked one: a two-team
++  player the rule misses keeps his cards, and a player it catches for nothing loses them.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with card_events as (
++    select *
++    from unnest([
++        struct(
++            1 as fixture_id, 7 as player_id, 10 as team_id, 'Card' as event_type,
++            cast(null as string) as event_comments, true as has_full_events
++        ),
++        struct(1, 7, 20, 'Card', cast(null as string), true),
++        struct(1, 8, 10, 'Card', cast(null as string), true),
++        struct(1, 8, 10, 'Card', cast(null as string), true),
++        struct(2, 7, 10, 'Card', cast(null as string), true),
++        struct(2, 7, 20, 'Card', 'Not on pitch', true),
++        struct(3, 7, 10, 'Card', cast(null as string), false),
++        struct(3, 7, 20, 'Card', cast(null as string), false),
++        struct(4, 7, 10, 'Goal', cast(null as string), true),
++        struct(4, 7, 20, 'Card', cast(null as string), true),
++        struct(5, cast(null as int64), 10, 'Card', cast(null as string), true),
++        struct(5, cast(null as int64), 20, 'Card', cast(null as string), true)
++    ])
++),
++
++two_team_players as (
++    {{ card_events_naming_two_teams('card_events') }}
++),
++
++cases as (
++    select *
++    from unnest([
++        struct('two teams in one match' as case_name, 1 as fixture_id, 7 as player_id, true as expected),
++        struct('two cards of one team', 1, 8, false),
++        struct('a coach card of the other team is no player card', 2, 7, false),
++        struct('a match without full events', 3, 7, false),
++        struct('a goal of one team and a card of the other', 4, 7, false),
++        struct('cards of both teams that name no player', 5, cast(null as int64), false)
++    ])
++),
++
++results as (
++    select
++        c.expected,
++        'card_events_naming_two_teams: ' || c.case_name as test_case,
++        t.fixture_id is not null as actual
++    from cases as c
++    left join two_team_players as t
++        on c.fixture_id = t.fixture_id and c.player_id is not distinct from t.player_id
++)
++
++select
++    test_case,
++    expected,
++    actual
++from results
++where expected is distinct from actual
+diff --git a/dbt_project/tests/assert_two_team_cards_listed.sql b/dbt_project/tests/assert_two_team_cards_listed.sql
+new file mode 100644
+index 00000000..59fd224d
+--- /dev/null
++++ b/dbt_project/tests/assert_two_team_cards_listed.sql
+@@ -0,0 +1,33 @@
++{#
++  A match with a player whose card events name two teams is on mart_competition_research_list as
++  cards_withheld, until sourced research stands in fixture_card_corrections. The two-team players
++  are derived from the card events, never from a flag. Returns each such match without research
++  that is not on the list.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with two_team_matches as (
++    select distinct fixture_id
++    from ({{ card_events_naming_two_teams(ref('base_apif__fixture_events')) }})
++),
++
++researched as (
++    select distinct fixture_id
++    from {{ ref('fixture_card_corrections') }}
++),
++
++listed as (
++    select fixture_sk
++    from {{ ref('mart_competition_research_list') }}
++    where check_name = 'cards_withheld'
++)
++
++select
++    t.fixture_id,
++    'match of a player whose card events name two teams is not on the list' as failure
++from two_team_matches as t
++left join researched as r
++    on t.fixture_id = r.fixture_id
++left join listed as l
++    on cast(t.fixture_id as int64) = l.fixture_sk
++where r.fixture_id is null and l.fixture_sk is null
+diff --git a/tests/test_two_team_cards_wiring.py b/tests/test_two_team_cards_wiring.py
+new file mode 100644
+index 00000000..436bad80
+--- /dev/null
++++ b/tests/test_two_team_cards_wiring.py
+@@ -0,0 +1,123 @@
++"""The models that withhold a two-team player's cards call the rule where the cards leave them.
++
++dbt 1.7 has no unit tests and prod holds no player whose card events name two teams, so a call site
++that is reverted leaves every data test green. These tests render the real model text, with the real
++macros, and check the rendered SQL at the expression that carries the withholding.
++"""
++
++import pathlib
++import re
++
++import jinja2
++import pytest
++
++DBT = pathlib.Path(__file__).resolve().parents[1] / "dbt_project"
++MACROS = DBT / "macros"
++MODELS = DBT / "models"
++
++
++def _environment() -> jinja2.Environment:
++    environment = jinja2.Environment()
++    environment.globals.update(
++        ref=lambda name: f"`{name}`",
++        source=lambda source, name: f"`{source}.{name}`",
++        config=lambda **kwargs: "",
++        var=lambda name, default=None: default,
++    )
++    text = "\n".join(path.read_text(encoding="utf-8") for path in sorted(MACROS.glob("*.sql")))
++    module = environment.from_string(text).module
++    environment.globals.update({name: getattr(module, name) for name in dir(module) if not name.startswith("_")})
++    return environment
++
++
++def render_model(name: str) -> str:
++    """The model's SQL with every dbt macro and ref expanded, whitespace collapsed."""
++    (path,) = MODELS.rglob(f"{name}.sql")
++    template = _environment().from_string(path.read_text(encoding="utf-8"))
++    return " ".join(re.sub(r"--[^\n]*", "", template.render()).split())
++
++
++def _cte(sql: str, name: str) -> str:
++    """The body of the CTE `name`, up to its closing parenthesis."""
++    start = re.search(rf"\b{name} as \( ", sql)
++    assert start, f"no CTE {name}"
++    depth = 1
++    for position in range(start.end(), len(sql)):
++        depth += {"(": 1, ")": -1}.get(sql[position], 0)
++        if depth == 0:
++            return sql[start.end():position]
++    raise AssertionError(f"CTE {name} is not closed")
++
++
++@pytest.fixture(scope="module")
++def players_sql():
++    return render_model("base_apif__fixture_players")
++
++
++@pytest.fixture(scope="module")
++def lineups_sql():
++    return render_model("base_apif__fixture_players_from_lineups")
++
++
++@pytest.fixture(scope="module")
++def lines_sql():
++    return render_model("base_apif__fixture_player_lines")
++
++
++@pytest.fixture(scope="module")
++def list_sql():
++    return render_model("mart_competition_research_list")
++
++
++def test_the_player_line_withholds_the_cards_of_a_player_whose_card_events_name_two_teams(players_sql):
++    assert re.search(
++        r"cards_naming_two_teams as \( select fixture_id, player_id from events where event_type = 'Card' ", players_sql
++    )
++    assert re.search(
++        r"left join cards_naming_two_teams as tt on d\.fixture_id = tt\.fixture_id and d\.player_id = tt\.player_id",
++        players_sql,
++    )
++    assert re.search(
++        r"rm\.fixture_id is null and \( dp\.fixture_id is not null or tt\.fixture_id is not null or \(.*?\) "
++        r"\) as cards_need_research",
++        players_sql,
++    )
++
++
++def test_the_line_up_row_does_not_prove_the_cards_of_a_two_team_player_in_an_unresearched_match(lineups_sql):
++    assert re.search(
++        r"cards_naming_two_teams as \( select fixture_id, player_id from events where event_type = 'Card' ", lineups_sql
++    )
++    assert re.search(
++        r"left join cards_naming_two_teams as tt on s\.fixture_id = tt\.fixture_id and s\.player_id = tt\.player_id "
++        r"left join researched_card_matches as rm on s\.fixture_id = rm\.fixture_id",
++        lineups_sql,
++    )
++    assert re.search(r"and \(tt\.fixture_id is null or rm\.fixture_id is not null\) as cards_are_proven", lineups_sql)
++    assert _cte(lineups_sql, "researched_card_matches") == "select distinct fixture_id from `fixture_card_corrections` "
++
++
++@pytest.mark.parametrize("sql_fixture", ["players_sql", "lines_sql"])
++def test_no_player_cards_query_raises_an_error_on_a_player_with_two_teams(request, sql_fixture):
++    assert "error(" not in _cte(request.getfixturevalue(sql_fixture), "player_cards")
++
++
++def test_a_card_with_no_player_on_the_match_is_checked_for_every_team_its_player_is_named_under(players_sql):
++    assert _cte(players_sql, "player_card_teams").startswith("select distinct fixture_id, team_id, player_id from events ")
++    assert re.search(
++        r"from player_card_teams as c inner join team_stat_cards as s "
++        r"on c\.fixture_id = s\.fixture_id and c\.team_id = s\.team_id "
++        r"left join delivered as d on c\.fixture_id = d\.fixture_id and c\.player_id = d\.player_id",
++        players_sql,
++    )
++
++
++def test_the_research_list_holds_the_match_of_a_two_team_player_unless_it_is_researched(list_sql):
++    branch = list_sql.split("'cards_withheld' as check_name", 1)[1].split("'lineup_goals_withheld' as check_name", 1)[0]
++    assert re.search(
++        r"select two_team_players\.fixture_id from \(select fixture_id, player_id from `base_apif__fixture_events_checked` "
++        r"where event_type = 'Card' .*? having count\(distinct team_id\) > 1\) as two_team_players "
++        r"left join `fixture_card_corrections` as researched on two_team_players\.fixture_id = researched\.fixture_id "
++        r"where researched\.fixture_id is null",
++        branch,
++    )
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../262-two-team-cards-withheld/review_input.patch | 583 +++++++++++++++++++++
+#    1 file changed, 583 insertions(+)
+# ============================================================================

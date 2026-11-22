@@ -58,3 +58,4 @@ select
     is_from_lineups,
     src.raw_ingested_at
 from src
+where not team_needs_research

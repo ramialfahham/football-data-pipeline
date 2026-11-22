@@ -102,8 +102,13 @@ match stats are good enough.
   up to the total, left blank, shots on target excepted).
 - A competition-season whose share of corrected or blanked player values passes its limit has its
   player and team boards withheld.
+- A line can be filed under a team that did not play the match. This holds for an event, a player
+  line and a statistics line. The line is left out of the facts until a fixture_team_id_overrides
+  row files it under the right team.
 - A line-up team's player goals that do not add up to its score stay blank until sourced research
   stands.
+- A player's card events in one match can name two teams. His cards are then withheld, on a stat
+  line and on a line-up row, until sourced research stands in fixture_card_corrections.
 - A standings section that resolves to a league table beside group or conference tables is
   withheld until a standings_table_kinds pattern names it.
 - A team's country that is missing, or that changed between deliveries, is withheld until a
