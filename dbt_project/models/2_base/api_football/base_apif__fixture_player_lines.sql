@@ -298,7 +298,6 @@ player_cards as (
     select
         fixture_id,
         player_id,
-        {{ one_value('team_id') }} as team_id,
         countif(event_detail = 'Yellow Card') as yellow_cards,
         countif(event_detail = 'Red Card') as red_cards
     from events
