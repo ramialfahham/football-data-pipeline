@@ -2,6 +2,7 @@
 -- its metric (the ranking_rules doc block). Returns a row (= fails) for each served board whose
 -- metric has no value for some team that played, counted from int_team_season__metrics with the
 -- zero rule not applied.
+-- depends_on: {{ ref('int_team_season__metrics') }}
 {{ config(store_failures = true) }}
 {% set keys = dbt_utils.get_column_values(ref('mart_team_leaderboards'), 'metric_key') if execute else [] %}
 
