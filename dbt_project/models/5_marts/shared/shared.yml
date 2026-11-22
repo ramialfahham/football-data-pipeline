@@ -4043,25 +4043,26 @@ models:
     description: >
       The list of provider errors to research, rebuilt each night. One row per match, or team in a
       match, where a check of the provider's data withholds a value on goals, scores, awards or
-      cards, and one row per correction the provider no longer needs. A value the provider has
+      cards or leaves out a line filed under a team that did not play the match, and one row per
+      correction the provider no longer needs. A value the provider has
       corrected itself passes its check, and its row leaves the list. The research routine reads
       it; no page does. Grain: item_key.
     columns:
       - name: item_key
-        description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team, separated by a space."
+        description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
         tests: [unique, not_null]
       - name: check_name
-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
         tests:
           - not_null
           - accepted_values:
-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "correction_no_longer_needed"]
+              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "correction_no_longer_needed"]
       - name: seed
         description: "The correction seed that fixes the row, or that holds the correction no longer needed."
         tests:
           - not_null
           - accepted_values:
-              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections"]
+              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections", "fixture_team_id_overrides"]
       - name: correction
         description: "On a correction no longer needed, the seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name. NULL on every other row."
       - name: fixture_sk
@@ -4071,11 +4072,13 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
-        description: "{{ doc('team_sk') }}"
+        description: "{{ doc('team_sk') }} On a misfiled-team row, the team the provider filed the line under, only where that team is in dim_team; NULL where it is not."
         tests:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: provider_team_id
+        description: "On a misfiled-team row, the provider's team id the line is filed under, which can be an id that is no team of the match and no team in dim_team. NULL on every other row."
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]

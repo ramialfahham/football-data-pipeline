@@ -3,7 +3,8 @@
   base_apif__fixture_events_checked withholds him as the scorer of a goal that counts, and his
   assists where it withholds him as the assister. This is its own model because base_apif__lineups
   reads base_apif__fixture_players. The columns keep base_apif__fixture_players' order, which
-  fct_fixture_player_stats unions by position.
+  fct_fixture_player_stats unions by position. A line filed under a team that did not play the match
+  carries team_needs_research, and fct_fixture_player_stats leaves it out.
 
   Grain: (league_code, fixture_id, team_id, player_id).
 #}
@@ -56,9 +57,19 @@ withheld_players as (
     group by league_code, fixture_id, player_id
 ),
 
+participants as (
+    select
+        fixture_id,
+        cast(home_team_id as int64) as home_team_id,
+        cast(away_team_id as int64) as away_team_id
+    from {{ ref('base_apif__fixtures_next') }}
+),
+
 checked_players as (
     select
         players.*,
+        {{ team_not_in_fixture('players.team_id', 'participants.home_team_id', 'participants.away_team_id') }}
+            as team_needs_research,
         if(coalesce(withheld.scorer_withheld, false), null, players.goals) as checked_goals,
         if(coalesce(withheld.scorer_withheld, false), null, players.goals_penalty) as checked_goals_penalty,
         if(coalesce(withheld.scorer_withheld, false), null, players.penalties_scored) as checked_penalties_scored,
@@ -69,6 +80,8 @@ checked_players as (
             players.league_code = withheld.league_code
             and players.fixture_id = withheld.fixture_id
             and players.player_id = withheld.player_id
+    left join participants
+        on players.fixture_id = participants.fixture_id
 )
 
 select
@@ -111,5 +124,6 @@ select
     penalties_missed,
     penalties_saved,
     raw_ingested_at,
-    stat_corrections
+    stat_corrections,
+    team_needs_research
 from checked_players

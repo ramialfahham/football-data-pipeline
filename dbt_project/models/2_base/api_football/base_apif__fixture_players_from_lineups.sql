@@ -58,6 +58,14 @@ fixtures as (
         and goals_away is not null
 ),
 
+participants as (
+    select
+        fixture_id as participant_fixture_id,
+        cast(home_team_id as int64) as home_team,
+        cast(away_team_id as int64) as away_team
+    from {{ ref('base_apif__fixtures_next') }}
+),
+
 sheets as (
     select
         l.league_code,
@@ -100,16 +108,19 @@ events as (
         is_own_goal,
         is_shootout_kick,
         has_full_events,
+        team_needs_research,
         assist_player_name is not null or assist_needs_research as is_assisted
     from {{ ref('base_apif__fixture_events_checked') }}
 ),
 
+-- An event filed under a team that did not play the match leaves its card with no team to count
+-- for, so the match's events are not full.
 match_events as (
     select
         fixture_id,
         countif(is_goal and is_assisted) as assisted_goal_events,
         coalesce(logical_or(minute_elapsed > 90 and not is_shootout_kick), false) as has_extra_time_event,
-        logical_or(has_full_events) as has_full_events
+        logical_or(has_full_events) and not logical_or(team_needs_research) as has_full_events
     from events
     group by fixture_id
 ),
@@ -399,6 +410,15 @@ cleaned as (
     left join stats_counted_in_match as n
         on g.fixture_id = n.fixture_id
     where g.team_has_no_stats or (g.has_no_stat_line and g.event_yellow_cards + g.event_red_cards > 0)
+),
+
+flagged as (
+    select
+        c.*,
+        {{ team_not_in_fixture('c.team_id', 'p.home_team', 'p.away_team') }} as team_needs_research
+    from cleaned as c
+    left join participants as p
+        on c.fixture_id = p.participant_fixture_id
 )
 
 select
@@ -441,5 +461,6 @@ select
     penalties_missed,
     penalties_saved,
     raw_ingested_at,
+    team_needs_research,
     goals_need_research
-from cleaned
+from flagged
