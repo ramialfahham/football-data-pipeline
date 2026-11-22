@@ -1,0 +1,1872 @@
+diff --git a/.claude/task/36-crest-hosting/contract.md b/.claude/task/36-crest-hosting/contract.md
+new file mode 100644
+index 00000000..5516b9f1
+--- /dev/null
++++ b/.claude/task/36-crest-hosting/contract.md
+@@ -0,0 +1,128 @@
++# Task contract — crests and league logos served from our own domain (MR A: the data side)
++
++objective: >
++  The nightly ingest stores each team crest and league logo in a private Cloud Storage bucket,
++  shrunk to 48 px and 104 px as WebP, and records each object in a raw state table. `dim_team` and
++  `dim_league` carry the site path `/crests/{teams|leagues}/{id}-104.webp` only where an object
++  exists, else null, so no served column names the provider's host. The site build copies the bucket
++  into `site_v2/public/crests/`, Firebase serves it from our domain with a 7-day cache, and the
++  built-pages check fails a full export whose crest paths are not files in `dist/`. The bucket and
++  the first fill follow the merge; no provider call or bucket write is made before the CPO runs the
++  two `gcloud` commands in the runbook.
++refs: "#36, #290 (gate item: crests from our own host)"
++
++scope_paths:
++  - ingestion/api_football/loads/crests.py
++  - ingestion/api_football/orchestrator.py
++  - ingestion/api_football/settings.py
++  - ingestion/api_football/requirements.txt
++  - requirements.txt
++  - scripts/sync_crests.py
++  - scripts/nightly_site_deploy.py
++  - site_v2/firebase.json
++  - site_v2/.gitignore
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - dbt_project/models/1_staging/api_football/sources.yml
++  - dbt_project/models/1_staging/api_football/stg_apif__crest_objects.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__crest_objects.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/dim_team.sql
++  - dbt_project/models/3_core/dim_league.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_served_crest_path_has_an_ok_object.sql
++  - docs/data_contract.md
++  - deploy/nightly/README.md
++  - tests/test_crests.py
++  - tests/test_sync_crests.py
++  - tests/test_nightly_site_deploy.py
++  - .claude/task/36-crest-hosting/contract.md
++  - .claude/task/36-crest-hosting/review.md
++  - .claude/task/36-crest-hosting/review_input.patch
++
++impact_map: >
++  writers: RAW_APIF_CREST_OBJECTS is new and has one writer, `ingestion/api_football/loads/crests.py`
++  (one payload row per run through `load_json_to_bq`, append, payload-only raw table). The bucket
++  objects have one writer, the same module. `dim_team` and `dim_league` stay the only models that
++  publish a crest address. Nothing else writes `team_logo_url` or `league_logo_url`.
++  downstream: `dbt ls --select "dim_team+ dim_league+"` run on this branch's base (d1de075f) lists
++  dim_competition_season, dim_league, dim_player_team_season_mapping, dim_team, fct_fixture,
++  fct_fixture_team_stats, fct_standings, 18 int_ models (competition_season, knockout_ties,
++  legs, player, standings, team) and the marts mart_competition_fixtures, mart_competition_index,
++  mart_competition_research_list, mart_competition_season_summary, mart_fixture_standing_context,
++  mart_head_to_head, mart_leaderboards, mart_match_days, mart_matchday_insights, mart_next_matchday,
++  mart_player_career, mart_player_competition_benchmarks, mart_player_fixture_stats,
++  mart_player_index, mart_player_momentum, mart_player_profile, mart_player_season_record,
++  mart_player_squad_benchmarks, mart_player_window_metrics, mart_roster, mart_standings,
++  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
++  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window,
++  mart_team_page_window_metrics, mart_team_profile, mart_team_season, mart_team_season_insights,
++  mart_team_season_record and mart_team_window_metrics. Only `team_logo_url` and `league_logo_url`
++  (and their renamed forms in the marts) change value. Only `dim_team` and `dim_league` read the
++  base models that carry the provider address (grep over `3_core`, `4_intermediate`, `5_marts`).
++  The export script reads the marts' logo columns into the `crest` and `logo_url` payload keys and
++  needs no edit.
++  layer_rules: `check_layer_contract.py` (staging = raw cleanup; base = first logic; core reads
++  base): the new staging model reads only the raw source; the new base model reads only that staging
++  model; the dims read the base model. A raw table written is declared in `sources.yml`.
++  `check_description_hygiene.py` bounds every description to 1,024 characters.
++  deploy_order: (0) the CPO creates the empty state table; (1) merge; (2) the CPO creates the bucket and grants the service account; (3) the
++  next `fdp-nightly` runs the pre-flight and the first fill, then `dbt build` publishes the paths;
++  (4) the next `fdp-site` run copies the bucket into `dist/` before `npm run build`. Before (2) the
++  phase finds no bucket, logs it and writes nothing, the state table stays empty, the dims publish
++  null and the pages show initials. The state table must exist before the merge, because the MR data
++  build, the main build and the nightly's `dbt build` read it as a source: step (0), before the merge,
++  is the CPO creating the empty table with the ingest's own helper (`ensure_raw_table_partitioned`,
++  the command in the runbook; no rows, no provider call). The crest phase creates the same table on
++  its first run. After (3) and before (4) there is no site build that
++  reads the paths, so no page can 404; the first `fdp-site` run after this merge already carries
++  the sync step and the check rule.
++  blast_radius: every page that shows a crest or a league logo: the address changes from the
++  provider's to our path, only where an object exists. The committed sample still holds provider
++  addresses until the next MR regenerates it, so the built-pages pin stays at its current count.
++  Cost: Firebase Hosting transfer (measured after the first fill); a nightly BigQuery read of the
++  latest raw teams and leagues rows, whose dry run on prod reports 261 MB and 5.4 MB (about 8 GB a
++  month, a few cents); and about 475 image requests a night after the first fill. The discovery
++  query run read-only on prod returns 3,279 team ids and 48 league ids, every address in the
++  provider's `/football/{teams|leagues}/{id}.png` shape, which is 3,327 images and 6,654 files.
++  The no-provider-host guarantee on the published columns is two `expression_is_true` tests on
++  `dim_team.team_logo_url` and `dim_league.league_logo_url`, and a Python test that no model in
++  `3_core`, `4_intermediate` or `5_marts` outside the two dimensions and one mapping reads a base or
++  staging team or league model.
++
++depends_on:
++  - none: the merged check (!507) and crest-fill MR are on main; no open MR's code is needed
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  The CPO's ruling on how crests and placeholders look (approved in chat, 2026-11-22, #36, the
++  comment on #36) adds: each crest stored shrunk to 48 px and 104 px as WebP with Pillow as a pinned
++  direct dependency, and `/crests/**` served with a 7-day cache. The coordinating session's messages
++  of 2026-11-22 accept plan revision 2 (private bucket, the site build copying it into `dist/`, the
++  path `/crests/{teams|leagues}/{id}-104.webp` in `dim_team` and `dim_league`, the pre-flight that
++  measures whether image requests count against the daily quota) and order MR A built whole. The
++  merge is the approval of the mechanism, the permanent path and the provider downloads; the MR
++  head lists them with the dependency at the top. `google-cloud-storage` 2.19.0 is already installed
++  through `dbt-bigquery` and becomes a direct pin. No provider call and no bucket write is made from
++  the builder's machine.
++
++decisions_reserved:
++  - "the permanent path `/crests/{teams|leagues}/{id}-104.webp` and the bucket name `football-data-pipeline-gcp-crests`: public identifiers, listed in the MR head for the CPO's merge"
++  - "the new mechanism (private bucket, raw state table, a crest phase in `fdp-nightly`, `scripts/sync_crests.py` in the site build) and the provider image downloads (the first fill, then about 475 a night): listed in the MR head for the CPO's merge"
++  - "the Pillow dependency: pinned and listed in the MR head for the CPO's merge"
++
++approved_design:
++  - none: no page output changes in this MR; the next MR regenerates the committed sample and lowers the pin
++
++done_when:
++  - "`python -m pytest tests/test_crests.py tests/test_sync_crests.py tests/test_nightly_site_deploy.py tests/test_nightly_entrypoint_parity.py -q` passes."
++  - "`cd site_v2 && node --test` passes."
++  - "`.venv/Scripts/dbt.exe parse --project-dir dbt_project` passes, and `python scripts/check_layer_contract.py`, `python scripts/check_description_hygiene.py` and `python scripts/check_relationships_coverage.py` pass."
++  - "`python scripts/ci_local.py --mr` passes."
++
++amendments: (none)
+diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
+index f67fec50..75210da9 100644
+--- a/dbt_project/models/1_staging/api_football/sources.yml
++++ b/dbt_project/models/1_staging/api_football/sources.yml
+@@ -199,3 +199,14 @@ sources:
+           after that first capture are missing until they are fetched again.
+         identifier: RAW_APIF_PLAYER_TEAMS
+         loaded_at_field: ingested_at
++
++      - name: raw_apif_crest_objects
++        description: >
++          The team crests and league logos held in the crest bucket. One row per RUN
++          that fetched or checked at least one image, holding the whole state in one
++          JSON payload: one entry per crest or logo with its status (ok or missing),
++          the SHA-256 of the provider's image, and when it was fetched and last
++          checked. A night with nothing to check writes no row. Append-only, so the
++          newest row is current. An operational table written by the crest phase of
++          the ingest, not provider data.
++        identifier: RAW_APIF_CREST_OBJECTS
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__crest_objects.sql b/dbt_project/models/1_staging/api_football/stg_apif__crest_objects.sql
+new file mode 100644
+index 00000000..642ce4c0
+--- /dev/null
++++ b/dbt_project/models/1_staging/api_football/stg_apif__crest_objects.sql
+@@ -0,0 +1,16 @@
++with src as (
++    select *
++    from {{ source('api_football', 'raw_apif_crest_objects') }}
++    qualify row_number() over (order by ingested_at desc) = 1
++)
++
++select
++    src.ingested_at as raw_ingested_at,
++    json_value(crest_object, '$.kind') as crest_kind,
++    safe_cast(json_value(crest_object, '$.id') as int64) as provider_id,
++    json_value(crest_object, '$.status') as crest_status,
++    json_value(crest_object, '$.sha256') as source_sha256,
++    safe_cast(json_value(crest_object, '$.fetched_at') as timestamp) as fetched_at,
++    safe_cast(json_value(crest_object, '$.checked_at') as timestamp) as checked_at
++from src,
++    unnest(json_query_array(src.payload, '$.objects')) as crest_object
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index ba51bd34..fc3900f3 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -726,3 +726,38 @@ models:
+         description: "The date this career stint started, as the provider returns it ($.start)."
+       - name: end_date
+         description: "The date this career stint ended, as the provider returns it ($.end)."
++
++  - name: stg_apif__crest_objects
++    description: >
++      One row per crest or league logo in the newest state the crest phase wrote, from
++      RAW_APIF_CREST_OBJECTS. Grain: (crest_kind, provider_id).
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          name: stg_apif__crest_objects_keys_unique
++          combination_of_columns: [crest_kind, provider_id]
++    columns:
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }}"
++        tests: [not_null]
++      - name: crest_kind
++        description: "What the image shows: teams for a team crest, leagues for a league logo."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["teams", "leagues"]
++      - name: provider_id
++        description: "The provider's id of the team or league the image belongs to."
++        tests: [not_null]
++      - name: crest_status
++        description: "ok when the image is stored in the crest bucket, missing when the provider answered 404 for it."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["ok", "missing"]
++      - name: source_sha256
++        description: "The SHA-256 of the provider's image as last fetched. NULL for a missing image."
++      - name: fetched_at
++        description: "When the stored files were last written."
++      - name: checked_at
++        description: "When the provider's image was last fetched to look for a change."
++        tests: [not_null]
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 63a9f4db..9b8ef47c 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -900,3 +900,34 @@ models:
+       - name: start_date
+         description: "The date this coaching stint began, as the provider's career record gives it. Never NULL: a stint with no known start date is dropped before this model is built."
+         tests: [not_null]
++
++  - name: base_apif__crest_objects
++    description: >
++      One row per crest or league logo whose files are stored in the crest bucket, from the newest
++      state the crest phase wrote. An image the provider answered 404 for has no files and no row.
++      dim_team and dim_league publish a crest path only for a team or league with a row here.
++      Grain: (crest_kind, provider_id).
++    config:
++      tags: ["base", "api_football", "crest_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [crest_kind, provider_id]
++    columns:
++      - name: crest_kind
++        description: "What the image shows: teams for a team crest, leagues for a league logo."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["teams", "leagues"]
++      - name: provider_id
++        description: "The provider's id of the team or league the image belongs to."
++        tests: [not_null]
++      - name: source_sha256
++        description: "The SHA-256 of the provider's image as last fetched."
++        tests: [not_null]
++      - name: fetched_at
++        description: "When the stored files were last written."
++      - name: checked_at
++        description: "When the provider's image was last fetched to look for a change."
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }}"
+diff --git a/dbt_project/models/2_base/api_football/base_apif__crest_objects.sql b/dbt_project/models/2_base/api_football/base_apif__crest_objects.sql
+new file mode 100644
+index 00000000..1a21e4cf
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__crest_objects.sql
+@@ -0,0 +1,19 @@
++-- The crests and league logos held in the crest bucket: one row per stored object, from the
++-- newest state the crest phase wrote. An object the provider no longer serves (status missing)
++-- has no files, so it is left out and its dimension row publishes no address.
++with import_stg_apif__crest_objects as (
++    select * from {{ ref('stg_apif__crest_objects') }}
++)
++
++select
++    crest_kind,
++    provider_id,
++    source_sha256,
++    fetched_at,
++    checked_at,
++    raw_ingested_at
++from import_stg_apif__crest_objects
++where
++    crest_status = 'ok'
++    and provider_id is not null
++    and crest_kind in ('teams', 'leagues')
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 2bef7d44..d1a2dbab 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -235,7 +235,10 @@ models:
+               to: ref('dim_country')
+               field: country_name
+       - name: league_logo_url
+-        description: "League logo URL."
++        description: "The path of the league logo on this site (\"/crests/leagues/{id}-104.webp\"). NULL when no logo is stored for the league."
++        tests:
++          - dbt_utils.expression_is_true:
++              expression: "not like '%api-sports.io%'"
+       - name: country_flag_url
+         description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
+       - name: competition_type
+@@ -424,6 +427,9 @@ models:
+         description: "Year the team was founded."
+       - name: team_logo_url
+         description: "{{ doc('team_logo_url') }}"
++        tests:
++          - dbt_utils.expression_is_true:
++              expression: "not like '%api-sports.io%'"
+       - name: venue_api_id
+         description: "API-Football venue id for the current home venue."
+       - name: venue_name
+diff --git a/dbt_project/models/3_core/dim_league.sql b/dbt_project/models/3_core/dim_league.sql
+index 701990c9..f753d9f0 100644
+--- a/dbt_project/models/3_core/dim_league.sql
++++ b/dbt_project/models/3_core/dim_league.sql
+@@ -8,6 +8,10 @@ import_competition_registry as (
+ 
+ import_competition_types as (
+     select * from {{ ref('competition_types') }}
++),
++
++import_base_apif__crest_objects as (
++    select * from {{ ref('base_apif__crest_objects') }}
+ )
+ 
+ select
+@@ -17,7 +21,6 @@ select
+     leagues.league_name,
+     leagues.league_type,
+     leagues.league_country,
+-    leagues.league_logo_url,
+     leagues.country_flag_url,
+     registry.competition_type,
+     types.entity_type,
+@@ -25,9 +28,17 @@ select
+     registry.confederation,
+     registry.slug,
+     registry.season_type,
+-    leagues.raw_ingested_at
++    leagues.raw_ingested_at,
++    case
++        when crests.provider_id is not null
++            then concat('/crests/leagues/', cast(leagues.league_api_id as string), '-104.webp')
++    end as league_logo_url
+ from import_base_apif__league_entity as leagues
+ left join import_competition_registry as registry
+     on leagues.league_code = registry.league_code
+ left join import_competition_types as types
+     on registry.competition_type = types.competition_type
++left join import_base_apif__crest_objects as crests
++    on
++        leagues.league_api_id = crests.provider_id
++        and crests.crest_kind = 'leagues'
+diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
+index 1dcaeebf..a1c0a32e 100644
+--- a/dbt_project/models/3_core/dim_team.sql
++++ b/dbt_project/models/3_core/dim_team.sql
+@@ -10,6 +10,10 @@ import_dim_league as (
+     select * from {{ ref('dim_league') }}
+ ),
+ 
++import_base_apif__crest_objects as (
++    select * from {{ ref('base_apif__crest_objects') }}
++),
++
+ fixture_sides as (
+     select
+         league_code,
+@@ -45,14 +49,21 @@ select
+     teams.team_country,
+     teams.country_needs_research,
+     teams.team_founded_year,
+-    teams.team_logo_url,
+     teams.venue_api_id,
+     teams.venue_name,
+     teams.venue_address,
+     teams.venue_city,
+     teams.venue_capacity,
+     teams.raw_ingested_at,
+-    national_teams.team_api_id is not null as is_national_team
++    national_teams.team_api_id is not null as is_national_team,
++    case
++        when crests.provider_id is not null
++            then concat('/crests/teams/', cast(teams.team_api_id as string), '-104.webp')
++    end as team_logo_url
+ from import_base_apif__teams_global as teams
+ left join national_teams
+     on teams.team_api_id = national_teams.team_api_id
++left join import_base_apif__crest_objects as crests
++    on
++        teams.team_api_id = crests.provider_id
++        and crests.crest_kind = 'teams'
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index 41d091fd..bf5e673f 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -306,7 +306,7 @@ models:
+         description: "The home team's display name, taken from the team dimension rather than from the fixture feed, so it carries any correction made to that team's name."
+         tests: [not_null]
+       - name: home_team_logo_url
+-        description: "Home team crest URL from dim_team (API-Football); nullable."
++        description: "Path of the home team's crest on this site, from dim_team; nullable."
+       - name: away_team_sk
+         description: "{{ doc('away_team_sk') }}"
+         tests:
+@@ -318,7 +318,7 @@ models:
+         description: "The away team's display name, taken from the team dimension rather than from the fixture feed, so it carries any correction made to that team's name."
+         tests: [not_null]
+       - name: away_team_logo_url
+-        description: "Away team crest URL from dim_team (API-Football); nullable."
++        description: "Path of the away team's crest on this site, from dim_team; nullable."
+       - name: league_name
+         description: "Human-readable league name from dim_league."
+       - name: home_league_rank
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 7a4b09bf..e9807bcd 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -73,8 +73,8 @@ models:
+           From dim_league.league_name. NULL when the competition has never been ingested.
+       - name: logo_url
+         description: >
+-          From dim_league.league_logo_url. NULL for a competition with no crest ingested, or
+-          never ingested at all.
++          From dim_league.league_logo_url, the path of the logo on this site. NULL for a
++          competition with no logo stored, or never ingested at all.
+       - name: region_label_en
+         description: >
+           The competition's country if it has one (league_country), otherwise its region's English
+@@ -2772,7 +2772,7 @@ models:
+       - name: home_team_slug
+         description: "The home team's permanent URL segment from dim_team."
+       - name: home_team_logo_url
+-        description: "The home team's crest URL from dim_team."
++        description: "The path of the home team's crest on this site, from dim_team."
+       - name: home_team_formation
+         description: "{{ doc('team_formation') }} Here, the home team's; NULL unless lineup_state is confirmed or researched."
+       - name: home_team_country
+@@ -2790,7 +2790,7 @@ models:
+       - name: away_team_slug
+         description: "The away team's permanent URL segment from dim_team."
+       - name: away_team_logo_url
+-        description: "The away team's crest URL from dim_team."
++        description: "The path of the away team's crest on this site, from dim_team."
+       - name: away_team_formation
+         description: "{{ doc('team_formation') }} Here, the away team's; NULL unless lineup_state is confirmed or researched."
+       - name: away_team_country
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 4b9cd01c..f327d090 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -850,8 +850,8 @@ same value for the row's team.
+ {% enddocs %}
+ 
+ {% docs team_logo_url %}
+-The team's crest URL as dim_team publishes it, copied unchanged wherever a team is shown. NULL
+-when no crest is ingested for the team.
++The path of the team's crest on this site, as dim_team publishes it ("/crests/teams/{id}-104.webp"),
++copied unchanged wherever a team is shown. NULL when no crest is stored for the team.
+ {% enddocs %}
+ 
+ {% docs team_country %}
+@@ -899,8 +899,8 @@ opponent_team_sk.
+ {% enddocs %}
+ 
+ {% docs opponent_logo_url %}
+-The opposing team's crest URL for this row's fixture, denormalised from dim_team via
+-opponent_team_sk. NULL when the opponent has no crest ingested.
++The path of the opposing team's crest on this site for this row's fixture, denormalised from
++dim_team via opponent_team_sk. NULL when no crest is stored for the opponent.
+ {% enddocs %}
+ 
+ {% docs goals_total__leg %}
+diff --git a/dbt_project/tests/assert_served_crest_path_has_an_ok_object.sql b/dbt_project/tests/assert_served_crest_path_has_an_ok_object.sql
+new file mode 100644
+index 00000000..fe5f7b5c
+--- /dev/null
++++ b/dbt_project/tests/assert_served_crest_path_has_an_ok_object.sql
+@@ -0,0 +1,62 @@
++{#
++  A team or league publishes a crest path only when its files are stored, and publishes the path
++  that names its own id. Each failing row is a path with no stored object behind it, or a path
++  that belongs to another id.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with teams as (
++    select
++        'teams' as crest_kind,
++        team_api_id as provider_id,
++        team_logo_url as logo_path
++    from {{ ref('dim_team') }}
++    where team_logo_url is not null
++),
++
++leagues as (
++    select
++        'leagues' as crest_kind,
++        league_api_id as provider_id,
++        league_logo_url as logo_path
++    from {{ ref('dim_league') }}
++    where league_logo_url is not null
++),
++
++published as (
++    select * from teams
++    union all
++    select * from leagues
++),
++
++stored as (
++    select
++        crest_kind,
++        provider_id
++    from {{ ref('base_apif__crest_objects') }}
++),
++
++expected as (
++    select
++        published.crest_kind,
++        published.provider_id,
++        published.logo_path,
++        stored.provider_id as stored_provider_id,
++        concat(
++            '/crests/', published.crest_kind, '/', cast(published.provider_id as string), '-104.webp'
++        ) as expected_path
++    from published
++    left join stored
++        on
++            published.crest_kind = stored.crest_kind
++            and published.provider_id = stored.provider_id
++)
++
++select
++    crest_kind,
++    provider_id,
++    logo_path
++from expected
++where
++    stored_provider_id is null
++    or logo_path != expected_path
+diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
+index 6085c315..3e01bf03 100644
+--- a/deploy/nightly/README.md
++++ b/deploy/nightly/README.md
+@@ -402,9 +402,12 @@ image of `deploy/site/Dockerfile`. Its steps:
+    The live counts are the file the previous deploy published at
+    `https://football-data-pipeline-gcp.web.app/export-manifest.json`. A 404 stops the job unless the execution sets `ALLOW_FIRST_DEPLOY=1`.
+    Set it for the first deploy, and after a manual deploy, which publishes no counts file. Any other fetch error stops the job.
+-4. **Build and gates.** The export replaces the committed sample, then `npm run build` runs at an 8 GB heap.
+-   That is the prebuild tests, `astro build`, `audit-seo` and `check-built-pages`.
+-5. **Deploy.** The counts file goes into `dist/`, then `firebase deploy --only hosting` runs.
++4. **Crests.** `scripts/sync_crests.py` copies the crest bucket into `site_v2/public/crests/`. A bucket that does not exist yet
++   gives a warning and no files. Any other error stops the job.
++5. **Build and gates.** The export replaces the committed sample, then `npm run build` runs at an 8 GB heap.
++   That is the prebuild tests, `astro build`, `audit-seo` and `check-built-pages`. On a full export the check fails when a crest
++   path on a page is no file under `dist/`.
++6. **Deploy.** The counts file goes into `dist/`, then `firebase deploy --only hosting` runs.
+    A red gate stops the job before this step, so the live site keeps the previous build.
+ 
+ The Cloud Run disk is memory. The export (about 3 GB, moved into the build folder, not copied) and `dist` (about 13 GB) live in it.
+@@ -522,3 +525,63 @@ gcloud scheduler jobs pause fdp-site --location europe-west1
+ Roll a bad deploy back in the Firebase console: Hosting, release history, Rollback on the previous release.
+ The manual `deploy:export` and `deploy:site-v2` jobs in `.gitlab-ci.yml` stay as the fallback by web dispatch.
+ They publish no counts file, so the next run of `fdp-site` after one needs `--update-env-vars ALLOW_FIRST_DEPLOY=1`.
++
++---
++
++## The crest bucket
++
++Team crests and league logos come from our own domain. The ingest stores them. The site build serves them.
++
++| | |
++|---|---|
++| Bucket | `gs://football-data-pipeline-gcp-crests`, `europe-west1`, private |
++| Objects | `teams/{id}-48.webp`, `teams/{id}-104.webp`, `leagues/{id}-48.webp`, `leagues/{id}-104.webp` |
++| State table | `raw.RAW_APIF_CREST_OBJECTS`, one row per run that fetched or checked an image |
++| Written by | the crest phase of `python -m ingestion.api_football.main`, inside `fdp-nightly` |
++| Read by | `scripts/sync_crests.py`, step 4 of `fdp-site`, which copies it into `site_v2/public/crests/` |
++| Served at | `/crests/{teams|leagues}/{id}-104.webp` on our own domain, with a 7-day browser cache (`site_v2/firebase.json`) |
++
++### Create the state table, once, before the merge
++
++The data build reads `RAW_APIF_CREST_OBJECTS` as a source, so the table must exist before the merge. The command creates it empty. It uses the ingest's own table helper and changes nothing when the table exists.
++
++```bash
++PYTHONPATH=. python -c "from google.cloud import bigquery; from ingestion.api_football.bigquery import ensure_raw_table_partitioned; ensure_raw_table_partitioned(bigquery.Client(project='football-data-pipeline-gcp'), 'RAW_APIF_CREST_OBJECTS')"
++```
++
++The table has two columns, `payload` (JSON) and `ingested_at` (TIMESTAMP), partitioned by day on `ingested_at`. The crest phase creates the same table when it runs.
++
++### Create the bucket, once, before the first nightly after the merge
++
++The CPO runs two commands. The nightly service account writes to the bucket. The site job reads from it. One grant serves both.
++
++```bash
++gcloud storage buckets create gs://football-data-pipeline-gcp-crests --project=football-data-pipeline-gcp --location=europe-west1 --default-storage-class=STANDARD --uniform-bucket-level-access --public-access-prevention
++
++gcloud storage buckets add-iam-policy-binding gs://football-data-pipeline-gcp-crests --member=serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com --role=roles/storage.objectUser
++```
++
++Before the bucket exists, the crest phase logs it and writes nothing. The dimensions publish no crest path. The pages show initials.
++
++### What the first nightly does
++
++1. **Pre-flight.** The phase reads the account counter with `GET /status`. That call does not count against the quota.
++   It fetches 10 images and reads the counter again. The result, `images_count_quota`, stays in the state. The pre-flight runs once.
++2. **Fill.** It fetches every image that has no state, about 3,300 in all. It waits 0.34 seconds between images. It stops on the first 403 or 429.
++   If image requests count against the quota, each run fetches at most the requests left today minus 1,000.
++3. **Shrink.** Each image becomes two WebP files, fitted inside 48 px and 104 px. Transparency stays.
++4. **Check for a change.** Each night, images not checked for 7 days are fetched again, about 475 a night. Their SHA-256 is compared with the state.
++   A changed badge is shrunk and written again. The provider's address does not change with the badge, so content is the only signal.
++
++Then `dbt build` publishes the paths. The next `fdp-site` run copies the files and deploys them.
++
++### Look at it
++
++```bash
++gcloud storage ls gs://football-data-pipeline-gcp-crests/teams/ | wc -l
++bq query --use_legacy_sql=false 'select json_value(payload, "$.preflight.images_count_quota") as images_count_quota, array_length(json_query_array(payload, "$.objects")) as objects, ingested_at from `football-data-pipeline-gcp.raw.RAW_APIF_CREST_OBJECTS` order by ingested_at desc limit 1'
++```
++
++### Roll back
++
++Remove the bucket binding or the bucket. The next ingest logs that the bucket is missing. The next `dbt build` publishes no paths. The pages show initials.
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index a660803e..4392215a 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -298,8 +298,17 @@ Support safe scheduling, not match statistics.
+ | Purpose | BigQuery table |
+ |---------|----------------|
+ | Single-flight ingest lock | `RAW_APIF_INGEST_LOCK` |
++| Crest and league-logo files held in the crest bucket (one payload row per run, the whole state) | `RAW_APIF_CREST_OBJECTS` |
+ | Optional fanout cursor (rotating "where to continue") | `RAW_APIF_{league_code}_INGEST_CURSOR` |
+ 
++`RAW_APIF_CREST_OBJECTS` is payload-only and append-only. The newest row holds the whole state, so a reader never merges rows.
++A run that fetched or checked no image writes no row. The payload keys are:
++
++- `version`: the payload shape, 1.
++- `preflight`: `images_count_quota` (true when image requests moved the account counter), `measured_at`, `requests_before` and `requests_after`.
++  It is empty until the pre-flight has measured.
++- `objects`: one entry per image, with `kind` (`teams` or `leagues`), `id`, `source_url`, `status` (`ok` or `missing`), `sha256`, `fetched_at` and `checked_at`.
++
+ ---
+ 
+ ## Downstream
+diff --git a/ingestion/api_football/loads/crests.py b/ingestion/api_football/loads/crests.py
+new file mode 100644
+index 00000000..0648ddb3
+--- /dev/null
++++ b/ingestion/api_football/loads/crests.py
+@@ -0,0 +1,295 @@
++"""Store every team crest and league logo in the private crest bucket, shrunk to two WebP sizes.
++
++The provider's image address does not change when a club changes its badge, so a change is found by
++content: each night the objects not checked for `RECHECK_DAYS` days are fetched again and their
++SHA-256 compared with the one in the state. One payload row per run, the whole state, goes to
++RAW_APIF_CREST_OBJECTS; staging reads the newest row. A failure here never fails the ingest.
++
++The image host is not the API: nothing here sends the API key. Whether its requests count against
++the daily quota is measured once, before the first fill, with the account endpoint `/status`, which
++does not count; the result is kept in the state.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import io
++import time
++from dataclasses import dataclass
++from datetime import datetime, timedelta, timezone
++from typing import Callable, Protocol
++
++import requests
++from PIL import Image
++
++from .. import quota as errors_quota
++from ..bigquery import ensure_raw_table_partitioned, load_json_to_bq, read_latest_payload_json
++from ..http_client import fetch_json
++from ..settings import CREST_BUCKET, DATASET_ID, GCP_PROJECT_ID, raw_table
++from .context import PipelineContext
++
++KINDS = ("teams", "leagues")
++SIZES = (48, 104)
++STATE_TABLE = raw_table("CREST_OBJECTS")
++RECHECK_DAYS = 7
++THROTTLE_SECONDS = 0.34
++FETCH_TIMEOUT_SECONDS = 20
++PREFLIGHT_SAMPLE = 10
++PREFLIGHT_MIN_ANSWERED = 5
++PREFLIGHT_SETTLE_SECONDS = 5
++MAX_FAILURES_IN_A_ROW = 20
++API_RESERVE = 1000
++MAX_FETCHES_PER_RUN = 4000
++STOP_STATUSES = (403, 429)
++CACHE_CONTROL = "public, max-age=604800"
++WEBP_QUALITY = 90
++
++_DISCOVER_SQL = """
++select
++  json_value(item, '$.{kind_key}.id') as provider_id,
++  json_value(item, '$.{kind_key}.logo') as source_url
++from (
++  select payload
++  from `{project}.{dataset}.{table}`
++  qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++) as src,
++unnest(json_query_array(src.payload, '$.response')) as item
++where json_value(item, '$.{kind_key}.id') is not null
++  and json_value(item, '$.{kind_key}.logo') is not null
++group by provider_id, source_url
++"""
++_KIND_KEY = {"teams": "team", "leagues": "league"}
++
++
++class Store(Protocol):
++    def exists(self) -> bool: ...
++
++    def put(self, object_name: str, data: bytes) -> None: ...
++
++
++class GcsStore:
++    """The private crest bucket. Listing one object tells a missing bucket from an empty one."""
++
++    def __init__(self, bucket_name: str = CREST_BUCKET, client=None):
++        from google.cloud import storage
++
++        self._client = client or storage.Client(project=GCP_PROJECT_ID)
++        self._bucket = self._client.bucket(bucket_name)
++
++    def exists(self) -> bool:
++        from google.api_core.exceptions import NotFound
++
++        try:
++            next(iter(self._client.list_blobs(self._bucket, max_results=1)), None)
++        except NotFound:
++            return False
++        return True
++
++    def put(self, object_name: str, data: bytes) -> None:
++        blob = self._bucket.blob(object_name)
++        blob.cache_control = CACHE_CONTROL
++        blob.upload_from_string(data, content_type="image/webp")
++
++
++@dataclass
++class Fetched:
++    status: int
++    body: bytes
++
++
++def fetch_image(url: str, session=None) -> Fetched:
++    response = (session or requests).get(url, timeout=FETCH_TIMEOUT_SECONDS)
++    return Fetched(response.status_code, response.content if response.status_code == 200 else b"")
++
++
++def shrink(source: bytes, size: int) -> bytes:
++    """The image fitted inside `size` x `size` as WebP, aspect kept and transparency kept."""
++    with Image.open(io.BytesIO(source)) as image:
++        image = image.convert("RGBA")
++        image.thumbnail((size, size), Image.Resampling.LANCZOS)
++        out = io.BytesIO()
++        image.save(out, format="WEBP", quality=WEBP_QUALITY, method=6)
++        return out.getvalue()
++
++
++def object_name(kind: str, provider_id: int | str, size: int) -> str:
++    return f"{kind}/{provider_id}-{size}.webp"
++
++
++def _now() -> datetime:
++    return datetime.now(timezone.utc)
++
++
++def _iso(moment: datetime) -> str:
++    return moment.isoformat()
++
++
++def discover(client, kinds=KINDS) -> dict[tuple[str, int], str]:
++    """Every (kind, provider id) with the image address the provider's latest list gives it."""
++    found: dict[tuple[str, int], str] = {}
++    for kind in kinds:
++        table = raw_table(kind.upper())
++        sql = _DISCOVER_SQL.format(
++            kind_key=_KIND_KEY[kind], project=GCP_PROJECT_ID, dataset=DATASET_ID, table=table
++        )
++        for row in client.query(sql).result():
++            try:
++                found[(kind, int(row["provider_id"]))] = row["source_url"]
++            except (TypeError, ValueError):
++                continue
++    return found
++
++
++def plan(
++    discovered: dict[tuple[str, int], str],
++    state: dict[tuple[str, int], dict],
++    now: datetime,
++    budget: int,
++) -> list[tuple[str, int, str]]:
++    """What to fetch: every id with no state first, then the longest-unchecked ones past the window."""
++    due_before = now - timedelta(days=RECHECK_DAYS)
++    new = sorted(key for key in discovered if key not in state)
++    stale = sorted(
++        (key for key in discovered if key in state and datetime.fromisoformat(state[key]["checked_at"]) <= due_before),
++        key=lambda key: state[key]["checked_at"],
++    )
++    return [(kind, pid, discovered[(kind, pid)]) for kind, pid in (new + stale)[: max(0, budget)]]
++
++
++def parse_state(payload: dict | None) -> tuple[dict[tuple[str, int], dict], dict]:
++    if not payload:
++        return {}, {}
++    objects = {(o["kind"], int(o["id"])): o for o in payload.get("objects", [])}
++    return objects, payload.get("preflight") or {}
++
++
++def _status_numbers(headers: dict) -> tuple[int, int]:
++    """(requests used today, daily limit) from the account endpoint; (0, 0) when it cannot be read."""
++    data = fetch_json("/status", headers)
++    requests_block = (data.get("response") or {}).get("requests") if isinstance(data.get("response"), dict) else None
++    requests_block = requests_block or {}
++    return int(requests_block.get("current") or 0), int(requests_block.get("limit_day") or 0)
++
++
++def _record(state: dict, kind: str, pid: int, url: str, now: datetime, fetched: Fetched, store: Store) -> str:
++    """Apply one fetch to the state and the bucket; return what happened."""
++    key = (kind, pid)
++    # A copy, put in the state only after the files are written: a failed write keeps the old entry,
++    # so the image is checked again on the next run.
++    entry = dict(state.get(key) or {"kind": kind, "id": pid})
++    entry["source_url"] = url
++    entry["checked_at"] = _iso(now)
++    if fetched.status == 404:
++        entry["status"] = "missing"
++        entry.pop("sha256", None)
++        state[key] = entry
++        return "missing"
++    digest = hashlib.sha256(fetched.body).hexdigest()
++    if entry.get("status") == "ok" and entry.get("sha256") == digest:
++        state[key] = entry
++        return "unchanged"
++    for size in SIZES:
++        store.put(object_name(kind, pid, size), shrink(fetched.body, size))
++    entry.update({"status": "ok", "sha256": digest, "fetched_at": _iso(now)})
++    state[key] = entry
++    return "stored"
++
++
++def run(
++    ctx: PipelineContext,
++    *,
++    store: Store | None = None,
++    discovered: dict[tuple[str, int], str] | None = None,
++    fetch: Callable[[str], Fetched] = fetch_image,
++    status_numbers: Callable[[dict], tuple[int, int]] = _status_numbers,
++    now: datetime | None = None,
++    sleep: Callable[[float], None] = time.sleep,
++) -> dict:
++    """The crest phase. Returns a summary; raises nothing a caller must handle."""
++    # The table exists from the first run on, empty or not: dbt reads it as a source every night.
++    ensure_raw_table_partitioned(ctx.client, STATE_TABLE)
++    store = store or GcsStore()
++    now = now or _now()
++    summary = {"stored": 0, "unchanged": 0, "missing": 0, "failed": 0, "stopped": None, "skipped": None}
++    if errors_quota._http_quota_exhausted:
++        summary["skipped"] = "the daily API quota is used up, so the account counter cannot be read"
++        return summary
++    if not store.exists():
++        summary["skipped"] = "the crest bucket does not exist"
++        return summary
++
++    state, preflight = parse_state(read_latest_payload_json(ctx.client, STATE_TABLE))
++    found = discovered if discovered is not None else discover(ctx.client)
++    queue = plan(found, state, now, MAX_FETCHES_PER_RUN)
++    changed = False
++    failures_in_a_row = 0
++
++    def step(kind: str, pid: int, url: str) -> bool:
++        """One image applied to the state; False stops the phase. One bad image never costs the rest."""
++        nonlocal changed, failures_in_a_row
++        try:
++            result = fetch(url)
++            sleep(THROTTLE_SECONDS)
++            if result.status in STOP_STATUSES:
++                summary["stopped"] = f"{result.status} on {url}"
++                return False
++            if result.status not in (200, 404):
++                raise ValueError(f"HTTP {result.status}")
++            outcome = _record(state, kind, pid, url, now, result, store)
++        except Exception as error:
++            summary["failed"] += 1
++            failures_in_a_row += 1
++            print(f"[crests] {kind}/{pid} failed: {error}", flush=True)
++            if failures_in_a_row >= MAX_FAILURES_IN_A_ROW:
++                summary["stopped"] = f"{failures_in_a_row} failures in a row"
++                return False
++            return True
++        failures_in_a_row = 0
++        summary[outcome] += 1
++        changed = True
++        return True
++
++    try:
++        if "images_count_quota" not in preflight and queue:
++            before, limit = status_numbers(ctx.headers)
++            if limit == 0:
++                summary["skipped"] = "the account counter is unreadable, so the quota effect of images is not measured"
++                queue = []
++            else:
++                sample, queue = queue[:PREFLIGHT_SAMPLE], queue[PREFLIGHT_SAMPLE:]
++                answered = summary["stored"] + summary["unchanged"] + summary["missing"]
++                if all(step(kind, pid, url) for kind, pid, url in sample):
++                    sleep(PREFLIGHT_SETTLE_SECONDS)
++                    after, limit_after = status_numbers(ctx.headers)
++                    answered = summary["stored"] + summary["unchanged"] + summary["missing"] - answered
++                    if limit_after > 0 and answered >= PREFLIGHT_MIN_ANSWERED:
++                        preflight = {
++                            "images_count_quota": after > before,
++                            "measured_at": _iso(now),
++                            "requests_before": before,
++                            "requests_after": after,
++                        }
++                        changed = True
++                        print(f"[crests] preflight {preflight}", flush=True)
++                if "images_count_quota" not in preflight:
++                    summary["skipped"] = "the quota effect of images is not measured yet: no fill tonight"
++                    queue = []
++
++        if preflight.get("images_count_quota") and queue:
++            used, limit = status_numbers(ctx.headers)
++            if limit:
++                queue = queue[: max(0, limit - used - API_RESERVE)]
++            else:
++                summary["skipped"] = "the account counter is unreadable: no fetch tonight"
++                queue = []
++
++        for kind, pid, url in queue:
++            if not step(kind, pid, url):
++                break
++    finally:
++        if changed:
++            objects = sorted(state.values(), key=lambda o: (o["kind"], o["id"]))
++            payload = {"version": 1, "preflight": preflight, "objects": objects}
++            load_json_to_bq(ctx.client, STATE_TABLE, payload, as_json_payload=True, append=True)
++            ctx.add_loaded(1)
++    return summary
+diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
+index 24b7428b..c88bbf34 100644
+--- a/ingestion/api_football/orchestrator.py
++++ b/ingestion/api_football/orchestrator.py
+@@ -72,6 +72,7 @@ from .loads.competition_runner import (
+ from .loads.squads import captured_player_team_seasons
+ from .loads.player_universe import query_player_universe
+ from .loads.player_profiles import load_player_profiles_global
++from .loads import crests
+ from .loads.player_teams import load_player_teams_global
+ from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
+ 
+@@ -224,6 +225,14 @@ def _load_api_football(request):
+         load_player_profiles_global(ctx, universe=shared_universe)
+         load_player_teams_global(ctx, universe=shared_universe)
+ 
++        # Phase 6: team crests and league logos into the private crest bucket, after the team and
++        # league lists they are read from. Never fails the ingest: a crest that is not stored shows
++        # its initials until the next run.
++        try:
++            print(f"[crests] {crests.run(ctx)}", flush=True)
++        except Exception as e:
++            print(f"[crests] phase failed, ingest continues: {e}", flush=True)
++
+         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
+         if ctx.errors:
+             uniq = _dedupe_errors_preserve_order(ctx.errors)
+diff --git a/ingestion/api_football/requirements.txt b/ingestion/api_football/requirements.txt
+index 9673ae02..7c2aff62 100644
+--- a/ingestion/api_football/requirements.txt
++++ b/ingestion/api_football/requirements.txt
+@@ -1,4 +1,6 @@
+ functions-framework
+ requests
+ google-cloud-bigquery
++google-cloud-storage==2.19.0
++Pillow==11.3.0
+ python-dotenv>=1.0.0
+diff --git a/ingestion/api_football/settings.py b/ingestion/api_football/settings.py
+index d3cbb3bf..c36e1df8 100644
+--- a/ingestion/api_football/settings.py
++++ b/ingestion/api_football/settings.py
+@@ -21,6 +21,10 @@ GCP_PROJECT_ID = "football-data-pipeline-gcp"
+ # BigQuery dataset for 1:1 loads (medallion "raw" layer). Override to match dbt `sources` schema.
+ DATASET_ID = (os.getenv("API_FOOTBALL_BIGQUERY_DATASET", "raw").strip() or "raw")
+ 
++# The private bucket that holds the shrunk crests and league logos; the site build copies it into
++# `dist/crests/` (scripts/sync_crests.py).
++CREST_BUCKET = "football-data-pipeline-gcp-crests"
++
+ APISPORTS_BASE = "https://v3.football.api-sports.io"
+ RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
+ 
+diff --git a/requirements.txt b/requirements.txt
+index 1e23607f..ca9ded1e 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -2,6 +2,8 @@ requests==2.33.1
+ python-dotenv>=1.0.0
+ google-cloud-bigquery==3.25.0
+ google-cloud-bigquery-storage>=2.25.0
++google-cloud-storage==2.19.0
++Pillow==11.3.0
+ pyarrow
+ dbt-bigquery==1.7.2
+ sqlfluff==4.1.0
+diff --git a/scripts/nightly_site_deploy.py b/scripts/nightly_site_deploy.py
+index 39d5c25b..ba95ef16 100644
+--- a/scripts/nightly_site_deploy.py
++++ b/scripts/nightly_site_deploy.py
+@@ -5,8 +5,9 @@ Steps, each failing the job on error and stopping before the Firebase deploy:
+   2. export every entity the built pages read (`export_site_data.py --entities deploy`);
+   3. the export's counts must hold against the counts the live site's previous deploy published;
+   4. replace the committed sample under site_v2/src/data with the export;
+-  5. `npm run build`: the build, `audit-seo` and `check-built-pages`;
+-  6. publish the counts beside the site, then `firebase deploy --only hosting`.
++  5. copy the crest bucket into site_v2/public/crests, so the build serves crests from our domain;
++  6. `npm run build`: the build, `audit-seo` and `check-built-pages`;
++  7. publish the counts beside the site, then `firebase deploy --only hosting`.
+ 
+ The job runs as its service account, so Google clients and firebase-tools take application default
+ credentials with no key file.
+@@ -48,6 +49,7 @@ FIRST_DEPLOY_FLAG = "ALLOW_FIRST_DEPLOY"
+ REPO = Path(__file__).resolve().parents[1]
+ SITE_DIR = REPO / "site_v2"
+ EXPORT_DIR = Path(os.environ.get("TMPDIR", "/tmp")) / "site_export"
++CRESTS_DIR = SITE_DIR / "public" / "crests"
+ 
+ 
+ def log(message: str) -> None:
+@@ -204,6 +206,7 @@ def deploy(session) -> int:
+         raise SystemExit("[nightly-site] refusing to deploy: " + "; ".join(issues))
+ 
+     replace_sample_with_export(SITE_DIR, EXPORT_DIR)
++    step("crests", [sys.executable, "scripts/sync_crests.py", "--dest", str(CRESTS_DIR)], env=env)
+     step(
+         "build and gates",
+         ["npm", "run", "build"],
+diff --git a/scripts/sync_crests.py b/scripts/sync_crests.py
+new file mode 100644
+index 00000000..a68fc142
+--- /dev/null
++++ b/scripts/sync_crests.py
+@@ -0,0 +1,66 @@
++"""Copy the crest bucket into the site's public folder, so the build serves crests from our own domain.
++
++    python scripts/sync_crests.py [--dest site_v2/public/crests]
++
++Astro copies `site_v2/public/` into `dist/`, and Firebase Hosting serves `dist/crests/` next to the
++pages. A bucket that does not exist yet is a warning and no files: dim_team and dim_league publish no
++crest path until an object is stored, so no page names a file that is missing. Any other failure
++fails the run, and the built-pages check fails a full export whose crest paths are not files.
++"""
++
++from __future__ import annotations
++
++import argparse
++import re
++import sys
++from concurrent.futures import ThreadPoolExecutor
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++DEFAULT_DEST = REPO / "site_v2" / "public" / "crests"
++OBJECT_NAME = re.compile(r"^(teams|leagues)/\d+-(48|104)\.webp$")
++WORKERS = 16
++
++
++def bucket_name() -> str:
++    sys.path.insert(0, str(REPO))
++    from ingestion.api_football.settings import CREST_BUCKET
++
++    return CREST_BUCKET
++
++
++def sync(dest: Path, client=None, bucket: str | None = None) -> dict:
++    from google.api_core.exceptions import NotFound
++
++    if client is None:
++        from google.cloud import storage
++
++        client = storage.Client()
++    name = bucket or bucket_name()
++    try:
++        blobs = [b for b in client.list_blobs(name) if OBJECT_NAME.match(b.name)]
++    except NotFound:
++        print(f"[sync-crests] the bucket {name} does not exist yet: no crest files", flush=True)
++        return {"files": 0, "skipped": "no bucket"}
++
++    def fetch(blob) -> None:
++        target = dest / blob.name
++        target.parent.mkdir(parents=True, exist_ok=True)
++        blob.download_to_filename(str(target))
++
++    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
++        list(pool.map(fetch, blobs))
++    print(f"[sync-crests] {len(blobs)} files from {name} into {dest}", flush=True)
++    return {"files": len(blobs), "skipped": None}
++
++
++def main(argv: list[str] | None = None) -> int:
++    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
++    parser.add_argument("--dest", type=Path, default=DEFAULT_DEST)
++    args = parser.parse_args(argv)
++    sync(args.dest)
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/site_v2/.gitignore b/site_v2/.gitignore
+index 16c9b00c..b15a19b2 100644
+--- a/site_v2/.gitignore
++++ b/site_v2/.gitignore
+@@ -1,6 +1,8 @@
+ node_modules/
+ dist/
+ .astro/
++# The crest files the site build copies from the crest bucket (scripts/sync_crests.py).
++public/crests/
+ 
+ # The repo-root .gitignore has a Python-packaging `lib/` pattern (unanchored, so it
+ # matches **/lib/ — dead boilerplate here). Re-include our frontend source dir.
+diff --git a/site_v2/firebase.json b/site_v2/firebase.json
+index c09730d8..fa767a30 100644
+--- a/site_v2/firebase.json
++++ b/site_v2/firebase.json
+@@ -14,6 +14,12 @@
+         "headers": [
+           { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+         ]
++      },
++      {
++        "source": "/crests/**",
++        "headers": [
++          { "key": "Cache-Control", "value": "public, max-age=604800" }
++        ]
+       }
+     ]
+   }
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index ccbe8202..d87ad1a1 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -31,6 +31,8 @@
+ //    logo, any other host) and held to `IMAGE_PINS`, a ceiling per kind that only goes down. A pin at
+ //    0 holds on every build. A pin above 0 holds on a build of the committed sample (no manifest) and
+ //    is only reported on a full export. The change that removes a kind lowers its pin to 0.
++//    A crest path on our own domain (`/crests/…`) must be a file under `dist/` on a full export, and
++//    is only counted on a sample build, which carries no crest files.
+ //
+ // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
+ // components, and the pure functions below are unit-tested on string literals.
+@@ -474,11 +476,28 @@ export function imageKind(url) {
+ 
+ export const emptyImageCounts = () => ({
+   playerPhoto: 0, providerImage: 0, foreign: 0, examples: { playerPhoto: [], providerImage: [], foreign: [] },
++  crestPaths: new Set(),
+ });
+ 
+-/** The count of non-ours images by kind on one page, with the addresses of the first few of each. */
++/** The site path of a crest address on this site: a path under `/crests/`, or the same path on our
++ *  own host (the social cards and the JSON-LD name it absolute); null for any other address. */
++export function crestPath(url) {
++  if (url.startsWith("/crests/")) return url.split(/[?#]/)[0];
++  if (!/^(?:https?:)?\/\//i.test(url)) return null;
++  try {
++    const { hostname, pathname } = new URL(url.startsWith("//") ? `https:${url}` : url);
++    return OUR_HOSTS.includes(hostname) && pathname.startsWith("/crests/") ? pathname : null;
++  } catch {
++    return null;
++  }
++}
++
++/** The count of non-ours images by kind on one page, with the addresses of the first few of each,
++ *  and the crest paths the page names. */
+ export function countImages(html, path = "", into = emptyImageCounts()) {
+   for (const url of imageUrls(html)) {
++    const crest = crestPath(url);
++    if (crest) into.crestPaths.add(crest);
+     const kind = imageKind(url);
+     if (kind === "ours") continue;
+     into[kind] += 1;
+@@ -487,6 +506,19 @@ export function countImages(html, path = "", into = emptyImageCounts()) {
+   return into;
+ }
+ 
++/** Issues from the crest paths the built pages name. On a full export (the manifest is present) every
++ *  path must be a file under `dist/`, so a crest sync that did not run cannot ship a broken image; on
++ *  the committed sample, which carries no crest files, the count is reported and not failed. */
++export function checkCrestFiles(paths, { exists, fullBuild }) {
++  const missing = [...paths].filter((p) => !exists(p)).sort();
++  if (!fullBuild || missing.length === 0) return { issues: [], missing: missing.length };
++  const shown = missing.slice(0, IMAGE_EXAMPLES).join(", ");
++  return {
++    issues: [`${missing.length} crest path(s) named by the pages are no file under dist/ (first: ${shown}): the crest sync did not copy them`],
++    missing: missing.length,
++  };
++}
++
+ const IMAGE_LABELS = {
+   playerPhoto: "provider player or coach photo",
+   providerImage: "provider crest or logo",
+@@ -573,6 +605,11 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR, pins = IMAGE_PINS)
+   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
+   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
+   issues.push(...checkImageOrigins(images, { fullBuild: Boolean(manifest), pins }));
++  const crestFiles = checkCrestFiles(images.crestPaths, {
++    exists: (p) => existsSync(join(distDir, p)),
++    fullBuild: Boolean(manifest),
++  });
++  issues.push(...crestFiles.issues);
+   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
+   if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
+     issues.push("a team payload serves the deserved points scatter but no Team page carried one");
+@@ -588,7 +625,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR, pins = IMAGE_PINS)
+         : " (no manifest: sample build)") +
+       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
+       ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked;` +
+-      ` ${images.providerImage} provider crest/logo image(s), ${images.playerPhoto} player photo(s), ${images.foreign} other foreign image(s). OK.`,
++      ` ${images.providerImage} provider crest/logo image(s), ${images.playerPhoto} player photo(s), ${images.foreign} other foreign image(s);` +
++      ` ${images.crestPaths.size} crest path(s) on our domain, ${crestFiles.missing} not a file under dist/. OK.`,
+   );
+   return 0;
+ }
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index fe6e94a4..ebd0cacf 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -13,7 +13,7 @@ import {
+   boards, isZeroValue,
+   main as mainWithPins, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+   checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
+-  checkImageOrigins, countImages, emptyImageCounts, imageKind, imageUrls, IMAGE_PINS,
++  checkImageOrigins, countImages, emptyImageCounts, imageKind, imageUrls, IMAGE_PINS, crestPath, checkCrestFiles,
+ } from "./check-built-pages.mjs";
+ 
+ // The trees the main tests write carry no images; the pins describe the committed sample, so they
+@@ -562,6 +562,59 @@ test("main holds a pin above 0 on a sample build and only reports it on a full e
+   }
+ });
+ 
++test("a crest path on our own domain is read from a relative address and from our host, never from another", () => {
++  assert.equal(crestPath("/crests/teams/1-104.webp"), "/crests/teams/1-104.webp");
++  assert.equal(crestPath("/crests/teams/1-104.webp?v=2"), "/crests/teams/1-104.webp");
++  assert.equal(crestPath("https://matchdaypilot.com/crests/leagues/9-104.webp"), "/crests/leagues/9-104.webp");
++  assert.equal(crestPath("//matchdaypilot.com/crests/leagues/9-104.webp"), "/crests/leagues/9-104.webp");
++  assert.equal(crestPath("https://cdn.example.com/crests/teams/1-104.webp"), null);
++  assert.equal(crestPath("/assets/crest.png"), null);
++  assert.equal(imageKind("/crests/teams/1-104.webp"), "ours");
++});
++
++test("the crest paths of a page are collected from img, social cards and JSON-LD", () => {
++  const counts = countImages(
++    '<img src="/crests/teams/1-104.webp"><meta property="og:image" content="https://matchdaypilot.com/crests/teams/2-104.webp">' +
++      '<script type="application/ld+json">{"logo":"https://matchdaypilot.com/crests/leagues/9-104.webp"}</script>',
++    "/en/x/", emptyImageCounts(),
++  );
++  assert.deepEqual([...counts.crestPaths].sort(), ["/crests/leagues/9-104.webp", "/crests/teams/1-104.webp", "/crests/teams/2-104.webp"]);
++  assert.equal(counts.providerImage, 0);
++});
++
++test("a full export fails on a crest path that is no file under dist, and a sample build only reports it", () => {
++  const paths = new Set(["/crests/teams/1-104.webp", "/crests/teams/2-104.webp"]);
++  const has = (p) => p === "/crests/teams/1-104.webp";
++  const full = checkCrestFiles(paths, { exists: has, fullBuild: true });
++  assert.equal(full.missing, 1);
++  assert.match(full.issues[0], /1 crest path\(s\) named by the pages are no file under dist\/ \(first: \/crests\/teams\/2-104\.webp\)/);
++  assert.deepEqual(checkCrestFiles(paths, { exists: has, fullBuild: false }), { issues: [], missing: 1 });
++  assert.deepEqual(checkCrestFiles(paths, { exists: () => true, fullBuild: true }), { issues: [], missing: 0 });
++});
++
++test("main checks the crest files against dist: a full export fails without them and passes with them", (t) => {
++  const root = mkdtempSync(join(tmpdir(), "check-built-pages-crest-"));
++  try {
++    mkdirSync(join(root, "data"), { recursive: true });
++    mkdirSync(join(root, "dist", "en"), { recursive: true });
++    writeFileSync(join(root, "dist", "en", "index.html"), '<html><body><img src="/crests/teams/1-104.webp"></body></html>');
++    const manifest = () => writeFileSync(join(root, "data", "manifest.json"), JSON.stringify(
++      { counts: { fixture: 0 }, source_counts: { fixtures_unplayed: 0, fixtures_played: 0 } }));
++    const errors = t.mock.method(console, "error", () => {});
++    t.mock.method(console, "log", () => {});
++    assert.equal(main(join(root, "dist"), join(root, "data")), 0, "a sample build only reports it");
++    manifest();
++    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
++    assert.ok(errors.mock.calls.some((c) => /crest sync did not copy them/.test(c.arguments[0])));
++    mkdirSync(join(root, "dist", "crests", "teams"), { recursive: true });
++    writeFileSync(join(root, "dist", "crests", "teams", "1-104.webp"), "x");
++    errors.mock.resetCalls();
++    assert.equal(main(join(root, "dist"), join(root, "data")), 0, errors.mock.calls.map((c) => c.arguments[0]).join("\n"));
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
+ test("a page with no round at all is an issue, not a pass", () => {
+   assert.match(checkFixturesPage("<html><body></body></html>", "p")[0], /no round on the page/);
+ });
+diff --git a/tests/test_crests.py b/tests/test_crests.py
+new file mode 100644
+index 00000000..6fc1914b
+--- /dev/null
++++ b/tests/test_crests.py
+@@ -0,0 +1,424 @@
++"""The crest phase: what it fetches, what it stores, and what it never does."""
++
++from __future__ import annotations
++
++import io
++from datetime import datetime, timedelta, timezone
++
++import pytest
++from PIL import Image
++
++from ingestion.api_football.loads import crests
++from ingestion.api_football.loads.context import PipelineContext
++
++NOW = datetime(2026, 11, 22, 4, 0, tzinfo=timezone.utc)
++ENSURED: list[str] = []
++
++
++def png(width: int = 150, height: int = 150, colour=(200, 30, 30, 255)) -> bytes:
++    out = io.BytesIO()
++    Image.new("RGBA", (width, height), colour).save(out, format="PNG")
++    return out.getvalue()
++
++
++class FakeStore:
++    def __init__(self, exists: bool = True):
++        self._exists = exists
++        self.objects: dict[str, bytes] = {}
++
++    def exists(self) -> bool:
++        return self._exists
++
++    def put(self, object_name: str, data: bytes) -> None:
++        self.objects[object_name] = data
++
++
++class Provider:
++    """The image host and the account endpoint, with a counter that images may or may not move."""
++
++    def __init__(self, bodies: dict[str, bytes], statuses: dict[str, int] | None = None, images_count: bool = False):
++        self.bodies = bodies
++        self.statuses = statuses or {}
++        self.images_count = images_count
++        self.requests_today = 100
++        self.fetched: list[str] = []
++
++    def fetch(self, url: str) -> crests.Fetched:
++        self.fetched.append(url)
++        if self.images_count:
++            self.requests_today += 1
++        status = self.statuses.get(url, 200)
++        return crests.Fetched(status, self.bodies.get(url, b"") if status == 200 else b"")
++
++    def status_numbers(self, headers: dict) -> tuple[int, int]:
++        return self.requests_today, 7500
++
++
++@pytest.fixture
++def written(monkeypatch):
++    rows: list[dict] = []
++    monkeypatch.setattr(crests, "ensure_raw_table_partitioned", lambda client, table: ENSURED.append(table))
++    monkeypatch.setattr(crests, "load_json_to_bq", lambda client, table, payload, **kw: rows.append({"table": table, **kw, "payload": payload}))
++    return rows
++
++
++def run(ctx_state, store, provider, discovered, monkeypatch, now=NOW):
++    monkeypatch.setattr(crests, "read_latest_payload_json", lambda client, table: ctx_state)
++    ctx = PipelineContext(client=object(), headers={})
++    return crests.run(
++        ctx, store=store, discovered=discovered, fetch=provider.fetch,
++        status_numbers=provider.status_numbers, now=now, sleep=lambda s: None,
++    )
++
++
++URL_1 = "https://media.api-sports.io/football/teams/1.png"
++URL_2 = "https://media.api-sports.io/football/teams/2.png"
++LEAGUE = "https://media.api-sports.io/football/leagues/9.png"
++
++
++def test_shrink_keeps_aspect_transparency_and_both_sizes():
++    wide = png(300, 150, (10, 20, 30, 0))
++    for size in crests.SIZES:
++        image = Image.open(io.BytesIO(crests.shrink(wide, size)))
++        assert image.format == "WEBP"
++        assert image.size == (size, size // 2)
++        assert image.convert("RGBA").getpixel((0, 0))[3] == 0
++
++
++def test_object_names_carry_kind_id_and_size():
++    assert crests.object_name("teams", 689, 104) == "teams/689-104.webp"
++    assert crests.object_name("leagues", 9, 48) == "leagues/9-48.webp"
++
++
++def test_plan_takes_new_ids_first_then_the_longest_unchecked_past_the_window():
++    found = {("teams", 1): URL_1, ("teams", 2): URL_2, ("leagues", 9): LEAGUE, ("teams", 3): "u3"}
++    old = (NOW - timedelta(days=30)).isoformat()
++    older = (NOW - timedelta(days=60)).isoformat()
++    fresh = (NOW - timedelta(days=1)).isoformat()
++    state = {("teams", 1): {"checked_at": old}, ("teams", 2): {"checked_at": fresh}, ("teams", 3): {"checked_at": older}}
++    assert crests.plan(found, state, NOW, 10) == [("leagues", 9, LEAGUE), ("teams", 3, "u3"), ("teams", 1, URL_1)]
++    assert crests.plan(found, state, NOW, 1) == [("leagues", 9, LEAGUE)]
++    assert crests.plan(found, state, NOW, 0) == []
++
++
++def test_a_missing_bucket_writes_nothing_and_fetches_nothing_but_the_state_table_exists(monkeypatch, written):
++    ENSURED.clear()
++    provider = Provider({URL_1: png()})
++    summary = run(None, FakeStore(exists=False), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert summary["skipped"] == "the crest bucket does not exist"
++    assert provider.fetched == [] and written == []
++    assert ENSURED == ["RAW_APIF_CREST_OBJECTS"]
++
++
++def test_the_first_fill_stores_both_sizes_and_records_the_preflight(monkeypatch, written):
++    bodies = {f"https://x/{i}.png": png() for i in range(12)} | {LEAGUE: png()}
++    provider = Provider(bodies)
++    store = FakeStore()
++    found = {("teams", i): f"https://x/{i}.png" for i in range(12)} | {("leagues", 9): LEAGUE}
++    summary = run(None, store, provider, found, monkeypatch)
++    assert summary["stored"] == 13
++    assert {"leagues/9-104.webp", "leagues/9-48.webp", "teams/0-104.webp", "teams/11-48.webp"} <= set(store.objects)
++    assert len(store.objects) == 26
++    (row,) = written
++    assert row["table"] == "RAW_APIF_CREST_OBJECTS" and row["append"] is True and row["as_json_payload"] is True
++    assert row["payload"]["preflight"]["images_count_quota"] is False
++    assert len(row["payload"]["objects"]) == 13 and all(o["status"] == "ok" for o in row["payload"]["objects"])
++
++
++def test_the_preflight_sees_images_count_against_the_quota_and_caps_the_run(monkeypatch, written):
++    bodies = {f"https://x/{i}.png": png() for i in range(40)}
++    provider = Provider(bodies, images_count=True)
++    provider.requests_today = 7500 - crests.API_RESERVE - 5 - crests.PREFLIGHT_SAMPLE
++    found = {("teams", i): f"https://x/{i}.png" for i in range(40)}
++    summary = run(None, FakeStore(), provider, found, monkeypatch)
++    (row,) = written
++    assert row["payload"]["preflight"]["images_count_quota"] is True
++    assert summary["stored"] == crests.PREFLIGHT_SAMPLE + 5
++
++
++def test_the_preflight_runs_once_and_later_runs_keep_its_result(monkeypatch, written):
++    state = {"version": 1, "preflight": {"images_count_quota": False}, "objects": []}
++    provider = Provider({URL_1: png()})
++    calls = []
++    provider.status_numbers = lambda headers: calls.append(1) or (0, 7500)
++    run(state, FakeStore(), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert calls == []
++
++
++def test_an_unchanged_image_updates_its_check_and_stores_nothing(monkeypatch, written):
++    body = png()
++    first = Provider({URL_1: body})
++    store = FakeStore()
++    run(None, store, first, {("teams", 1): URL_1}, monkeypatch)
++    state = written[0]["payload"]
++    written.clear()
++    store.objects.clear()
++    later = NOW + timedelta(days=8)
++    summary = run(state, store, Provider({URL_1: body}), {("teams", 1): URL_1}, monkeypatch, now=later)
++    assert summary["unchanged"] == 1 and summary["stored"] == 0 and store.objects == {}
++    assert written[0]["payload"]["objects"][0]["checked_at"] == later.isoformat()
++
++
++def test_a_changed_badge_is_stored_again(monkeypatch, written):
++    store = FakeStore()
++    run(None, store, Provider({URL_1: png()}), {("teams", 1): URL_1}, monkeypatch)
++    state = written[0]["payload"]
++    written.clear()
++    new_badge = png(colour=(0, 0, 255, 255))
++    summary = run(state, store, Provider({URL_1: new_badge}), {("teams", 1): URL_1}, monkeypatch, now=NOW + timedelta(days=8))
++    assert summary["stored"] == 1
++    assert written[0]["payload"]["objects"][0]["fetched_at"] == (NOW + timedelta(days=8)).isoformat()
++
++
++def test_nothing_due_writes_no_row(monkeypatch, written):
++    state = {
++        "version": 1, "preflight": {"images_count_quota": False},
++        "objects": [{"kind": "teams", "id": 1, "status": "ok", "sha256": "x", "checked_at": NOW.isoformat()}],
++    }
++    provider = Provider({})
++    summary = run(state, FakeStore(), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert provider.fetched == [] and written == [] and summary["stored"] == 0
++
++
++def test_a_404_is_recorded_as_missing_and_no_object_is_written(monkeypatch, written):
++    store = FakeStore()
++    summary = run({"preflight": {"images_count_quota": False}, "objects": []}, store, Provider({}, {URL_1: 404}), {("teams", 1): URL_1}, monkeypatch)
++    assert summary["missing"] == 1 and store.objects == {}
++    assert written[0]["payload"]["objects"][0]["status"] == "missing"
++
++
++def test_a_429_or_403_stops_the_phase_and_keeps_what_was_stored(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++    provider = Provider({URL_1: png(), URL_2: png(), LEAGUE: png()}, {URL_2: 429})
++    store = FakeStore()
++    summary = run(state, store, provider, {("teams", 1): URL_1, ("teams", 2): URL_2, ("leagues", 9): LEAGUE}, monkeypatch)
++    assert provider.fetched == [LEAGUE, URL_1, URL_2]
++    assert summary["stopped"] == f"429 on {URL_2}"
++    assert summary["stored"] == 2
++    assert [(o["kind"], o["id"]) for o in written[0]["payload"]["objects"]] == [("leagues", 9), ("teams", 1)]
++
++
++def test_a_server_error_leaves_the_state_alone(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++    summary = run(state, FakeStore(), Provider({}, {URL_1: 503}), {("teams", 1): URL_1}, monkeypatch)
++    assert summary["failed"] == 1 and written == []
++
++
++def test_a_stop_in_the_preflight_sample_leaves_the_preflight_unmeasured(monkeypatch, written):
++    provider = Provider({URL_1: png()}, {URL_1: 403})
++    summary = run(None, FakeStore(), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert summary["stopped"] == f"403 on {URL_1}"
++    assert written == []
++
++
++def test_an_unreadable_account_counter_means_no_fetch_and_no_recorded_preflight(monkeypatch, written):
++    provider = Provider({URL_1: png()})
++    provider.status_numbers = lambda headers: (0, 0)
++    summary = run(None, FakeStore(), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert provider.fetched == [] and written == []
++    assert "unreadable" in summary["skipped"]
++
++
++def test_a_sample_the_host_did_not_answer_leaves_the_preflight_unmeasured_and_the_fill_for_later(monkeypatch, written):
++    bodies = {f"https://x/{i}.png": png() for i in range(30)}
++    statuses = {url: 503 for url in bodies}
++    provider = Provider(bodies, statuses)
++    found = {("teams", i): f"https://x/{i}.png" for i in range(30)}
++    summary = run(None, FakeStore(), provider, found, monkeypatch)
++    assert summary["failed"] == crests.PREFLIGHT_SAMPLE and summary["stored"] == 0
++    assert "not measured yet" in summary["skipped"]
++    assert len(provider.fetched) == crests.PREFLIGHT_SAMPLE and written == []
++
++
++def test_the_phase_skips_itself_when_the_daily_api_quota_is_used_up(monkeypatch, written):
++    monkeypatch.setattr(crests.errors_quota, "_http_quota_exhausted", True)
++    provider = Provider({URL_1: png()})
++    summary = run(None, FakeStore(), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert "used up" in summary["skipped"] and provider.fetched == [] and written == []
++
++
++def test_one_bad_image_costs_nothing_else_and_the_others_are_kept(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++    provider = Provider({URL_1: b"<html>not an image</html>", URL_2: png(), LEAGUE: png()})
++    store = FakeStore()
++    summary = run(state, store, provider, {("teams", 1): URL_1, ("teams", 2): URL_2, ("leagues", 9): LEAGUE}, monkeypatch)
++    assert summary["failed"] == 1 and summary["stored"] == 2
++    assert [(o["kind"], o["id"]) for o in written[0]["payload"]["objects"]] == [("leagues", 9), ("teams", 2)]
++
++
++def test_a_raising_fetch_is_a_failure_and_the_run_goes_on(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++    provider = Provider({URL_2: png()})
++    real = provider.fetch
++
++    def fetch(url):
++        if url == URL_1:
++            raise TimeoutError("read timed out")
++        return real(url)
++
++    provider.fetch = fetch
++    summary = run(state, FakeStore(), provider, {("teams", 1): URL_1, ("teams", 2): URL_2}, monkeypatch)
++    assert summary["failed"] == 1 and summary["stored"] == 1
++
++
++def test_a_store_error_is_a_failure_and_never_loses_the_state_of_what_was_stored(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++
++    class FlakyStore(FakeStore):
++        def put(self, object_name, data):
++            if object_name.startswith("teams/2-"):
++                raise OSError("gcs unavailable")
++            super().put(object_name, data)
++
++    provider = Provider({URL_1: png(), URL_2: png()})
++    summary = run(state, FlakyStore(), provider, {("teams", 1): URL_1, ("teams", 2): URL_2}, monkeypatch)
++    assert summary["failed"] == 1 and summary["stored"] == 1
++    assert [(o["kind"], o["id"]) for o in written[0]["payload"]["objects"]] == [("teams", 1)]
++
++
++def test_a_failed_write_of_a_changed_badge_keeps_the_old_entry_so_the_next_run_checks_again(monkeypatch, written):
++    store = FakeStore()
++    run(None, store, Provider({URL_1: png()}), {("teams", 1): URL_1}, monkeypatch)
++    first = written[0]["payload"]
++    written.clear()
++
++    class FailingStore(FakeStore):
++        def put(self, object_name, data):
++            raise OSError("gcs unavailable")
++
++    later = NOW + timedelta(days=8)
++    summary = run(first, FailingStore(), Provider({URL_1: png(colour=(0, 0, 255, 255))}), {("teams", 1): URL_1}, monkeypatch, now=later)
++    assert summary["failed"] == 1 and written == []
++    assert first["objects"][0]["checked_at"] == NOW.isoformat()
++
++
++def test_an_unreadable_counter_after_images_count_skips_the_night_with_a_reason(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": True}, "objects": []}
++    provider = Provider({URL_1: png()})
++    provider.status_numbers = lambda headers: (0, 0)
++    summary = run(state, FakeStore(), provider, {("teams", 1): URL_1}, monkeypatch)
++    assert "unreadable" in summary["skipped"] and provider.fetched == []
++
++
++def test_an_exception_outside_the_loop_still_writes_the_state_gathered_so_far(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++    provider = Provider({URL_1: png(), URL_2: png()})
++    calls = []
++
++    def sleep(seconds):
++        calls.append(seconds)
++        if len(calls) == 2:
++            raise KeyboardInterrupt
++
++    monkeypatch.setattr(crests, "read_latest_payload_json", lambda client, table: state)
++    ctx = PipelineContext(client=object(), headers={})
++    with pytest.raises(KeyboardInterrupt):
++        crests.run(ctx, store=FakeStore(), discovered={("teams", 1): URL_1, ("teams", 2): URL_2},
++                   fetch=provider.fetch, status_numbers=provider.status_numbers, now=NOW, sleep=sleep)
++    assert [(o["kind"], o["id"]) for o in written[0]["payload"]["objects"]] == [("teams", 1)]
++
++
++def test_a_host_that_fails_every_request_stops_the_phase_after_a_run_of_failures(monkeypatch, written):
++    state = {"preflight": {"images_count_quota": False}, "objects": []}
++    urls = {f"https://x/{i}.png": 503 for i in range(60)}
++    provider = Provider({}, urls)
++    found = {("teams", i): url for i, url in enumerate(urls)}
++    summary = run(state, FakeStore(), provider, found, monkeypatch)
++    assert summary["stopped"] == f"{crests.MAX_FAILURES_IN_A_ROW} failures in a row"
++    assert len(provider.fetched) == crests.MAX_FAILURES_IN_A_ROW
++
++
++def test_the_bucket_class_turns_a_missing_bucket_into_false_and_sets_the_cache_header():
++    from google.api_core.exceptions import NotFound
++
++    class Blob:
++        def __init__(self):
++            self.cache_control = None
++            self.uploaded = None
++
++        def upload_from_string(self, data, content_type):
++            self.uploaded = (data, content_type)
++
++    blobs = {}
++
++    class Bucket:
++        def blob(self, name):
++            return blobs.setdefault(name, Blob())
++
++    class Client:
++        def __init__(self, missing):
++            self.missing = missing
++
++        def bucket(self, name):
++            return Bucket()
++
++        def list_blobs(self, bucket, max_results=None):
++            if self.missing:
++                raise NotFound("no such bucket")
++            return iter([])
++
++    assert crests.GcsStore("b", client=Client(missing=True)).exists() is False
++    present = crests.GcsStore("b", client=Client(missing=False))
++    assert present.exists() is True
++    present.put("teams/1-48.webp", b"data")
++    blob = blobs["teams/1-48.webp"]
++    assert blob.cache_control == "public, max-age=604800"
++    assert blob.uploaded == (b"data", "image/webp")
++
++
++def test_the_discovery_query_reads_the_latest_row_per_league_of_both_raw_tables():
++    seen: list[str] = []
++
++    class Result:
++        def __init__(self, rows):
++            self.rows = rows
++
++        def result(self):
++            return self.rows
++
++    class Client:
++        def query(self, sql):
++            seen.append(sql)
++            if "RAW_APIF_TEAMS" in sql:
++                return Result([{"provider_id": "1", "source_url": URL_1}, {"provider_id": "x", "source_url": "bad"}])
++            return Result([{"provider_id": "9", "source_url": LEAGUE}])
++
++    found = crests.discover(Client())
++    assert found == {("teams", 1): URL_1, ("leagues", 9): LEAGUE}
++    assert all("partition by league_code order by ingested_at desc" in sql for sql in seen)
++    assert "$.team.logo" in seen[0] and "$.league.logo" in seen[1]
++
++
++def test_only_the_two_dimensions_read_the_models_that_carry_the_provider_logo_address():
++    """A mart that read a base or staging team or league model would publish the provider's host."""
++    import re
++    from pathlib import Path
++
++    models = Path(__file__).resolve().parents[1] / "dbt_project" / "models"
++    carriers = re.compile(r"ref\(\s*'(base_apif__(teams|teams_global|leagues|league_entity)|stg_apif__(teams|leagues))'\s*\)")
++    readers = {
++        path.name
++        for folder in ("3_core", "4_intermediate", "5_marts")
++        for path in (models / folder).rglob("*.sql")
++        if carriers.search(path.read_text(encoding="utf-8"))
++    }
++    assert readers <= {"dim_team.sql", "dim_league.sql", "dim_team_competition_season_mapping.sql"}, readers
++
++
++def test_the_two_dimensions_publish_the_crest_path_only_where_an_object_is_stored():
++    from pathlib import Path
++
++    models = Path(__file__).resolve().parents[1] / "dbt_project" / "models" / "3_core"
++    team = (models / "dim_team.sql").read_text(encoding="utf-8")
++    league = (models / "dim_league.sql").read_text(encoding="utf-8")
++    assert "'/crests/teams/', cast(teams.team_api_id as string), '-104.webp'" in team
++    assert "'/crests/leagues/', cast(leagues.league_api_id as string), '-104.webp'" in league
++    assert "when crests.provider_id is not null" in team and "when crests.provider_id is not null" in league
++
++
++def test_the_phase_runs_after_the_player_loads_and_never_fails_the_ingest():
++    from pathlib import Path
++
++    text = (Path(crests.__file__).parents[1] / "orchestrator.py").read_text(encoding="utf-8")
++    assert text.index("load_player_teams_global(ctx, universe=shared_universe)") < text.index("crests.run(ctx)")
++    assert "phase failed, ingest continues" in text
+diff --git a/tests/test_nightly_site_deploy.py b/tests/test_nightly_site_deploy.py
+index 85eeff19..a75d154a 100644
+--- a/tests/test_nightly_site_deploy.py
++++ b/tests/test_nightly_site_deploy.py
+@@ -192,6 +192,29 @@ def test_the_sample_is_replaced_by_the_export_and_the_readme_stays(tmp_path):
+     assert list(export.iterdir()) == [], "the export is moved, so no second copy stays on the memory disk"
+ 
+ 
++def test_the_crests_are_copied_into_the_public_folder_after_the_export_and_before_the_build():
++    from pathlib import Path
++
++    assert nsd.CRESTS_DIR == nsd.SITE_DIR / "public" / "crests"
++    text = Path(nsd.__file__).read_text(encoding="utf-8")
++    sample = text.index("replace_sample_with_export(SITE_DIR, EXPORT_DIR)")
++    crests = text.index('step("crests"')
++    build = text.index('"build and gates"')
++    assert sample < crests < build
++    assert "scripts/sync_crests.py" in text
++
++
++def test_firebase_serves_the_crests_with_a_seven_day_cache_and_the_copy_is_not_committed():
++    import json
++    from pathlib import Path
++
++    site = Path(nsd.SITE_DIR)
++    headers = json.loads((site / "firebase.json").read_text(encoding="utf-8"))["hosting"]["headers"]
++    crest = next(h for h in headers if h["source"] == "/crests/**")
++    assert crest["headers"] == [{"key": "Cache-Control", "value": "public, max-age=604800"}]
++    assert "public/crests/" in (site / ".gitignore").read_text(encoding="utf-8").splitlines()
++
++
+ def test_a_live_site_without_a_counts_file_refuses_unless_the_run_is_flagged_first():
+     assert nsd.floor_issues(None, {"counts": {}}, allow_first=False)
+     assert nsd.floor_issues(None, {"counts": {}}, allow_first=True) == []
+@@ -242,7 +265,7 @@ def test_the_steps_run_in_order_and_the_counts_file_goes_into_dist_before_the_de
+ 
+     assert nsd.deploy(object()) == 0
+ 
+-    assert recorder.names == ["export", "build and gates", "deploy"]
++    assert recorder.names == ["export", "crests", "build and gates", "deploy"]
+     assert json.loads((nsd.SITE_DIR / "dist" / nsd.PUBLISHED_MANIFEST).read_text())["counts"] == LIVE["counts"]
+ 
+ 
+@@ -279,7 +302,7 @@ def test_a_missing_counts_file_stops_the_job_before_the_build_unless_flagged(job
+     recorder = _Recorder(job / "export")
+     monkeypatch.setattr(nsd, "step", recorder)
+     assert nsd.deploy(object()) == 0
+-    assert recorder.names == ["export", "build and gates", "deploy"]
++    assert recorder.names == ["export", "crests", "build and gates", "deploy"]
+ 
+ 
+ def test_step_raises_on_a_failing_command():
+diff --git a/tests/test_sync_crests.py b/tests/test_sync_crests.py
+new file mode 100644
+index 00000000..0b3934de
+--- /dev/null
++++ b/tests/test_sync_crests.py
+@@ -0,0 +1,65 @@
++"""The crest sync: what lands in the site's public folder and what a missing bucket does."""
++
++from __future__ import annotations
++
++import importlib.util
++from pathlib import Path
++
++import pytest
++from google.api_core.exceptions import Forbidden, NotFound
++
++SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "sync_crests.py"
++spec = importlib.util.spec_from_file_location("sync_crests", SCRIPT)
++sync_crests = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(sync_crests)
++
++
++class Blob:
++    def __init__(self, name: str, data: bytes = b"webp"):
++        self.name = name
++        self.data = data
++
++    def download_to_filename(self, path: str) -> None:
++        Path(path).write_bytes(self.data)
++
++
++class Client:
++    def __init__(self, blobs=None, error: Exception | None = None):
++        self.blobs = blobs or []
++        self.error = error
++
++    def list_blobs(self, bucket: str):
++        if self.error:
++            raise self.error
++        return iter(self.blobs)
++
++
++def test_the_objects_land_under_their_own_names(tmp_path):
++    client = Client([Blob("teams/1-48.webp", b"a"), Blob("leagues/9-104.webp", b"b")])
++    result = sync_crests.sync(tmp_path, client=client, bucket="b")
++    assert result == {"files": 2, "skipped": None}
++    assert (tmp_path / "teams" / "1-48.webp").read_bytes() == b"a"
++    assert (tmp_path / "leagues" / "9-104.webp").read_bytes() == b"b"
++
++
++def test_a_name_outside_the_layout_is_not_copied(tmp_path):
++    client = Client([Blob("teams/1-48.webp"), Blob("teams/1-48.png"), Blob("../escape.webp"), Blob("other/1-48.webp")])
++    assert sync_crests.sync(tmp_path, client=client, bucket="b")["files"] == 1
++    assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*.*")) == ["teams/1-48.webp"]
++
++
++def test_a_missing_bucket_is_a_warning_with_no_files(tmp_path, capsys):
++    result = sync_crests.sync(tmp_path, client=Client(error=NotFound("no bucket")), bucket="b")
++    assert result == {"files": 0, "skipped": "no bucket"}
++    assert "does not exist yet" in capsys.readouterr().out
++    assert list(tmp_path.iterdir()) == []
++
++
++def test_any_other_error_fails_the_run(tmp_path):
++    with pytest.raises(Forbidden):
++        sync_crests.sync(tmp_path, client=Client(error=Forbidden("no access")), bucket="b")
++
++
++def test_the_default_destination_is_the_sites_public_folder_and_the_bucket_is_the_ingest_constant():
++    assert sync_crests.DEFAULT_DEST.as_posix().endswith("site_v2/public/crests")
++    assert sync_crests.bucket_name() == "football-data-pipeline-gcp-crests"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/36-crest-hosting/review_input.patch | 1842 ++++++++++++++++++++++
+#    1 file changed, 1842 insertions(+)
+# ============================================================================

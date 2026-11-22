@@ -192,6 +192,29 @@ def test_the_sample_is_replaced_by_the_export_and_the_readme_stays(tmp_path):
     assert list(export.iterdir()) == [], "the export is moved, so no second copy stays on the memory disk"
 
 
+def test_the_crests_are_copied_into_the_public_folder_after_the_export_and_before_the_build():
+    from pathlib import Path
+
+    assert nsd.CRESTS_DIR == nsd.SITE_DIR / "public" / "crests"
+    text = Path(nsd.__file__).read_text(encoding="utf-8")
+    sample = text.index("replace_sample_with_export(SITE_DIR, EXPORT_DIR)")
+    crests = text.index('step("crests"')
+    build = text.index('"build and gates"')
+    assert sample < crests < build
+    assert "scripts/sync_crests.py" in text
+
+
+def test_firebase_serves_the_crests_with_a_seven_day_cache_and_the_copy_is_not_committed():
+    import json
+    from pathlib import Path
+
+    site = Path(nsd.SITE_DIR)
+    headers = json.loads((site / "firebase.json").read_text(encoding="utf-8"))["hosting"]["headers"]
+    crest = next(h for h in headers if h["source"] == "/crests/**")
+    assert crest["headers"] == [{"key": "Cache-Control", "value": "public, max-age=604800"}]
+    assert "public/crests/" in (site / ".gitignore").read_text(encoding="utf-8").splitlines()
+
+
 def test_a_live_site_without_a_counts_file_refuses_unless_the_run_is_flagged_first():
     assert nsd.floor_issues(None, {"counts": {}}, allow_first=False)
     assert nsd.floor_issues(None, {"counts": {}}, allow_first=True) == []
@@ -242,7 +265,7 @@ def test_the_steps_run_in_order_and_the_counts_file_goes_into_dist_before_the_de
 
     assert nsd.deploy(object()) == 0
 
-    assert recorder.names == ["export", "build and gates", "deploy"]
+    assert recorder.names == ["export", "crests", "build and gates", "deploy"]
     assert json.loads((nsd.SITE_DIR / "dist" / nsd.PUBLISHED_MANIFEST).read_text())["counts"] == LIVE["counts"]
 
 
@@ -279,7 +302,7 @@ def test_a_missing_counts_file_stops_the_job_before_the_build_unless_flagged(job
     recorder = _Recorder(job / "export")
     monkeypatch.setattr(nsd, "step", recorder)
     assert nsd.deploy(object()) == 0
-    assert recorder.names == ["export", "build and gates", "deploy"]
+    assert recorder.names == ["export", "crests", "build and gates", "deploy"]
 
 
 def test_step_raises_on_a_failing_command():

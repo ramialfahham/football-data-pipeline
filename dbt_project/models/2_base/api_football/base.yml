@@ -900,3 +900,34 @@ models:
       - name: start_date
         description: "The date this coaching stint began, as the provider's career record gives it. Never NULL: a stint with no known start date is dropped before this model is built."
         tests: [not_null]
+
+  - name: base_apif__crest_objects
+    description: >
+      One row per crest or league logo whose files are stored in the crest bucket, from the newest
+      state the crest phase wrote. An image the provider answered 404 for has no files and no row.
+      dim_team and dim_league publish a crest path only for a team or league with a row here.
+      Grain: (crest_kind, provider_id).
+    config:
+      tags: ["base", "api_football", "crest_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [crest_kind, provider_id]
+    columns:
+      - name: crest_kind
+        description: "What the image shows: teams for a team crest, leagues for a league logo."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["teams", "leagues"]
+      - name: provider_id
+        description: "The provider's id of the team or league the image belongs to."
+        tests: [not_null]
+      - name: source_sha256
+        description: "The SHA-256 of the provider's image as last fetched."
+        tests: [not_null]
+      - name: fetched_at
+        description: "When the stored files were last written."
+      - name: checked_at
+        description: "When the provider's image was last fetched to look for a change."
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"

@@ -298,7 +298,16 @@ Support safe scheduling, not match statistics.
 | Purpose | BigQuery table |
 |---------|----------------|
 | Single-flight ingest lock | `RAW_APIF_INGEST_LOCK` |
+| Crest and league-logo files held in the crest bucket (one payload row per run, the whole state) | `RAW_APIF_CREST_OBJECTS` |
 | Optional fanout cursor (rotating "where to continue") | `RAW_APIF_{league_code}_INGEST_CURSOR` |
+
+`RAW_APIF_CREST_OBJECTS` is payload-only and append-only. The newest row holds the whole state, so a reader never merges rows.
+A run that fetched or checked no image writes no row. The payload keys are:
+
+- `version`: the payload shape, 1.
+- `preflight`: `images_count_quota` (true when image requests moved the account counter), `measured_at`, `requests_before` and `requests_after`.
+  It is empty until the pre-flight has measured.
+- `objects`: one entry per image, with `kind` (`teams` or `leagues`), `id`, `source_url`, `status` (`ok` or `missing`), `sha256`, `fetched_at` and `checked_at`.
 
 ---
 

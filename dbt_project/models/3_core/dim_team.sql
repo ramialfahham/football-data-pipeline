@@ -10,6 +10,10 @@ import_dim_league as (
     select * from {{ ref('dim_league') }}
 ),
 
+import_base_apif__crest_objects as (
+    select * from {{ ref('base_apif__crest_objects') }}
+),
+
 fixture_sides as (
     select
         league_code,
@@ -45,14 +49,21 @@ select
     teams.team_country,
     teams.country_needs_research,
     teams.team_founded_year,
-    teams.team_logo_url,
     teams.venue_api_id,
     teams.venue_name,
     teams.venue_address,
     teams.venue_city,
     teams.venue_capacity,
     teams.raw_ingested_at,
-    national_teams.team_api_id is not null as is_national_team
+    national_teams.team_api_id is not null as is_national_team,
+    case
+        when crests.provider_id is not null
+            then concat('/crests/teams/', cast(teams.team_api_id as string), '-104.webp')
+    end as team_logo_url
 from import_base_apif__teams_global as teams
 left join national_teams
     on teams.team_api_id = national_teams.team_api_id
+left join import_base_apif__crest_objects as crests
+    on
+        teams.team_api_id = crests.provider_id
+        and crests.crest_kind = 'teams'

@@ -402,9 +402,12 @@ image of `deploy/site/Dockerfile`. Its steps:
    The live counts are the file the previous deploy published at
    `https://football-data-pipeline-gcp.web.app/export-manifest.json`. A 404 stops the job unless the execution sets `ALLOW_FIRST_DEPLOY=1`.
    Set it for the first deploy, and after a manual deploy, which publishes no counts file. Any other fetch error stops the job.
-4. **Build and gates.** The export replaces the committed sample, then `npm run build` runs at an 8 GB heap.
-   That is the prebuild tests, `astro build`, `audit-seo` and `check-built-pages`.
-5. **Deploy.** The counts file goes into `dist/`, then `firebase deploy --only hosting` runs.
+4. **Crests.** `scripts/sync_crests.py` copies the crest bucket into `site_v2/public/crests/`. A bucket that does not exist yet
+   gives a warning and no files. Any other error stops the job.
+5. **Build and gates.** The export replaces the committed sample, then `npm run build` runs at an 8 GB heap.
+   That is the prebuild tests, `astro build`, `audit-seo` and `check-built-pages`. On a full export the check fails when a crest
+   path on a page is no file under `dist/`.
+6. **Deploy.** The counts file goes into `dist/`, then `firebase deploy --only hosting` runs.
    A red gate stops the job before this step, so the live site keeps the previous build.
 
 The Cloud Run disk is memory. The export (about 3 GB, moved into the build folder, not copied) and `dist` (about 13 GB) live in it.
@@ -522,3 +525,63 @@ gcloud scheduler jobs pause fdp-site --location europe-west1
 Roll a bad deploy back in the Firebase console: Hosting, release history, Rollback on the previous release.
 The manual `deploy:export` and `deploy:site-v2` jobs in `.gitlab-ci.yml` stay as the fallback by web dispatch.
 They publish no counts file, so the next run of `fdp-site` after one needs `--update-env-vars ALLOW_FIRST_DEPLOY=1`.
+
+---
+
+## The crest bucket
+
+Team crests and league logos come from our own domain. The ingest stores them. The site build serves them.
+
+| | |
+|---|---|
+| Bucket | `gs://football-data-pipeline-gcp-crests`, `europe-west1`, private |
+| Objects | `teams/{id}-48.webp`, `teams/{id}-104.webp`, `leagues/{id}-48.webp`, `leagues/{id}-104.webp` |
+| State table | `raw.RAW_APIF_CREST_OBJECTS`, one row per run that fetched or checked an image |
+| Written by | the crest phase of `python -m ingestion.api_football.main`, inside `fdp-nightly` |
+| Read by | `scripts/sync_crests.py`, step 4 of `fdp-site`, which copies it into `site_v2/public/crests/` |
+| Served at | `/crests/{teams|leagues}/{id}-104.webp` on our own domain, with a 7-day browser cache (`site_v2/firebase.json`) |
+
+### Create the state table, once, before the merge
+
+The data build reads `RAW_APIF_CREST_OBJECTS` as a source, so the table must exist before the merge. The command creates it empty. It uses the ingest's own table helper and changes nothing when the table exists.
+
+```bash
+PYTHONPATH=. python -c "from google.cloud import bigquery; from ingestion.api_football.bigquery import ensure_raw_table_partitioned; ensure_raw_table_partitioned(bigquery.Client(project='football-data-pipeline-gcp'), 'RAW_APIF_CREST_OBJECTS')"
+```
+
+The table has two columns, `payload` (JSON) and `ingested_at` (TIMESTAMP), partitioned by day on `ingested_at`. The crest phase creates the same table when it runs.
+
+### Create the bucket, once, before the first nightly after the merge
+
+The CPO runs two commands. The nightly service account writes to the bucket. The site job reads from it. One grant serves both.
+
+```bash
+gcloud storage buckets create gs://football-data-pipeline-gcp-crests --project=football-data-pipeline-gcp --location=europe-west1 --default-storage-class=STANDARD --uniform-bucket-level-access --public-access-prevention
+
+gcloud storage buckets add-iam-policy-binding gs://football-data-pipeline-gcp-crests --member=serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com --role=roles/storage.objectUser
+```
+
+Before the bucket exists, the crest phase logs it and writes nothing. The dimensions publish no crest path. The pages show initials.
+
+### What the first nightly does
+
+1. **Pre-flight.** The phase reads the account counter with `GET /status`. That call does not count against the quota.
+   It fetches 10 images and reads the counter again. The result, `images_count_quota`, stays in the state. The pre-flight runs once.
+2. **Fill.** It fetches every image that has no state, about 3,300 in all. It waits 0.34 seconds between images. It stops on the first 403 or 429.
+   If image requests count against the quota, each run fetches at most the requests left today minus 1,000.
+3. **Shrink.** Each image becomes two WebP files, fitted inside 48 px and 104 px. Transparency stays.
+4. **Check for a change.** Each night, images not checked for 7 days are fetched again, about 475 a night. Their SHA-256 is compared with the state.
+   A changed badge is shrunk and written again. The provider's address does not change with the badge, so content is the only signal.
+
+Then `dbt build` publishes the paths. The next `fdp-site` run copies the files and deploys them.
+
+### Look at it
+
+```bash
+gcloud storage ls gs://football-data-pipeline-gcp-crests/teams/ | wc -l
+bq query --use_legacy_sql=false 'select json_value(payload, "$.preflight.images_count_quota") as images_count_quota, array_length(json_query_array(payload, "$.objects")) as objects, ingested_at from `football-data-pipeline-gcp.raw.RAW_APIF_CREST_OBJECTS` order by ingested_at desc limit 1'
+```
+
+### Roll back
+
+Remove the bucket binding or the bucket. The next ingest logs that the bucket is missing. The next `dbt build` publishes no paths. The pages show initials.

@@ -850,8 +850,8 @@ same value for the row's team.
 {% enddocs %}
 
 {% docs team_logo_url %}
-The team's crest URL as dim_team publishes it, copied unchanged wherever a team is shown. NULL
-when no crest is ingested for the team.
+The path of the team's crest on this site, as dim_team publishes it ("/crests/teams/{id}-104.webp"),
+copied unchanged wherever a team is shown. NULL when no crest is stored for the team.
 {% enddocs %}
 
 {% docs team_country %}
@@ -899,8 +899,8 @@ opponent_team_sk.
 {% enddocs %}
 
 {% docs opponent_logo_url %}
-The opposing team's crest URL for this row's fixture, denormalised from dim_team via
-opponent_team_sk. NULL when the opponent has no crest ingested.
+The path of the opposing team's crest on this site for this row's fixture, denormalised from
+dim_team via opponent_team_sk. NULL when no crest is stored for the opponent.
 {% enddocs %}
 
 {% docs goals_total__leg %}

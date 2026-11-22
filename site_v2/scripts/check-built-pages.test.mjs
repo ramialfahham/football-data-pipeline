@@ -13,7 +13,7 @@ import {
   boards, isZeroValue,
   main as mainWithPins, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
   checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
-  checkImageOrigins, countImages, emptyImageCounts, imageKind, imageUrls, IMAGE_PINS,
+  checkImageOrigins, countImages, emptyImageCounts, imageKind, imageUrls, IMAGE_PINS, crestPath, checkCrestFiles,
 } from "./check-built-pages.mjs";
 
 // The trees the main tests write carry no images; the pins describe the committed sample, so they
@@ -557,6 +557,59 @@ test("main holds a pin above 0 on a sample build and only reports it on a full e
     assert.equal(run(), 0, "a full export is not failed on a pin above 0");
     photo();
     assert.equal(run(), 1, "a pin at 0 holds on a full export");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a crest path on our own domain is read from a relative address and from our host, never from another", () => {
+  assert.equal(crestPath("/crests/teams/1-104.webp"), "/crests/teams/1-104.webp");
+  assert.equal(crestPath("/crests/teams/1-104.webp?v=2"), "/crests/teams/1-104.webp");
+  assert.equal(crestPath("https://matchdaypilot.com/crests/leagues/9-104.webp"), "/crests/leagues/9-104.webp");
+  assert.equal(crestPath("//matchdaypilot.com/crests/leagues/9-104.webp"), "/crests/leagues/9-104.webp");
+  assert.equal(crestPath("https://cdn.example.com/crests/teams/1-104.webp"), null);
+  assert.equal(crestPath("/assets/crest.png"), null);
+  assert.equal(imageKind("/crests/teams/1-104.webp"), "ours");
+});
+
+test("the crest paths of a page are collected from img, social cards and JSON-LD", () => {
+  const counts = countImages(
+    '<img src="/crests/teams/1-104.webp"><meta property="og:image" content="https://matchdaypilot.com/crests/teams/2-104.webp">' +
+      '<script type="application/ld+json">{"logo":"https://matchdaypilot.com/crests/leagues/9-104.webp"}</script>',
+    "/en/x/", emptyImageCounts(),
+  );
+  assert.deepEqual([...counts.crestPaths].sort(), ["/crests/leagues/9-104.webp", "/crests/teams/1-104.webp", "/crests/teams/2-104.webp"]);
+  assert.equal(counts.providerImage, 0);
+});
+
+test("a full export fails on a crest path that is no file under dist, and a sample build only reports it", () => {
+  const paths = new Set(["/crests/teams/1-104.webp", "/crests/teams/2-104.webp"]);
+  const has = (p) => p === "/crests/teams/1-104.webp";
+  const full = checkCrestFiles(paths, { exists: has, fullBuild: true });
+  assert.equal(full.missing, 1);
+  assert.match(full.issues[0], /1 crest path\(s\) named by the pages are no file under dist\/ \(first: \/crests\/teams\/2-104\.webp\)/);
+  assert.deepEqual(checkCrestFiles(paths, { exists: has, fullBuild: false }), { issues: [], missing: 1 });
+  assert.deepEqual(checkCrestFiles(paths, { exists: () => true, fullBuild: true }), { issues: [], missing: 0 });
+});
+
+test("main checks the crest files against dist: a full export fails without them and passes with them", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-crest-"));
+  try {
+    mkdirSync(join(root, "data"), { recursive: true });
+    mkdirSync(join(root, "dist", "en"), { recursive: true });
+    writeFileSync(join(root, "dist", "en", "index.html"), '<html><body><img src="/crests/teams/1-104.webp"></body></html>');
+    const manifest = () => writeFileSync(join(root, "data", "manifest.json"), JSON.stringify(
+      { counts: { fixture: 0 }, source_counts: { fixtures_unplayed: 0, fixtures_played: 0 } }));
+    const errors = t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    assert.equal(main(join(root, "dist"), join(root, "data")), 0, "a sample build only reports it");
+    manifest();
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    assert.ok(errors.mock.calls.some((c) => /crest sync did not copy them/.test(c.arguments[0])));
+    mkdirSync(join(root, "dist", "crests", "teams"), { recursive: true });
+    writeFileSync(join(root, "dist", "crests", "teams", "1-104.webp"), "x");
+    errors.mock.resetCalls();
+    assert.equal(main(join(root, "dist"), join(root, "data")), 0, errors.mock.calls.map((c) => c.arguments[0]).join("\n"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

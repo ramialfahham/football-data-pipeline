@@ -8,6 +8,10 @@ import_competition_registry as (
 
 import_competition_types as (
     select * from {{ ref('competition_types') }}
+),
+
+import_base_apif__crest_objects as (
+    select * from {{ ref('base_apif__crest_objects') }}
 )
 
 select
@@ -17,7 +21,6 @@ select
     leagues.league_name,
     leagues.league_type,
     leagues.league_country,
-    leagues.league_logo_url,
     leagues.country_flag_url,
     registry.competition_type,
     types.entity_type,
@@ -25,9 +28,17 @@ select
     registry.confederation,
     registry.slug,
     registry.season_type,
-    leagues.raw_ingested_at
+    leagues.raw_ingested_at,
+    case
+        when crests.provider_id is not null
+            then concat('/crests/leagues/', cast(leagues.league_api_id as string), '-104.webp')
+    end as league_logo_url
 from import_base_apif__league_entity as leagues
 left join import_competition_registry as registry
     on leagues.league_code = registry.league_code
 left join import_competition_types as types
     on registry.competition_type = types.competition_type
+left join import_base_apif__crest_objects as crests
+    on
+        leagues.league_api_id = crests.provider_id
+        and crests.crest_kind = 'leagues'

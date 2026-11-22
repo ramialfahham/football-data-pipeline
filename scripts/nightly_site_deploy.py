@@ -5,8 +5,9 @@ Steps, each failing the job on error and stopping before the Firebase deploy:
   2. export every entity the built pages read (`export_site_data.py --entities deploy`);
   3. the export's counts must hold against the counts the live site's previous deploy published;
   4. replace the committed sample under site_v2/src/data with the export;
-  5. `npm run build`: the build, `audit-seo` and `check-built-pages`;
-  6. publish the counts beside the site, then `firebase deploy --only hosting`.
+  5. copy the crest bucket into site_v2/public/crests, so the build serves crests from our domain;
+  6. `npm run build`: the build, `audit-seo` and `check-built-pages`;
+  7. publish the counts beside the site, then `firebase deploy --only hosting`.
 
 The job runs as its service account, so Google clients and firebase-tools take application default
 credentials with no key file.
@@ -48,6 +49,7 @@ FIRST_DEPLOY_FLAG = "ALLOW_FIRST_DEPLOY"
 REPO = Path(__file__).resolve().parents[1]
 SITE_DIR = REPO / "site_v2"
 EXPORT_DIR = Path(os.environ.get("TMPDIR", "/tmp")) / "site_export"
+CRESTS_DIR = SITE_DIR / "public" / "crests"
 
 
 def log(message: str) -> None:
@@ -204,6 +206,7 @@ def deploy(session) -> int:
         raise SystemExit("[nightly-site] refusing to deploy: " + "; ".join(issues))
 
     replace_sample_with_export(SITE_DIR, EXPORT_DIR)
+    step("crests", [sys.executable, "scripts/sync_crests.py", "--dest", str(CRESTS_DIR)], env=env)
     step(
         "build and gates",
         ["npm", "run", "build"],
