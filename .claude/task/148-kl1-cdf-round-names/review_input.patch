@@ -1,0 +1,60 @@
+diff --git a/.claude/task/148-kl1-cdf-round-names/contract.md b/.claude/task/148-kl1-cdf-round-names/contract.md
+new file mode 100644
+index 00000000..6a4f6252
+--- /dev/null
++++ b/.claude/task/148-kl1-cdf-round-names/contract.md
+@@ -0,0 +1,42 @@
++# Task contract — round names for K League 1's split rounds and the Coupe de France's 2026 rounds
++
++objective: >
++  The latest season of K League 1 (Championship Group - N, Relegation Group - N) and of the Coupe de
++  France (1/128-finals, Round of 128) has a name for every round, so the competition page's meta line
++  and Matchdays picker show a name on both and `mart_competition_index` carries a current round for
++  KL1 and CDF. Four rows are added to `dbt_project/seeds/round_names.csv`, each following the row it
++  mirrors: the two K League 1 rows reuse Veikkausliiga's split-season keys and texts, the two Coupe de
++  France 2026 rows repeat the 2025 season's rows (Seventh round, Eighth round), which the fixtures'
++  dates match: 92 ties on 31 Oct to 15 Nov and 46 ties on 27 to 29 Nov, as in 2025.
++refs: "#148"
++
++scope_paths:
++  - dbt_project/seeds/round_names.csv
++  - .claude/task/148-kl1-cdf-round-names/contract.md
++  - .claude/task/148-kl1-cdf-round-names/review.md
++  - .claude/task/148-kl1-cdf-round-names/review_input.patch
++
++depends_on:
++  - none: the change stands alone; the copy keys it uses already exist in site_v2/src/i18n/strings.ts in EN, DE and FI
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  The coordinating session's message of 2026-11-22 rules the work: add the K League 1 and Coupe de
++  France rows, names following the existing rows' pattern, pre-go-live fan wording being the
++  coordinator's call. It also covers the two sibling rounds that stand in the same latest-season gap
++  (KL1 Championship Group, CDF 1/128-finals), which the stored failures of
++  assert_every_round_text_resolves list with the two named. No new key, no new text, no cost.
++
++decisions_reserved:
++  - "none: every name reuses a text already in strings.ts; the Play-In Final of the Chilean cup CNL, also unnamed, is left as it is"
++
++approved_design:
++  - none: no page layout changes; the competition page's meta line and Matchdays picker already render a served round name
++
++done_when:
++  - "`.venv/Scripts/dbt.exe parse --project-dir dbt_project` passes."
++  - "`python scripts/check_copy_gate.py` passes: every key of the new rows exists in EN, DE and FI."
++  - "In the merge request's data build, `assert_every_round_text_resolves` reports no KL1 or CDF row, and `mart_competition_index` has a `current_round_label_i18n_key` for KL1 and CDF."
++
++amendments: (none)
+diff --git a/dbt_project/seeds/round_names.csv b/dbt_project/seeds/round_names.csv
+index 041b34d2..96262bad 100644
+--- a/dbt_project/seeds/round_names.csv
++++ b/dbt_project/seeds/round_names.csv
+@@ -100,3 +100,7 @@ WCQCA,,126,^final round - (\d+)$,roundCaFinalRoundMatchday,Final Round · Matchd
+ VL,,130,^championship (group|round) - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,,table
+ VL,,131,^relegation (group|round) - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,,table
+ VL,,132,^relegation$,roundVlRelegationPlayoff,Relegation play-off,,,knockout
++KL1,,146,^championship group - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,,table
++KL1,,147,^relegation group - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,,table
++CDF,2026,144,^1/128-finals$,roundSeventhRound,Seventh round,,,knockout
++CDF,2026,145,^round of 128$,roundEighthRound,Eighth round,,,knockout

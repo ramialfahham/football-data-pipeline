@@ -100,3 +100,7 @@ WCQCA,,126,^final round - (\d+)$,roundCaFinalRoundMatchday,Final Round · Matchd
 VL,,130,^championship (group|round) - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,,table
 VL,,131,^relegation (group|round) - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,,table
 VL,,132,^relegation$,roundVlRelegationPlayoff,Relegation play-off,,,knockout
+KL1,,146,^championship group - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,,table
+KL1,,147,^relegation group - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,,table
+CDF,2026,144,^1/128-finals$,roundSeventhRound,Seventh round,,,knockout
+CDF,2026,145,^round of 128$,roundEighthRound,Eighth round,,,knockout
