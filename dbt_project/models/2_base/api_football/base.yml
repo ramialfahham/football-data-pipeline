@@ -654,10 +654,12 @@ models:
       - name: player_api_id
         description: "{{ doc('player_api_id') }}"
         tests: [not_null]
-      - name: has_conflicting_birth_date
-        description: "True when the player's rows from the delivery that gave his birth date hold two real birth dates. A row in player_bio_corrections settles it."
-      - name: has_conflicting_nationality
-        description: "True when the player's rows from the delivery that gave his nationality hold two real nationalities. A row in player_bio_corrections settles it."
+      - name: birth_date_needs_research
+        description: "True when the player's rows from the delivery that gave his birth date hold two real birth dates and player_bio_corrections has no row for it. His birth date is then blank."
+        tests: [not_null]
+      - name: nationality_needs_research
+        description: "True when the player's rows from the delivery that gave his nationality hold two real nationalities and player_bio_corrections has no row for it. His nationality is then blank."
+        tests: [not_null]
 
   - name: base_apif__player_profiles
     description: >

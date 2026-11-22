@@ -223,17 +223,23 @@ corrected as (
         latest.player_last_name,
         latest.player_photo_url,
         latest.raw_ingested_at,
-        latest.has_conflicting_birth_date,
-        latest.has_conflicting_nationality,
+        latest.has_conflicting_birth_date and birth_date_fix.player_api_id is null as birth_date_needs_research,
+        latest.has_conflicting_nationality and nationality_fix.player_api_id is null as nationality_needs_research,
         safe_cast(
-            {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
+            {{ withheld_when_conflicting(
+                'latest.has_conflicting_birth_date',
+                'birth_date_fix.player_api_id is not null',
+                bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)')
+            ) }} as date
         ) as player_birth_date,
         nullif(
             trim(
-                coalesce(
-                    nationality_overrides.country_name,
-                    {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
-                )
+                {{ withheld_when_conflicting(
+                    'latest.has_conflicting_nationality',
+                    'nationality_fix.player_api_id is not null',
+                    'coalesce(nationality_overrides.country_name, '
+                    ~ bio_correction('nationality_fix', 'latest.player_nationality') ~ ')'
+                ) }}
             ),
             ''
         ) as player_nationality
@@ -258,8 +264,8 @@ select
     player_birth_date,
     player_photo_url,
     raw_ingested_at,
-    has_conflicting_birth_date,
-    has_conflicting_nationality,
+    birth_date_needs_research,
+    nationality_needs_research,
     {{ repair_garbled_text('player_name') }} as player_name,
     {{ repair_garbled_text('player_first_name') }} as player_first_name,
     {{ repair_garbled_text('player_last_name') }} as player_last_name,
