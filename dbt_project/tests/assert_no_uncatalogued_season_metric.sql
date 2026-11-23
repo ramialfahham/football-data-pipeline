@@ -33,7 +33,7 @@
     'team_sk', 'player_sk', 'league_sk', 'season_sk', 'league_code', 'season_api_year',
     'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
     'player_stat_coverage_season_games', 'games_with_team_stats',
-    'games_expecting_team_stats', 'entity_type',
+    'games_expecting_team_stats', 'entity_type', 'counts_withheld',
     'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at',
     'midfield_role', 'midfield_role_from'
 ] %}

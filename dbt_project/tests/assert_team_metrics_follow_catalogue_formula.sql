@@ -3,7 +3,8 @@
   int_legs__team_match and int_legs__team_from_players over the surface's own window, under the
   rules in models/docs/metric_rules.md. The formula is read from the seed at run time, so a surface
   that drifts from the catalogue, or a catalogue change the surfaces did not follow, fails here.
-  Floats compare at a relative 1e-9.
+  Floats compare at a relative 1e-9. On int_team_season__metrics a team-season whose results
+  disagree with the provider's standings (team_seasons_off_standings) expects every value blank.
 
   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
   grain present on one side only.
@@ -28,7 +29,7 @@
     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
      'grain': ['team_sk', 'league_code', 'season_api_year', 'match_number'], 'windowed': true},
     {'model': 'int_team_season__metrics', 'rows': 'season_rows',
-     'grain': ['team_sk', 'season_sk'], 'windowed': false},
+     'grain': ['team_sk', 'season_sk'], 'windowed': false, 'off_standings': true},
     {'model': 'int_team_momentum__metrics', 'rows': 'momentum_rows',
      'grain': ['upcoming_fixture_sk', 'team_sk'], 'windowed': false},
     {'model': 'mart_team_window_metrics', 'rows': 'window_mart_rows',
@@ -87,7 +88,22 @@
     {% endif %}
 {% endif %}
 
-with legs as (
+with leg_counts as (
+    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
+),
+
+-- a team-season whose results disagree with the provider's standings is withheld, so its
+-- whole-season values must be blank; derived from the legs and fct_standings, never from the flag
+off_standings_seasons as (
+    select distinct
+        team_sk,
+        season_sk
+    from (
+        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
+    )
+),
+
+legs as (
     select
         tm.*,
         tp.passes_key,
@@ -190,13 +206,17 @@ phase_rows as (
             struct(
                 '{{ m.metric }}' as metric_id,
                 cast(m.{{ m.metric }} as float64) as model_value,
-                cast(e.{{ m.metric }} as float64) as expected_value
+                {% if s.off_standings %}if(d.team_sk is not null, null, cast(e.{{ m.metric }} as float64)){% else %}cast(e.{{ m.metric }} as float64){% endif %} as expected_value
             ){% if not loop.last %},{% endif %}
             {% endfor %}
         ] as metric_values
     from {{ s.model }}__expected as e
     full outer join {{ ref(s.model) }} as m
         on {% for key in s.grain %}e.{{ key }} = m.{{ key }}{% if not loop.last %} and {% endif %}{% endfor %}
+    {% if s.off_standings %}
+    left join off_standings_seasons as d
+        on coalesce(e.team_sk, m.team_sk) = d.team_sk and coalesce(e.season_sk, m.season_sk) = d.season_sk
+    {% endif %}
 ){% if not loop.last %},{% endif %}
 {% endfor %}
 

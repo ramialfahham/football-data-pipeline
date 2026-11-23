@@ -691,15 +691,16 @@ int_team_season__metrics and carried unchanged everywhere else it appears.
 
 {% docs season_games_played__whole_season %}
 Finished matches the team played in the season: games_played at the season's final matchday
-(the last row of int_team_season__metrics_cumulative for this team-season). Never NULL — a
-team-season row exists only once the team has played at least one match.
+(the last row of int_team_season__metrics_cumulative for this team-season). NULL only where the
+team-season is withheld against the provider's standings. A team-season row exists only once the
+team has played at least one match.
 {% enddocs %}
 
 {% docs stat_coverage_season_games %}
 Games this season with a shots-on-target stat line present for the team — the coverage count
 the shots-on-target rates are gated on and divide by, instead of games played. At most
 season_games_played, and fewer wherever the provider's stat line is missing or the match was
-awarded rather than played. Never NULL.
+awarded rather than played. NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs player_stat_coverage_season_games %}
@@ -707,29 +708,29 @@ Games this season with a player-derived team stat line present (at least one pla
 team that match) — the coverage count the player-derived team rates divide by
 (passes_key_per_match, tackles_per_match, interceptions_per_match, blocks_per_match,
 defensive_actions_per_match, duels_per_match, duels_won_pct). At most season_games_played.
-Never NULL.
+NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs games_with_team_stats__season %}
 Games in the season that carry a team statistics line — at most games played, and fewer
 wherever a match was awarded (a technical loss or walkover has no stat line and never will) or
 the provider sent none. The denominator of the team-feed per-match rates on the same row,
-exposed so a rate can be multiplied back out. Never NULL.
+exposed so a rate can be multiplied back out. NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs wins_sum_season %}
-Matches the team has won this season, counted from the match result. Totalled over the season;
-never NULL.
+Matches the team has won this season, counted from the match result. Totalled over the season.
+NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs draws_sum_season %}
 Matches the team has drawn this season, counted from the match result. Totalled over the
-season; never NULL.
+season. NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs losses_sum_season %}
-Matches the team has lost this season, counted from the match result. Totalled over the season;
-never NULL.
+Matches the team has lost this season, counted from the match result. Totalled over the season.
+NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs total_shots_sum_season %}
@@ -765,8 +766,7 @@ season.
 {% docs season_matchdays_used %}
 Count of distinct matchday labels (round_name) among the team's finished matches this season,
 from int_legs__team_match. Can differ from season_games_played where more than one of the
-team's matches shares a round_name. Never NULL for a team-season with at least one finished
-match.
+team's matches shares a round_name. NULL only where the team-season is withheld.
 {% enddocs %}
 
 {% docs unbeaten_run %}

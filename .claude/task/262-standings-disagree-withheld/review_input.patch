@@ -1,0 +1,2539 @@
+diff --git a/.claude/skills/research-provider-errors/SKILL.md b/.claude/skills/research-provider-errors/SKILL.md
+index c4dddef6..e303fe72 100644
+--- a/.claude/skills/research-provider-errors/SKILL.md
++++ b/.claude/skills/research-provider-errors/SKILL.md
+@@ -50,6 +50,7 @@ order by research_tier nulls last, fixture_date
+ - A `misfiled_team_withheld` row is not researched. Its seed, `fixture_team_id_overrides`, is not one this skill edits. Report the row.
+ - A `lineup_duplicate_withheld` row is not researched. It has no seed (`none`): a newer provider fetch removes it. Report the row.
+ - A `player_team_withheld` row is not researched. Its seed, `fixture_lineup_corrections`, holds line-up research, which this skill does not do. Report the row.
++- A `team_season_off_standings` row is not researched. It has no seed (`none`): the team-season's results disagree with the provider's standings. Report the row.
+ 
+ ## 2. Choose the matches
+ 
+diff --git a/.claude/task/262-standings-disagree-withheld/contract.md b/.claude/task/262-standings-disagree-withheld/contract.md
+new file mode 100644
+index 00000000..1126f20e
+--- /dev/null
++++ b/.claude/task/262-standings-disagree-withheld/contract.md
+@@ -0,0 +1,191 @@
++# Task contract - a team-season whose results disagree with the provider's standings is withheld and listed
++
++objective: >
++  Issue #262, box "Only a check that catches a defect in our own code stops the nightly." Two tests stop
++  the build when the provider's results disagree with the provider's standings:
++  assert_team_season_equals_league_table (a team-season's wins, draws, losses, goals, goals against or
++  points differ from the table row that counts the same games) and
++  assert_team_season_games_not_short_of_standings (our count of played games is below the standings'
++  played count). Both compare provider data with provider data. Now int_team_season__metrics carries a
++  flag counts_withheld, true for a team-season where either disagreement holds, read from fct_standings
++  and the standings_points_adjustments seed. For such a team-season every season value of the row is
++  blank (the keys, entity_type and the flag stay), so the site renders it as it renders any withheld
++  value, and mart_team_leaderboards ranks it as a blank metric value is ranked today: a board is
++  served only when every team that played has a value, so the competition-season's team boards are
++  withheld. The team-season's matches go on mart_competition_research_list. Both tests stay at error and
++  become the proof: they derive the disagreement inline from fct_standings and the legs, never from the
++  flag, and fail where a disagreeing team-season is not withheld or a withheld one does not disagree.
++  The tests that compare int_team_season__metrics with a recomputation expect a blank value where the
++  same inline derivation says the team-season disagrees. assert_team_table_equals_published_tables
++  (the rebuilt table, our code) stays at error and leaves out only the withheld team-seasons: a team
++  that is not withheld and differs from the published table in points or place is a red row, and the
++  places are compared among the teams that are not withheld. A hand-written answer key runs both
++  disagreements, the agreements next to them, the points adjustment and a team with two standings rows
++  through the macro that finds them, another runs the published-table comparison, including a team
++  that is not withheld whose points are off by 1, and python pins fix the wiring.
++
++refs: >
++  #262 What exactly / How (approved in chat, 15 Nov 2026). The coordinating session ruled, for this
++  change (standings, option B): the counts of a team-season whose provider results disagree with the
++  provider standings are withheld in base through a flag in int_team_season__metrics that reads
++  fct_standings; the row and the team stay; every season value renders as the site renders a withheld
++  value; it is ranked as a blank metric value is today, with no new ranking rule; the matches of the
++  team-season go on the research list; the recompute tests derive the disagreement inline and stay at
++  error; assert_team_table_equals_published_tables stays at error and must still fail on a place
++  mismatch among teams whose counts agree.
++
++depends_on:
++  - none: every file this change edits is on gitlab/main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/macros/team_seasons_off_standings.sql
++  - dbt_project/macros/published_table_mismatches.sql
++  - dbt_project/macros/team_season_counts_from_legs.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/tests/assert_team_season_equals_league_table.sql
++  - dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
++  - dbt_project/tests/assert_team_season_off_standings_answer_key.sql
++  - dbt_project/tests/assert_team_season_blank_exactly_when_withheld.sql
++  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++  - dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++  - dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
++  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++  - dbt_project/tests/assert_mart_team_leaderboards_boards_cover_every_team.sql
++  - dbt_project/tests/assert_team_table_equals_published_tables.sql
++  - dbt_project/tests/assert_published_table_mismatches_answer_key.sql
++  - tests/test_team_season_withheld_wiring.py
++  - .claude/skills/research-provider-errors/SKILL.md
++  - .claude/task/262-standings-disagree-withheld/contract.md
++  - .claude/task/262-standings-disagree-withheld/review.md
++  - .claude/task/262-standings-disagree-withheld/review_input.patch
++
++impact_map: >
++  writers: three macros added (team_seasons_off_standings, team_season_counts_from_legs, which builds
++  the season counts the tests compare with the standings from the legs, and published_table_mismatches);
++  int_team_season__metrics gains the flag counts_withheld and blanks its 66 season values where it is
++  true; mart_team_leaderboards counts a withheld team-season in the field of teams that played and takes
++  the current season of a league from the seasons whose teams played, not from the seasons that have a
++  board (read-only on prod, the mart SQL equals the prod table: 151,513 rows each, 0 rows only on
++  either side);
++  mart_competition_research_list gains one branch and one row kind; two tests rewritten into the proof
++  (assert_team_season_equals_league_table, assert_team_season_games_not_short_of_standings), two
++  answer keys and one reverse-direction test added, two recompute tests expect a blank value for a
++  withheld team-season (assert_team_metrics_follow_catalogue_formula,
++  assert_team_form_window_follows_the_rule, whose season-record half recomputes games_played);
++  the hand-worked assert_team_season_answer_key is unchanged and does not follow the withhold, so a
++  keyed team-season that comes out withheld is a red row,
++  assert_mart_team_leaderboards_boards_cover_every_team counts a withheld team-season as having played,
++  assert_mart_team_leaderboards_one_leader_per_league expects a league whose latest season holds a
++  withheld team-season to have no current season, as assert_one_current_season_per_league does for the
++  player boards, one test that leaves out the withheld team-seasons
++  (assert_team_table_equals_published_tables), and assert_no_uncatalogued_season_metric
++  lists the flag among the columns that are no metric. The yml tests not_null on the
++  withheld values are replaced by assert_team_season_blank_exactly_when_withheld, which holds the
++  values blank exactly where the flag is true, in int_team_season__metrics, mart_team_season,
++  mart_team_season_insights and mart_team_season_record: int_team_season__metrics.season_games_played,
++  mart_team_season.played, wins, draws, losses, goals_for, goals_against, goal_diff, points,
++  clean_sheets, mart_team_season_insights.season_games_played and
++  mart_team_season_record.games_played. The four models carry blank values for a withheld
++  team-season.
++  The standings row itself is untouched: mart_standings and fct_standings show the provider's own
++  table row (rank, points, played, wins, draws, losses, goals), never our counts, so no rule for the
++  position of a standings row with withheld counts is needed and none is added.
++  The changed model and its readers, pasted from `dbt ls --select int_team_season__metrics+
++  --resource-type model` (the .venv dbt, repo root): int_team__featured_season,
++  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
++  int_team_season__deserved_vs_actual, int_team_season__metrics, int_team_window__metrics,
++  mart_matchday_insights, mart_player_index, mart_team_competition_benchmarks, mart_team_index,
++  mart_team_leaderboards, mart_team_momentum_window, mart_team_page_window_metrics, mart_team_profile,
++  mart_team_season, mart_team_season_insights, mart_team_season_record, mart_team_window_metrics.
++  The flag reads core.fct_standings and the seed standings_points_adjustments, both upstream of nothing
++  that reads int_team_season__metrics, so no cycle: `dbt ls --select +fct_standings` lists
++  base_apif__competition_seasons, base_apif__crest_objects, base_apif__league_entity,
++  base_apif__leagues, base_apif__standings, dim_competition_season, dim_league, fct_standings and the
++  staging models, and no model of int_team_season__metrics+.
++  `dbt ls --select mart_team_leaderboards+ mart_competition_research_list+ --resource-type model`
++  lists mart_competition_research_list and mart_team_leaderboards, each alone.
++  Measured on prod, read-only (2 MB): the equals-table comparison of int_team_season__metrics with
++  core.fct_standings, adjustments applied, returns no row; the new model SQL run on prod inputs equals
++  the prod table (14,296 rows each, 0 rows only on either side, 0 rows withheld).
++  downstream: prod holds no team-season that disagrees today, so no row, no number and no page
++  changes; a later disagreement blanks one team-season and
++  withholds the team boards of its competition-season, and lists its matches.
++  layer_rules: macros, one intermediate model, mart edits, tests; check_layer_contract applies unchanged.
++  deploy_order: one build; the nightly picks it up after merge.
++  blast_radius: none for any value today. A provider result that disagrees with the provider standings
++  no longer stops the nightly: it withholds the team-season and lists its matches.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  Ruled by the coordinating session on #262's approved rule (approved in chat, 15 Nov 2026), standings
++  option B. Engineering decisions inside the ruling (working agreement section 10 unclear cases): the
++  flag is named counts_withheld; the disagreement is the two conditions of the tests that stop the
++  build today, unchanged (a table row that counts the same games and differs in a count or in points
++  net of the declared adjustments; our played count below the largest played count of the team-season's
++  standings rows); the withheld values are the 66 columns of the row apart from team_season_sk,
++  team_sk, league_sk, season_sk, league_code, season_api_year and entity_type, season_games_played
++  among them, so a withheld team-season is a team-season with no values, and the leaderboard field
++  counts it as having played (season_games_played >= 1 or counts_withheld), which withholds the boards
++  of its competition-season through the existing rule that every team that played must have a value;
++  the research list names each finished match of the team-season, once per match and team, as
++  team_season_off_standings with seed none (no seed fixes it: a result, an adjustment or the standings
++  row can be the cause); the macro team_seasons_off_standings takes the team-season counts, the
++  standings and the adjustments as relations, so the model feeds it the final row and the tests feed it
++  counts built from the legs, and the answer key feeds it hand-written rows; assert_team_table_equals_
++  published_tables leaves out of its comparison only the team-seasons withheld against the standings
++  (ruled by the coordinating session): a team that is not withheld and whose rebuilt points differ from
++  the published points is a red row, and so is a place that differs, as before. The withheld team-seasons
++  are derived inline from the legs and fct_standings. A team's place on each side is its rank on
++  that side less the number of withheld teams of the section ranked above it, so a withheld team's
++  points cannot move the places of the others; that is the rank itself when no team is withheld. The
++  teams whose place the league's rule does not fix, and the teams with no published or no rebuilt
++  rank, stay in the section and are left out of the result. A place is compared only where both
++  ranks are not blank. A withheld team does not decide whether a published section is comparable. The adjustments of a team-season are summed per
++  trimmed group name.
++  The benchmark distribution of int_team_competition_benchmark_metrics_long leaves a withheld
++  team-season out through its existing games floor for the competition-seasons it reads from
++  int_team_season__metrics. A competition-season with a table phase reads
++  int_team_competition_phase__metrics, which is built from the legs and is not blanked.
++  Not blanked, and left to the follow-up change the coordinating session ruled for the streaks: the
++  streaks, longest runs and biggest results of mart_team_profile, the team page window metrics
++  (int_team_window__metrics, mart_team_page_window_metrics), mart_competition_season_summary and the
++  phase benchmarks above, which all read the legs directly. The follow-up reuses the row kind
++  team_season_off_standings. A team-season whose standings snapshot is ahead of our finished matches
++  is withheld until the next build brings the match, the case the games_short condition already
++  describes. The doc blocks of the blanked columns say the value is blank only where the team-season
++  is withheld.
++
++decisions_reserved: >
++  none: no page, metric, name or rule is added.
++
++done_when:
++  - python scripts/ci_local.py --mr passes
++  - dbt parse passes
++  - python -m pytest tests/test_team_season_withheld_wiring.py passes, and fails with the macro, the model flag, the leaderboard field, the mart branch or a test changed
++  - the MR pipeline is green, data:build:mr included
++
++amendments:
++  - scope_paths gained assert_team_form_window_follows_the_rule.sql and
++    assert_mart_team_leaderboards_one_leader_per_league.sql (both read the withheld values and stay at
++    error, found in review round 1), shared_columns.md (the doc blocks of the blanked columns), and
++    the macro team_season_counts_from_legs.sql. Authority: the coordinating session's standings (B)
++    ruling, as engineering consequences classified under working agreement section 10, unclear cases.
++  - decisions_taken: a place is the rank less the withheld teams ranked above it (no re-ranking among
++    the teams that are not withheld), and a withheld team does not decide whether a published section
++    is comparable. Both found in review; same ruling and authority as above.
++  - decisions_taken: assert_team_season_answer_key stays as on main. Its numerators are worked by hand
++    and name the correct value, so it is not a recomputation from the legs and does not expect a blank
++    for a withheld team-season; a keyed team-season that comes out withheld is red. Found in review;
++    same ruling and authority as above.
+diff --git a/dbt_project/macros/published_table_mismatches.sql b/dbt_project/macros/published_table_mismatches.sql
+new file mode 100644
+index 00000000..c5c2dd15
+--- /dev/null
++++ b/dbt_project/macros/published_table_mismatches.sql
+@@ -0,0 +1,92 @@
++{#
++  The teams whose rebuilt table differs from a table the provider published, among the teams that are
++  not withheld. A team-season withheld against the standings (int_team_season__metrics) is left out.
++  Every other team is a mismatch where its rebuilt points differ from its published points, or its
++  rebuilt place differs from its published place.
++
++  The places are compared within one published section (league_code, season_api_year, group_name,
++  ingested_at). A team's place on a side is its rank on that side, less the number of withheld teams
++  of the section ranked above it on that side. That is the rank itself when no team is withheld, so a
++  place error is red next to a team with no rebuilt place or a place the league's rule does not fix.
++  A withheld team's points cannot move the places of the others: they all move up by one on the side
++  where the withheld team was ranked above them. A team with no published rank or no rebuilt rank, and
++  a team whose place the league's rule does not fix, stays in the section and is left out of the place
++  comparison.
++
++  compared: a relation with league_code, season_api_year, group_name, ingested_at, team_sk,
++      published_rank, rebuilt_rank, published_points, rebuilt_points, is_place_not_compared,
++      is_comparable and is_withheld, one row per team of a published section.
++  Returns a select with the section, the team, and the two places and the two points.
++#}
++{% macro published_table_mismatches(compared) -%}
++    with section_teams as (
++        select * from {{ compared }}
++        where is_comparable
++    ),
++
++    place_counted as (
++        select
++            t.league_code,
++            t.season_api_year,
++            t.group_name,
++            t.ingested_at,
++            t.team_sk,
++            t.published_rank,
++            t.rebuilt_rank,
++            t.published_points,
++            t.rebuilt_points,
++            t.is_place_not_compared,
++            t.is_withheld,
++            t.published_rank - countif(w.team_sk is not null and w.published_rank < t.published_rank) as published_place,
++            t.rebuilt_rank - countif(w.team_sk is not null and w.rebuilt_rank < t.rebuilt_rank) as rebuilt_place
++        from section_teams as t
++        left join section_teams as w
++            on
++                t.league_code = w.league_code
++                and t.season_api_year = w.season_api_year
++                and t.group_name = w.group_name
++                and t.ingested_at = w.ingested_at
++                and w.is_withheld
++        group by
++            t.league_code,
++            t.season_api_year,
++            t.group_name,
++            t.ingested_at,
++            t.team_sk,
++            t.published_rank,
++            t.rebuilt_rank,
++            t.published_points,
++            t.rebuilt_points,
++            t.is_place_not_compared,
++            t.is_withheld
++    )
++
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        ingested_at,
++        team_sk,
++        published_rank,
++        rebuilt_rank,
++        published_points,
++        rebuilt_points
++    from place_counted
++    where
++        not is_withheld
++        and published_place != rebuilt_place
++        and not is_place_not_compared
++    union distinct
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        ingested_at,
++        team_sk,
++        published_rank,
++        rebuilt_rank,
++        published_points,
++        rebuilt_points
++    from section_teams
++    where not is_withheld and rebuilt_points != published_points
++{%- endmacro %}
+diff --git a/dbt_project/macros/team_season_counts_from_legs.sql b/dbt_project/macros/team_season_counts_from_legs.sql
+new file mode 100644
+index 00000000..b888c927
+--- /dev/null
++++ b/dbt_project/macros/team_season_counts_from_legs.sql
+@@ -0,0 +1,26 @@
++{#
++  A team-season's counts built from its legs, the inputs team_seasons_off_standings compares with the
++  provider's standings: games played, wins, draws, losses, goals, goals against and points. The
++  rules are those of int_team_season__metrics_cumulative for the whole season: a count is blank when
++  one match of the season has no value for it, and the points are three per win and one per draw plus
++  the matches the table counts as won on a shoot-out.
++
++  legs: a relation with one row per team-match leg (int_legs__team_match): team_sk, season_sk,
++      result, goals, goals_against and is_table_shootout_win.
++  Returns a select, so call it inside a CTE or a subquery.
++#}
++{% macro team_season_counts_from_legs(legs) -%}
++    select
++        team_sk,
++        season_sk,
++        count(*) as season_games_played,
++        countif(result = 'W') as wins,
++        countif(result = 'D') as draws,
++        countif(result = 'L') as losses,
++        if(logical_and(goals is not null), sum(goals), null) as goals,
++        if(logical_and(goals_against is not null), sum(goals_against), null) as goals_against,
++        sum(case result when 'W' then 3 when 'D' then 1 else 0 end)
++        + if(logical_and(is_table_shootout_win is not null), countif(is_table_shootout_win), null) as points_won
++    from {{ legs }}
++    group by team_sk, season_sk
++{%- endmacro %}
+diff --git a/dbt_project/macros/team_seasons_off_standings.sql b/dbt_project/macros/team_seasons_off_standings.sql
+new file mode 100644
+index 00000000..06682b95
+--- /dev/null
++++ b/dbt_project/macros/team_seasons_off_standings.sql
+@@ -0,0 +1,82 @@
++{#
++  The team-seasons whose results disagree with the provider's standings. One row per team-season and
++  reason, two reasons:
++    counts_differ - a standings row that counts the same games as our season (its played equals our
++        games played) carries other wins, draws, losses, goals or goals against, or other points
++        than ours plus the points the league took, declared in standings_points_adjustments;
++    games_short - our games played are fewer than the most any standings row of the team-season
++        counts. The maximum is used because one team-season can hold several standings rows (a
++        group table and a play-off table) that count different numbers of games, and any one of
++        them says the team played that many.
++  A standings row that counts other games, a snapshot older than our last match or a section that
++  counts other games, is not compared: ours being ahead of it is the normal state.
++
++  counts: a relation with team_sk, season_sk, season_games_played, wins, draws, losses, goals,
++      goals_against and points_won, one row per team-season.
++  standings: a relation with team_sk, season_sk, league_code, season_api_year, team_api_id,
++      group_name, played, wins, draws, losses, goals_scored, goals_conceded and points.
++  adjustments: a relation with league_code, season, team_id, group_name and points_taken.
++  Returns a select, so call it inside a CTE or a subquery.
++#}
++{% macro team_seasons_off_standings(counts, standings, adjustments) -%}
++    with off_adjusted as (
++        select
++            league_code,
++            season,
++            team_id,
++            trim(group_name) as group_name,
++            sum(points_taken) as points_taken
++        from {{ adjustments }}
++        group by league_code, season, team_id, trim(group_name)
++    ),
++
++    off_same_games as (
++        select distinct
++            o.team_sk,
++            o.season_sk,
++            'counts_differ' as reason
++        from {{ counts }} as o
++        inner join {{ standings }} as t
++            on
++                o.team_sk = t.team_sk
++                and o.season_sk = t.season_sk
++                and o.season_games_played = t.played
++        left join off_adjusted as a
++            on
++                t.league_code = a.league_code
++                and t.season_api_year = a.season
++                and t.team_api_id = a.team_id
++                and trim(t.group_name) = a.group_name
++        where
++            o.wins is distinct from t.wins
++            or o.draws is distinct from t.draws
++            or o.losses is distinct from t.losses
++            or o.goals is distinct from t.goals_scored
++            or o.goals_against is distinct from t.goals_conceded
++            or o.points_won is distinct from t.points + coalesce(a.points_taken, 0)
++    ),
++
++    off_most_played as (
++        select
++            team_sk,
++            season_sk,
++            max(played) as played
++        from {{ standings }}
++        group by team_sk, season_sk
++    ),
++
++    off_short as (
++        select distinct
++            o.team_sk,
++            o.season_sk,
++            'games_short' as reason
++        from {{ counts }} as o
++        inner join off_most_played as s
++            on o.team_sk = s.team_sk and o.season_sk = s.season_sk
++        where s.played is not null and o.season_games_played < s.played
++    )
++
++    select * from off_same_games
++    union all
++    select * from off_short
++{%- endmacro %}
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index b9d8603e..4ddfab25 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -251,6 +251,9 @@ models:
+ 
+       Same sum and rate semantics as the recent-form metrics, without the five-game cap — so a
+       season figure and a form figure are directly comparable.
++
++      A team-season whose results disagree with the provider's standings has counts_withheld true
++      and every value blank. The team and the row stay.
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+@@ -293,7 +296,6 @@ models:
+         tests: [not_null]
+       - name: season_games_played
+         description: "{{ doc('season_games_played__whole_season') }}"
+-        tests: [not_null]
+       - name: shots_on_goal_difference_per_match
+         description: "{{ doc('shots_on_goal_difference_per_match') }}"
+       - name: shots_on_goal_against_per_match
+@@ -438,6 +440,9 @@ models:
+         description: "{{ doc('cards_red_per_match') }}"
+       - name: season_matchdays_used
+         description: "{{ doc('season_matchdays_used') }}"
++      - name: counts_withheld
++        description: "True where the team-season's results disagree with the provider's standings. Every season value of the row is then blank."
++        tests: [not_null]
+ 
+   - name: int_team_season__metrics_cumulative
+     description: >
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+index 0761caf6..2b56f269 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+@@ -5,6 +5,10 @@
+   extras — team_season_sk and season_matchdays_used — re-attached here. mart_team_season_insights
+   exposes only the latest season_api_year per league_code.
+ 
++  A team-season whose results disagree with the provider's standings (team_seasons_off_standings)
++  has every season value blank and counts_withheld true: the results or the standings are wrong and
++  nothing here says which. The keys and entity_type stay, so the team and the row stay.
++
+   Grain: (team_sk, season_sk).
+ #}
+ 
+@@ -32,17 +36,120 @@ matchdays as (
+         count(distinct round_name) as season_matchdays_used
+     from {{ ref('int_legs__team_match') }}
+     group by team_sk, league_code, season_api_year
++),
++
++season_counts as (
++    select
++        team_sk,
++        season_sk,
++        season_games_played,
++        wins_sum_season as wins,
++        draws_sum_season as draws,
++        losses_sum_season as losses,
++        goals,
++        goals_against,
++        points_won
++    from season_final
++),
++
++off_standings as (
++    {{ team_seasons_off_standings('season_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
++),
++
++withheld as (
++    select distinct
++        team_sk,
++        season_sk
++    from off_standings
++),
++
++season_row as (
++    select
++        {{ dbt_utils.generate_surrogate_key(['sf.team_sk', 'sf.season_sk']) }} as team_season_sk,
++        -- everything from the final cumulative row except its per-matchday grain key; the
++        -- _sum_season / season_games_played names denote the whole season (final matchday).
++        sf.* except (match_number),
++        md.season_matchdays_used,
++        w.team_sk is not null as counts_withheld
++    from season_final as sf
++    left join matchdays as md
++        on
++            sf.team_sk = md.team_sk
++            and sf.league_code = md.league_code
++            and sf.season_api_year = md.season_api_year
++    left join withheld as w
++        on
++            sf.team_sk = w.team_sk
++            and sf.season_sk = w.season_sk
+ )
+ 
+ select
+-    {{ dbt_utils.generate_surrogate_key(['sf.team_sk', 'sf.season_sk']) }} as team_season_sk,
+-    -- everything from the final cumulative row except its per-matchday grain key; the
+-    -- _sum_season / season_games_played names now denote the whole season (final matchday).
+-    sf.* except (match_number),
+-    md.season_matchdays_used
+-from season_final as sf
+-left join matchdays as md
+-    on
+-        sf.team_sk = md.team_sk
+-        and sf.league_code = md.league_code
+-        and sf.season_api_year = md.season_api_year
++    * replace (
++        if(counts_withheld, null, season_games_played) as season_games_played,
++        if(counts_withheld, null, stat_coverage_season_games) as stat_coverage_season_games,
++        if(counts_withheld, null, player_stat_coverage_season_games) as player_stat_coverage_season_games,
++        if(counts_withheld, null, games_with_team_stats) as games_with_team_stats,
++        if(counts_withheld, null, games_expecting_team_stats) as games_expecting_team_stats,
++        if(counts_withheld, null, wins_sum_season) as wins_sum_season,
++        if(counts_withheld, null, draws_sum_season) as draws_sum_season,
++        if(counts_withheld, null, losses_sum_season) as losses_sum_season,
++        if(counts_withheld, null, total_shots_sum_season) as total_shots_sum_season,
++        if(counts_withheld, null, opponent_total_shots_sum_season) as opponent_total_shots_sum_season,
++        if(counts_withheld, null, shots_on_goal_sum_season) as shots_on_goal_sum_season,
++        if(counts_withheld, null, opponent_corner_kicks_sum_season) as opponent_corner_kicks_sum_season,
++        if(counts_withheld, null, passes_accurate_sum_season) as passes_accurate_sum_season,
++        if(counts_withheld, null, passes_total_sum_season) as passes_total_sum_season,
++        if(counts_withheld, null, points_won) as points_won,
++        if(counts_withheld, null, goals) as goals,
++        if(counts_withheld, null, goals_against) as goals_against,
++        if(counts_withheld, null, clean_sheets) as clean_sheets,
++        if(counts_withheld, null, goals_penalty) as goals_penalty,
++        if(counts_withheld, null, goals_own) as goals_own,
++        if(counts_withheld, null, goals_open_play) as goals_open_play,
++        if(counts_withheld, null, corners) as corners,
++        if(counts_withheld, null, saves) as saves,
++        if(counts_withheld, null, shots_inside_box) as shots_inside_box,
++        if(counts_withheld, null, cards_yellow) as cards_yellow,
++        if(counts_withheld, null, cards_red) as cards_red,
++        if(counts_withheld, null, goals_per_match) as goals_per_match,
++        if(counts_withheld, null, goals_against_per_match) as goals_against_per_match,
++        if(counts_withheld, null, shots_per_match) as shots_per_match,
++        if(counts_withheld, null, shots_on_goal_pct) as shots_on_goal_pct,
++        if(counts_withheld, null, shots_inside_box_pct) as shots_inside_box_pct,
++        if(counts_withheld, null, shots_on_goal_per_match) as shots_on_goal_per_match,
++        if(counts_withheld, null, finishing_efficiency_pct) as finishing_efficiency_pct,
++        if(counts_withheld, null, passes_per_match) as passes_per_match,
++        if(counts_withheld, null, passes_accuracy_pct) as passes_accuracy_pct,
++        if(counts_withheld, null, corners_per_match) as corners_per_match,
++        if(counts_withheld, null, corners_against_per_match) as corners_against_per_match,
++        if(counts_withheld, null, saves_pct) as saves_pct,
++        if(counts_withheld, null, passes_key_per_match) as passes_key_per_match,
++        if(counts_withheld, null, tackles_per_match) as tackles_per_match,
++        if(counts_withheld, null, interceptions_per_match) as interceptions_per_match,
++        if(counts_withheld, null, blocks_per_match) as blocks_per_match,
++        if(counts_withheld, null, defensive_actions_per_match) as defensive_actions_per_match,
++        if(counts_withheld, null, duels_per_match) as duels_per_match,
++        if(counts_withheld, null, duels_won_pct) as duels_won_pct,
++        if(counts_withheld, null, shots_on_goal_against_per_match) as shots_on_goal_against_per_match,
++        if(counts_withheld, null, shots_off_target_per_match) as shots_off_target_per_match,
++        if(counts_withheld, null, shots_blocked_per_match) as shots_blocked_per_match,
++        if(counts_withheld, null, shots_inside_box_per_match) as shots_inside_box_per_match,
++        if(counts_withheld, null, passes_accurate_per_match) as passes_accurate_per_match,
++        if(counts_withheld, null, passes_share_pct) as passes_share_pct,
++        if(counts_withheld, null, dribbles_attempts_per_match) as dribbles_attempts_per_match,
++        if(counts_withheld, null, dribbles_success_per_match) as dribbles_success_per_match,
++        if(counts_withheld, null, dribbles_success_pct) as dribbles_success_pct,
++        if(counts_withheld, null, duels_won_per_match) as duels_won_per_match,
++        if(counts_withheld, null, saves_per_match) as saves_per_match,
++        if(counts_withheld, null, free_kicks_per_match) as free_kicks_per_match,
++        if(counts_withheld, null, fouls_per_match) as fouls_per_match,
++        if(counts_withheld, null, offsides_per_match) as offsides_per_match,
++        if(counts_withheld, null, cards_yellow_per_match) as cards_yellow_per_match,
++        if(counts_withheld, null, cards_red_per_match) as cards_red_per_match,
++        if(counts_withheld, null, clean_sheets_pct) as clean_sheets_pct,
++        if(counts_withheld, null, points_capture_pct) as points_capture_pct,
++        if(counts_withheld, null, shots_share_pct) as shots_share_pct,
++        if(counts_withheld, null, shots_on_goal_difference_per_match) as shots_on_goal_difference_per_match,
++        if(counts_withheld, null, season_matchdays_used) as season_matchdays_used
++    )
++from season_row
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index bf5e673f..abe85f6d 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -104,7 +104,6 @@ models:
+         tests: [not_null]
+       - name: season_games_played
+         description: "{{ doc('season_games_played__whole_season') }}"
+-        tests: [not_null]
+       - name: played
+         description: "Finished matches from mart_team_season; null when standings rollup absent."
+       - name: team_code
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+index 44cf6b29..0157ced5 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+@@ -22,6 +22,11 @@
+     with different content (base_apif__lineup_fetch_ties), so that team has no sheet and the match
+     line-up is not_available. No seed fixes the row (seed none); a newer fetch without the tie
+     removes it;
++  - team_season_off_standings: a team-season's results disagree with the provider's standings
++    (counts_withheld), so every value of the team-season is blank. One row per finished match of the
++    team-season: the results or the standings are wrong and nothing says which, and no seed fixes it
++    (seed none); a result in fixture_result_corrections or a points deduction in
++    standings_points_adjustments can settle it. team_sk is the team of the team-season;
+   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
+     (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
+   seed names the correction seed that fixes the row. research_tier is the research order of the
+@@ -182,6 +187,20 @@ misfiled_items as (
+         on m.provider_team_id = t.team_sk
+ ),
+ 
++off_standings_items as (
++    select
++        'team_season_off_standings' as check_name,
++        'none' as seed,
++        r.fixture_sk,
++        r.team_sk,
++        cast(null as string) as correction,
++        cast(null as int64) as provider_team_id
++    from {{ ref('int_team_season_record') }} as r
++    inner join {{ ref('int_team_season__metrics') }} as m
++        on r.team_sk = m.team_sk and r.season_sk = m.season_sk
++    where m.counts_withheld
++),
++
+ no_longer_needed as (
+     select
+         'correction_no_longer_needed' as check_name,
+@@ -222,6 +241,19 @@ all_items as (
+     inner join fixtures as f
+         on m.fixture_sk = f.fixture_sk
+     union all
++    select
++        s.check_name,
++        s.seed,
++        s.fixture_sk,
++        s.team_sk,
++        s.correction,
++        s.provider_team_id,
++        f.league_code,
++        f.season_api_year
++    from off_standings_items as s
++    inner join fixtures as f
++        on s.fixture_sk = f.fixture_sk
++    union all
+     select
+         check_name,
+         seed,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+index 7dedcbf0..455fd62c 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+@@ -81,7 +81,9 @@ with season as (
+         cast(cards_yellow as float64) as cards_yellow,
+         cast(cards_red as float64) as cards_red
+     from {{ ref('int_team_season__metrics') }}
+-    where season_games_played >= 1
++    -- a withheld team-season has no values but played: it stays in the field, so every board of its
++    -- competition-season is withheld
++    where season_games_played >= 1 or counts_withheld
+ ),
+ 
+ -- The direction and format of each board's metric, from the catalogue: the one place a metric's
+@@ -127,6 +129,15 @@ field as (
+     group by league_code, season_api_year
+ ),
+ 
++-- The latest competition-season of each league among those whose teams played, withheld or not.
++latest_season as (
++    select
++        league_code,
++        max(season_api_year) as latest_season_api_year
++    from field
++    group by league_code
++),
++
+ -- Identity only. dim_team is unique on team_sk, so the left join cannot fan the row count out.
+ teams as (
+     select
+@@ -160,6 +171,7 @@ base as (
+         t.team_logo_url,
+         cs.competition_group,
+         f.teams_played,
++        ls.latest_season_api_year,
+         -- counted before the zero rule: a team with a value of 0 has a value
+         count(*) over (partition by l.league_code, l.season_api_year, l.metric_key) as teams_with_value,
+         case
+@@ -174,6 +186,7 @@ base as (
+     from long as l
+     inner join field as f
+         on l.league_code = f.league_code and l.season_api_year = f.season_api_year
++    inner join latest_season as ls on l.league_code = ls.league_code
+     left join teams as t on l.team_sk = t.team_sk
+     left join competition_seasons as cs on l.season_sk = cs.season_sk
+     -- inner: a board whose metric the catalogue does not define has no direction and no rows,
+@@ -188,12 +201,10 @@ signed as (
+         if(rank_order = 'asc', metric_value, -metric_value) as sort_key,
+         if(rank_order = 'asc', display_value, -display_value) as display_key,
+         -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so
+-        -- every row of a league agrees. Computed before a withheld board leaves, so a withheld
+-        -- latest season never hands the flag to the season before it.
+-        rank() over (
+-            partition by league_code
+-            order by season_api_year desc
+-        ) = 1 as is_current_season
++        -- every row of a league agrees. Taken from the seasons whose teams played, not from the
++        -- seasons that have a board, so a withheld latest season never hands the flag to the
++        -- season before it.
++        season_api_year = latest_season_api_year as is_current_season
+     from base
+ ),
+ 
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ee3d2b44..732b0483 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1127,8 +1127,7 @@ models:
+           - accepted_values:
+               values: ["season_to_date", "prev_season"]
+       - name: games_played
+-        description: "Cumulative matches in the season-to-date window."
+-        tests: [not_null]
++        description: "Cumulative matches in the season-to-date window. Blank where the team-season is withheld."
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
+@@ -1500,32 +1499,23 @@ models:
+       - name: team_logo_url
+         description: "{{ doc('team_logo_url') }}"
+       - name: played
+-        description: "Count of finished matches this team took part in during the season."
+-        tests: [not_null]
++        description: "Count of finished matches this team took part in during the season. Blank where the team-season is withheld."
+       - name: wins
+         description: "{{ doc('wins') }}"
+-        tests: [not_null]
+       - name: draws
+         description: "{{ doc('draws') }}"
+-        tests: [not_null]
+       - name: losses
+         description: "{{ doc('losses') }}"
+-        tests: [not_null]
+       - name: goals_for
+         description: "{{ doc('goals') }}"
+-        tests: [not_null]
+       - name: goals_against
+         description: "{{ doc('goals_against') }}"
+-        tests: [not_null]
+       - name: goal_diff
+         description: "{{ doc('goal_diff') }}"
+-        tests: [not_null]
+       - name: points
+         description: "{{ doc('points_won') }}"
+-        tests: [not_null]
+       - name: clean_sheets
+         description: "{{ doc('clean_sheets') }}"
+-        tests: [not_null]
+       - name: goals_penalty
+         description: "{{ doc('goals_penalty') }}"
+       - name: goals_own
+@@ -4043,22 +4033,23 @@ models:
+     description: >
+       The list of provider errors to research, rebuilt each night. One row per match, or team in a
+       match, where a check of the provider's data withholds a value on goals, scores, awards or
+-      cards or leaves out a line filed under a team that did not play the match, and one row per
+-      correction the provider no longer needs. A value the provider has
+-      corrected itself passes its check, and its row leaves the list. The research routine reads
++      cards. A line filed under a team that did not play the match is left out. A team-season whose
++      results disagree with the provider's standings is blanked. One row per correction the
++      provider no longer needs. A value the provider has corrected itself passes its check, and its
++      row leaves the list. The research routine reads
+       it; no page does. Grain: item_key.
+     columns:
+       - name: item_key
+-        description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
++        description: "The row's key, its parts separated by a space. It holds check_name, seed, and the correction's key or the fixture id. A line-up team, a misfiled line or a withheld team-season adds the team id."
+         tests: [unique, not_null]
+       - name: check_name
+-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
++        description: "What failed. One of result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld, player_team_withheld, lineup_duplicate_withheld, team_season_off_standings or correction_no_longer_needed. misfiled_team_withheld is a line filed under a team that did not play the match. player_team_withheld is a player whose stat line and events name different teams. Both stay out of the facts until a correction row settles them. lineup_duplicate_withheld is a team whose line-up the provider stored twice with different content. team_season_off_standings is a team-season whose results disagree with the provider's standings, so every value of it is blank. correction_no_longer_needed is a correction the provider's own data now carries."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "correction_no_longer_needed"]
++              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "team_season_off_standings", "lineup_duplicate_withheld", "correction_no_longer_needed"]
+       - name: seed
+-        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld: no seed fixes it, a newer fetch removes it."
++        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none where no seed fixes it."
+         tests:
+           - not_null
+           - accepted_values:
+@@ -4072,7 +4063,7 @@ models:
+               to: ref('fct_fixture')
+               field: fixture_sk
+       - name: team_sk
+-        description: "{{ doc('team_sk') }} On a misfiled-team row, the team the provider filed the line under, only where that team is in dim_team; NULL where it is not."
++        description: "{{ doc('team_sk') }} On a misfiled-team row, the team the provider filed the line under, only where that team is in dim_team; NULL where it is not. On a team-season row, the team of the team-season."
+         tests:
+           - relationships:
+               to: ref('dim_team')
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index c47264c4..aca3fb89 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -118,6 +118,11 @@ match stats are good enough.
+   line and on a line-up row, until sourced research stands in fixture_card_corrections.
+ - A standings section that resolves to a league table beside group or conference tables is
+   withheld until a standings_table_kinds pattern names it.
++- A team-season whose results disagree with the provider's standings has every season value
++  withheld. Its matches stand on mart_competition_research_list. A standings row that counts the
++  same games disagrees where a count differs from ours. Its points disagree where they differ from
++  ours plus the points the league took. Our games played below the most any standings row counts
++  disagree too.
+ - A team's country that is missing, or that changed between deliveries, is withheld until a
+   team_country_corrections row settles it.
+ - A player's tied records can hold two real birth dates or two real nationalities. That value is
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 4156dc82..00b1413f 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -691,15 +691,16 @@ int_team_season__metrics and carried unchanged everywhere else it appears.
+ 
+ {% docs season_games_played__whole_season %}
+ Finished matches the team played in the season: games_played at the season's final matchday
+-(the last row of int_team_season__metrics_cumulative for this team-season). Never NULL — a
+-team-season row exists only once the team has played at least one match.
++(the last row of int_team_season__metrics_cumulative for this team-season). NULL only where the
++team-season is withheld against the provider's standings. A team-season row exists only once the
++team has played at least one match.
+ {% enddocs %}
+ 
+ {% docs stat_coverage_season_games %}
+ Games this season with a shots-on-target stat line present for the team — the coverage count
+ the shots-on-target rates are gated on and divide by, instead of games played. At most
+ season_games_played, and fewer wherever the provider's stat line is missing or the match was
+-awarded rather than played. Never NULL.
++awarded rather than played. NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs player_stat_coverage_season_games %}
+@@ -707,29 +708,29 @@ Games this season with a player-derived team stat line present (at least one pla
+ team that match) — the coverage count the player-derived team rates divide by
+ (passes_key_per_match, tackles_per_match, interceptions_per_match, blocks_per_match,
+ defensive_actions_per_match, duels_per_match, duels_won_pct). At most season_games_played.
+-Never NULL.
++NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs games_with_team_stats__season %}
+ Games in the season that carry a team statistics line — at most games played, and fewer
+ wherever a match was awarded (a technical loss or walkover has no stat line and never will) or
+ the provider sent none. The denominator of the team-feed per-match rates on the same row,
+-exposed so a rate can be multiplied back out. Never NULL.
++exposed so a rate can be multiplied back out. NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs wins_sum_season %}
+-Matches the team has won this season, counted from the match result. Totalled over the season;
+-never NULL.
++Matches the team has won this season, counted from the match result. Totalled over the season.
++NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs draws_sum_season %}
+ Matches the team has drawn this season, counted from the match result. Totalled over the
+-season; never NULL.
++season. NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs losses_sum_season %}
+-Matches the team has lost this season, counted from the match result. Totalled over the season;
+-never NULL.
++Matches the team has lost this season, counted from the match result. Totalled over the season.
++NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs total_shots_sum_season %}
+@@ -765,8 +766,7 @@ season.
+ {% docs season_matchdays_used %}
+ Count of distinct matchday labels (round_name) among the team's finished matches this season,
+ from int_legs__team_match. Can differ from season_games_played where more than one of the
+-team's matches shares a round_name. Never NULL for a team-season with at least one finished
+-match.
++team's matches shares a round_name. NULL only where the team-season is withheld.
+ {% enddocs %}
+ 
+ {% docs unbeaten_run %}
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_boards_cover_every_team.sql b/dbt_project/tests/assert_mart_team_leaderboards_boards_cover_every_team.sql
+index a69e17db..66aa0f0f 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_boards_cover_every_team.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_boards_cover_every_team.sql
+@@ -1,7 +1,8 @@
+ -- A team board of a competition-season is served only when every team that played has a value for
+ -- its metric (the ranking_rules doc block). Returns a row (= fails) for each served board whose
+ -- metric has no value for some team that played, counted from int_team_season__metrics with the
+--- zero rule not applied.
++-- zero rule not applied. A withheld team-season played and has no value, so a board of its
++-- competition-season is served only if the mart has a bug.
+ -- depends_on: {{ ref('int_team_season__metrics') }}
+ {{ config(store_failures = true) }}
+ {% set keys = dbt_utils.get_column_values(ref('mart_team_leaderboards'), 'metric_key') if execute else [] %}
+@@ -23,7 +24,7 @@ coverage as (
+         count(*) as teams_played,
+         countif({{ key }} is not null) as teams_with_value
+     from {{ ref('int_team_season__metrics') }}
+-    where season_games_played >= 1
++    where season_games_played >= 1 or counts_withheld
+     group by league_code, season_api_year
+     {% if not loop.last %}
+     union all
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+index cc96b9e8..279dedc9 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+@@ -123,14 +123,53 @@ per_season as (
+     group by league_code, season_api_year
+ ),
+ 
+-bad_current_season as (
+-    select league_code
+-    from per_season
++-- A league whose latest season holds a team-season withheld against the standings has every board of
++-- that season withheld, so it keeps no current season: the flag never moves to the season before it.
++-- The withheld team-seasons are derived from the legs and fct_standings, never from the flag.
++leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
++),
++
++disagreeing as (
++    select distinct
++        team_sk,
++        season_sk
++    from (
++        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
++    )
++),
++
++latest_seasons as (
++    select
++        league_code,
++        max(season_api_year) as latest_season
++    from {{ ref('int_team_season__metrics') }}
+     group by league_code
++),
++
++withheld_latest as (
++    select distinct l.league_code
++    from latest_seasons as l
++    inner join {{ ref('int_team_season__metrics') }} as m
++        on l.league_code = m.league_code and l.latest_season = m.season_api_year
++    inner join disagreeing as d
++        on m.team_sk = d.team_sk and m.season_sk = d.season_sk
++),
++
++bad_current_season as (
++    select p.league_code
++    from per_season as p
++    left join withheld_latest as h
++        on p.league_code = h.league_code
++    group by p.league_code, h.league_code
+     having
+-        countif(flagged_rows > 0) != 1
+-        or max(case when flagged_rows > 0 then season_api_year end) != max(season_api_year)
+-        or countif(flagged_rows > 0 and flagged_rows != season_rows) > 0
++        if(
++            h.league_code is not null,
++            countif(p.flagged_rows > 0) > 0,
++            countif(p.flagged_rows > 0) != 1
++            or max(case when p.flagged_rows > 0 then p.season_api_year end) != max(p.season_api_year)
++            or countif(p.flagged_rows > 0 and p.flagged_rows != p.season_rows) > 0
++        )
+ )
+ 
+ select
+diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+index 32d4da5a..122f262f 100644
+--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+@@ -33,7 +33,7 @@
+     'team_sk', 'player_sk', 'league_sk', 'season_sk', 'league_code', 'season_api_year',
+     'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
+     'player_stat_coverage_season_games', 'games_with_team_stats',
+-    'games_expecting_team_stats', 'entity_type',
++    'games_expecting_team_stats', 'entity_type', 'counts_withheld',
+     'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at',
+     'midfield_role', 'midfield_role_from'
+ ] %}
+diff --git a/dbt_project/tests/assert_published_table_mismatches_answer_key.sql b/dbt_project/tests/assert_published_table_mismatches_answer_key.sql
+new file mode 100644
+index 00000000..2074f0ce
+--- /dev/null
++++ b/dbt_project/tests/assert_published_table_mismatches_answer_key.sql
+@@ -0,0 +1,161 @@
++{#
++  Hand-written answer key for the macro published_table_mismatches. Each published section is one
++  (group, ingest time); the macro must return exactly the teams listed under "expected". The columns
++  of a row: published place, rebuilt place, published points, rebuilt points, place not compared,
++  section comparable. The teams listed in "compared" as withheld are the withheld team-seasons.
++
++  A  four teams, places and points agree                               -> nothing
++  B  all points agree, teams 1 and 2 swapped                           -> teams 1 and 2
++  C  team 3 is withheld and its points differ, which moves it down     -> nothing: the others keep their order
++  D  team 3 is withheld, teams 1 and 2 swapped                         -> teams 1 and 2
++  E  teams 2 and 3 are level and the rule does not fix their order     -> nothing (they are left out of the place comparison)
++  F  a section that is not comparable, teams swapped                   -> nothing
++  G  team 2 has no rebuilt place, the others agree                     -> nothing
++  H  the provider gives teams 1 and 2 the same place, ours 1 and 2     -> team 2
++  I  two groups at one ingest time, one agrees, the other swapped      -> the swapped group's teams 1 and 2
++  J  team 1 has no published place, teams 2 and 3 agree                -> nothing
++  K  teams 2 and 3 are level and not compared, team 4 sits above them  -> team 4 (the level teams keep their places)
++  L  team 2 is not withheld and its points are off by 1, places agree  -> team 2
++  M  the same as L with team 2 withheld                                -> nothing
++  N  the same as L in a section that is not comparable                 -> nothing
++  O  team 1 has no published place and its points are off by 1         -> team 1
++  P  teams 2 and 3 have no rebuilt place, team 1 is placed 3 not 1     -> team 1 (a place error next to teams with no place is red)
++  Q  team 1 is withheld above teams 2 and 3, which move up by one      -> nothing (on the published side by one, on the rebuilt side by none)
++  R  team 1 is withheld and shares the published place 1 with team 2   -> nothing (a tie is not above)
++
++  Returns every case where the macro's rows differ from the expected rows.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with compared_rows as (
++    select * from unnest([
++        struct(
++            'XX' as league_code,
++            2025 as season_api_year,
++            'A' as group_name,
++            timestamp('2025-01-01') as ingested_at,
++            1 as team_sk,
++            1 as published_rank,
++            1 as rebuilt_rank,
++            9 as published_points,
++            9 as rebuilt_points,
++            false as is_place_not_compared,
++            true as is_comparable
++        ),
++        ('XX', 2025, 'A', timestamp('2025-01-01'), 2, 2, 2, 6, 6, false, true),
++        ('XX', 2025, 'A', timestamp('2025-01-01'), 3, 3, 3, 3, 3, false, true),
++        ('XX', 2025, 'A', timestamp('2025-01-01'), 4, 4, 4, 1, 1, false, true),
++
++        ('XX', 2025, 'B', timestamp('2025-01-02'), 1, 1, 2, 9, 9, false, true),
++        ('XX', 2025, 'B', timestamp('2025-01-02'), 2, 2, 1, 9, 9, false, true),
++        ('XX', 2025, 'B', timestamp('2025-01-02'), 3, 3, 3, 3, 3, false, true),
++        ('XX', 2025, 'B', timestamp('2025-01-02'), 4, 4, 4, 1, 1, false, true),
++
++        ('XX', 2025, 'C', timestamp('2025-01-03'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'C', timestamp('2025-01-03'), 2, 2, 2, 6, 6, false, true),
++        ('XX', 2025, 'C', timestamp('2025-01-03'), 3, 3, 4, 5, 3, false, true),
++        ('XX', 2025, 'C', timestamp('2025-01-03'), 4, 4, 3, 3, 3, false, true),
++
++        ('XX', 2025, 'D', timestamp('2025-01-04'), 1, 1, 2, 9, 9, false, true),
++        ('XX', 2025, 'D', timestamp('2025-01-04'), 2, 2, 1, 9, 9, false, true),
++        ('XX', 2025, 'D', timestamp('2025-01-04'), 3, 3, 3, 5, 3, false, true),
++        ('XX', 2025, 'D', timestamp('2025-01-04'), 4, 4, 4, 1, 1, false, true),
++
++        ('XX', 2025, 'E', timestamp('2025-01-05'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'E', timestamp('2025-01-05'), 2, 2, 3, 6, 6, true, true),
++        ('XX', 2025, 'E', timestamp('2025-01-05'), 3, 3, 2, 6, 6, true, true),
++        ('XX', 2025, 'E', timestamp('2025-01-05'), 4, 4, 4, 3, 3, false, true),
++
++        ('XX', 2025, 'F', timestamp('2025-01-06'), 1, 1, 2, 9, 9, false, false),
++        ('XX', 2025, 'F', timestamp('2025-01-06'), 2, 2, 1, 9, 9, false, false),
++
++        ('XX', 2025, 'G', timestamp('2025-01-07'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'G', timestamp('2025-01-07'), 2, 2, cast(null as int64), 6, 6, false, true),
++        ('XX', 2025, 'G', timestamp('2025-01-07'), 3, 3, 3, 3, 3, false, true),
++        ('XX', 2025, 'G', timestamp('2025-01-07'), 4, 4, 4, 1, 1, false, true),
++
++        ('XX', 2025, 'H', timestamp('2025-01-08'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'H', timestamp('2025-01-08'), 2, 1, 2, 9, 9, false, true),
++        ('XX', 2025, 'H', timestamp('2025-01-08'), 3, 3, 3, 3, 3, false, true),
++
++        ('XX', 2025, 'I1', timestamp('2025-01-09'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'I1', timestamp('2025-01-09'), 2, 2, 2, 6, 6, false, true),
++        ('XX', 2025, 'I2', timestamp('2025-01-09'), 1, 1, 2, 9, 9, false, true),
++        ('XX', 2025, 'I2', timestamp('2025-01-09'), 2, 2, 1, 9, 9, false, true),
++
++        ('XX', 2025, 'J', timestamp('2025-01-10'), 1, cast(null as int64), 3, 9, 9, false, true),
++        ('XX', 2025, 'J', timestamp('2025-01-10'), 2, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'J', timestamp('2025-01-10'), 3, 2, 2, 6, 6, false, true),
++
++        ('XX', 2025, 'K', timestamp('2025-01-11'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'K', timestamp('2025-01-11'), 2, 2, 3, 6, 6, true, true),
++        ('XX', 2025, 'K', timestamp('2025-01-11'), 3, 3, 4, 6, 6, true, true),
++        ('XX', 2025, 'K', timestamp('2025-01-11'), 4, 4, 2, 4, 4, false, true),
++        ('XX', 2025, 'K', timestamp('2025-01-11'), 5, 5, 5, 3, 3, false, true),
++
++        ('XX', 2025, 'L', timestamp('2025-01-12'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'L', timestamp('2025-01-12'), 2, 2, 2, 6, 5, false, true),
++        ('XX', 2025, 'L', timestamp('2025-01-12'), 3, 3, 3, 3, 3, false, true),
++
++        ('XX', 2025, 'M', timestamp('2025-01-13'), 1, 1, 1, 9, 9, false, true),
++        ('XX', 2025, 'M', timestamp('2025-01-13'), 2, 2, 2, 6, 5, false, true),
++        ('XX', 2025, 'M', timestamp('2025-01-13'), 3, 3, 3, 3, 3, false, true),
++
++        ('XX', 2025, 'N', timestamp('2025-01-14'), 1, 1, 1, 9, 9, false, false),
++        ('XX', 2025, 'N', timestamp('2025-01-14'), 2, 2, 2, 6, 5, false, false),
++        ('XX', 2025, 'N', timestamp('2025-01-14'), 3, 3, 3, 3, 3, false, false),
++
++        ('XX', 2025, 'O', timestamp('2025-01-15'), 1, cast(null as int64), 1, 9, 8, false, true),
++        ('XX', 2025, 'O', timestamp('2025-01-15'), 2, 2, 2, 6, 6, false, true),
++
++        ('XX', 2025, 'P', timestamp('2025-01-16'), 1, 1, 3, 9, 9, false, true),
++        ('XX', 2025, 'P', timestamp('2025-01-16'), 2, 2, cast(null as int64), 9, 9, false, true),
++        ('XX', 2025, 'P', timestamp('2025-01-16'), 3, 3, cast(null as int64), 9, 9, false, true),
++        ('XX', 2025, 'P', timestamp('2025-01-16'), 4, 4, 4, 3, 3, false, true),
++
++        ('XX', 2025, 'Q', timestamp('2025-01-17'), 1, 1, 3, 9, 3, false, true),
++        ('XX', 2025, 'Q', timestamp('2025-01-17'), 2, 2, 1, 6, 6, false, true),
++        ('XX', 2025, 'Q', timestamp('2025-01-17'), 3, 3, 2, 3, 3, false, true),
++
++        ('XX', 2025, 'R', timestamp('2025-01-18'), 1, 1, 1, 9, 3, false, true),
++        ('XX', 2025, 'R', timestamp('2025-01-18'), 2, 1, 2, 9, 9, false, true),
++        ('XX', 2025, 'R', timestamp('2025-01-18'), 3, 3, 3, 3, 3, false, true)
++    ])
++),
++
++compared as (
++    select
++        *,
++        concat(group_name, ':', cast(team_sk as string)) in ('C:3', 'D:3', 'M:2', 'Q:1', 'R:1') as is_withheld
++    from compared_rows
++),
++
++expected as (
++    select * from unnest([
++        struct('B' as group_name, 1 as team_sk),
++        ('B', 2),
++        ('D', 1),
++        ('D', 2),
++        ('H', 2),
++        ('I2', 1),
++        ('I2', 2),
++        ('K', 4),
++        ('L', 2),
++        ('O', 1),
++        ('P', 1)
++    ])
++),
++
++found as (
++    {{ published_table_mismatches('compared') }}
++)
++
++select
++    coalesce(f.group_name, e.group_name) as group_name,
++    coalesce(f.team_sk, e.team_sk) as team_sk,
++    f.team_sk is not null as returned,
++    e.team_sk is not null as expected
++from found as f
++full outer join expected as e
++    on f.group_name = e.group_name and f.team_sk = e.team_sk
++where f.team_sk is null or e.team_sk is null
+diff --git a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+index 4fc0ec77..9a436419 100644
+--- a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++++ b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+@@ -9,13 +9,29 @@
+     cap (last_5).
+   - the season record (mart_team_season_record): the team's record in the fixture's competition this
+     season, or the previous season's before its first match (prev_season), with the number of
+-    matches it holds.
++    matches it holds. The number is blank where that team-season's results disagree with the
++    provider's standings (team_seasons_off_standings, derived here from the legs).
+ 
+   One row per side whose window differs: the window, the model's matches and the expected ones.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+-with upcoming as (
++with leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
++),
++
++-- a team-season withheld against the provider's standings has no season record, derived from the legs
++-- and fct_standings, never from the flag
++disagreeing as (
++    select distinct
++        team_sk,
++        season_sk
++    from (
++        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
++    )
++),
++
++upcoming as (
+     select
+         f.fixture_sk,
+         f.home_team_sk,
+@@ -146,13 +162,17 @@ season_legs as (
+         s.upcoming_fixture_sk,
+         s.team_sk,
+         countif(l.season_api_year = s.season_api_year) as legs_this_season,
+-        countif(l.season_api_year = s.season_api_year - 1) as legs_previous_season
++        countif(l.season_api_year = s.season_api_year - 1) as legs_previous_season,
++        logical_or(l.season_api_year = s.season_api_year and d.team_sk is not null) as this_season_withheld,
++        logical_or(l.season_api_year = s.season_api_year - 1 and d.team_sk is not null) as previous_season_withheld
+     from sides as s
+     inner join {{ ref('int_legs__team_match') }} as l
+         on
+             s.team_sk = l.team_sk
+             and s.league_code = l.league_code
+             and l.season_api_year in (s.season_api_year, s.season_api_year - 1)
++    left join disagreeing as d
++        on l.team_sk = d.team_sk and l.season_sk = d.season_sk
+     group by s.upcoming_fixture_sk, s.team_sk
+ ),
+ 
+@@ -161,7 +181,11 @@ expected_record as (
+         upcoming_fixture_sk,
+         team_sk,
+         if(legs_this_season > 0, 'season_to_date', 'prev_season') as window_type,
+-        if(legs_this_season > 0, legs_this_season, legs_previous_season) as games_played
++        if(
++            legs_this_season > 0,
++            if(this_season_withheld, null, legs_this_season),
++            if(previous_season_withheld, null, legs_previous_season)
++        ) as games_played
+     from season_legs
+ ),
+ 
+@@ -169,8 +193,8 @@ record_compared as (
+     select
+         coalesce(e.upcoming_fixture_sk, m.upcoming_fixture_sk) as upcoming_fixture_sk,
+         coalesce(e.team_sk, m.team_sk) as team_sk,
+-        [format('%s %d', m.window_type, m.games_played)] as model_matches,
+-        [format('%s %d', e.window_type, e.games_played)] as expected_matches
++        [format('%s %s', m.window_type, ifnull(cast(m.games_played as string), 'blank'))] as model_matches,
++        [format('%s %s', e.window_type, ifnull(cast(e.games_played as string), 'blank'))] as expected_matches
+     from expected_record as e
+     full outer join {{ ref('mart_team_season_record') }} as m
+         on e.upcoming_fixture_sk = m.upcoming_fixture_sk and e.team_sk = m.team_sk
+diff --git a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+index a9f47746..15fed019 100644
+--- a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++++ b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+@@ -3,7 +3,8 @@
+   int_legs__team_match and int_legs__team_from_players over the surface's own window, under the
+   rules in models/docs/metric_rules.md. The formula is read from the seed at run time, so a surface
+   that drifts from the catalogue, or a catalogue change the surfaces did not follow, fails here.
+-  Floats compare at a relative 1e-9.
++  Floats compare at a relative 1e-9. On int_team_season__metrics a team-season whose results
++  disagree with the provider's standings (team_seasons_off_standings) expects every value blank.
+ 
+   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
+   grain present on one side only.
+@@ -28,7 +29,7 @@
+     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
+      'grain': ['team_sk', 'league_code', 'season_api_year', 'match_number'], 'windowed': true},
+     {'model': 'int_team_season__metrics', 'rows': 'season_rows',
+-     'grain': ['team_sk', 'season_sk'], 'windowed': false},
++     'grain': ['team_sk', 'season_sk'], 'windowed': false, 'off_standings': true},
+     {'model': 'int_team_momentum__metrics', 'rows': 'momentum_rows',
+      'grain': ['upcoming_fixture_sk', 'team_sk'], 'windowed': false},
+     {'model': 'mart_team_window_metrics', 'rows': 'window_mart_rows',
+@@ -87,7 +88,22 @@
+     {% endif %}
+ {% endif %}
+ 
+-with legs as (
++with leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
++),
++
++-- a team-season whose results disagree with the provider's standings is withheld, so its
++-- whole-season values must be blank; derived from the legs and fct_standings, never from the flag
++off_standings_seasons as (
++    select distinct
++        team_sk,
++        season_sk
++    from (
++        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
++    )
++),
++
++legs as (
+     select
+         tm.*,
+         tp.passes_key,
+@@ -190,13 +206,17 @@ phase_rows as (
+             struct(
+                 '{{ m.metric }}' as metric_id,
+                 cast(m.{{ m.metric }} as float64) as model_value,
+-                cast(e.{{ m.metric }} as float64) as expected_value
++                {% if s.off_standings %}if(d.team_sk is not null, null, cast(e.{{ m.metric }} as float64)){% else %}cast(e.{{ m.metric }} as float64){% endif %} as expected_value
+             ){% if not loop.last %},{% endif %}
+             {% endfor %}
+         ] as metric_values
+     from {{ s.model }}__expected as e
+     full outer join {{ ref(s.model) }} as m
+         on {% for key in s.grain %}e.{{ key }} = m.{{ key }}{% if not loop.last %} and {% endif %}{% endfor %}
++    {% if s.off_standings %}
++    left join off_standings_seasons as d
++        on coalesce(e.team_sk, m.team_sk) = d.team_sk and coalesce(e.season_sk, m.season_sk) = d.season_sk
++    {% endif %}
+ ){% if not loop.last %},{% endif %}
+ {% endfor %}
+ 
+diff --git a/dbt_project/tests/assert_team_season_blank_exactly_when_withheld.sql b/dbt_project/tests/assert_team_season_blank_exactly_when_withheld.sql
+new file mode 100644
+index 00000000..4342cfa3
+--- /dev/null
++++ b/dbt_project/tests/assert_team_season_blank_exactly_when_withheld.sql
+@@ -0,0 +1,198 @@
++{#
++  A team-season's values are blank exactly when its results disagree with the provider's standings.
++  The disagreement is derived here from the legs and fct_standings (team_seasons_off_standings),
++  never from the flag. Returns a row for:
++    - a team-season withheld (counts_withheld) with no disagreement;
++    - a disagreeing team-season that is not withheld;
++    - a withheld team-season of int_team_season__metrics holding a value in any column but its keys,
++      entity_type and the flag (the columns are read from the model, so a column added later is held
++      to the same rule);
++    - a team-season not withheld whose season_games_played is blank;
++    - a team-season of mart_team_season or mart_team_season_insights or mart_team_season_record
++      whose played, wins, draws, losses, goals, goals against, goal difference, points or clean
++      sheets (season_games_played in the insights, games_played in the season record) are not blank
++      where it is withheld, or blank where it is not.
++    - a match listed on mart_competition_research_list as team_season_off_standings whose team-season
++      does not disagree, and a finished match of a disagreeing team-season that is not listed.#}
++{{ config(store_failures = true, severity = 'error') }}
++-- depends_on: {{ ref('int_team_season__metrics') }}
++
++{% set kept = [
++    'team_season_sk', 'team_sk', 'league_sk', 'season_sk', 'league_code', 'season_api_year',
++    'entity_type', 'counts_withheld'
++] %}
++{% set values = [] %}
++{% if execute %}
++    {% for c in adapter.get_columns_in_relation(ref('int_team_season__metrics')) %}
++        {% if c.name | lower not in kept %}
++            {% do values.append(c.name | lower) %}
++        {% endif %}
++    {% endfor %}
++    {% if values | length == 0 %}
++        {{ exceptions.raise_compiler_error("int_team_season__metrics has no value column: the blank check would compare nothing") }}
++    {% endif %}
++{% endif %}
++
++with leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
++),
++
++disagreeing as (
++    select distinct
++        team_sk,
++        season_sk
++    from (
++        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
++    )
++),
++
++season as (
++    select
++        m.*,
++        d.team_sk is not null as disagrees
++    from {{ ref('int_team_season__metrics') }} as m
++    left join disagreeing as d
++        on m.team_sk = d.team_sk and m.season_sk = d.season_sk
++)
++
++select
++    'int_team_season__metrics' as model,
++    team_sk,
++    season_sk,
++    'withheld without a disagreement' as failure
++from season
++where counts_withheld and not disagrees
++
++union all
++
++select
++    'int_team_season__metrics' as model,
++    team_sk,
++    season_sk,
++    'disagrees with the standings and is not withheld' as failure
++from season
++where disagrees and not counts_withheld
++
++union all
++
++select
++    'int_team_season__metrics' as model,
++    team_sk,
++    season_sk,
++    'withheld and holds a value' as failure
++from season
++where
++    counts_withheld
++    and (
++        {% for column in values %}
++        {{ column }} is not null{% if not loop.last %} or{% endif %}
++        {% endfor %}
++    )
++
++union all
++
++select
++    'int_team_season__metrics' as model,
++    team_sk,
++    season_sk,
++    'not withheld and holds no games count' as failure
++from season
++where not counts_withheld and season_games_played is null
++
++union all
++
++select
++    'mart_team_season' as model,
++    s.team_sk,
++    s.season_sk,
++    'values do not follow the flag' as failure
++from {{ ref('mart_team_season') }} as t
++inner join season as s
++    on t.team_season_sk = s.team_season_sk
++where
++    s.counts_withheld
++    != (
++        t.played is null
++        and t.wins is null
++        and t.draws is null
++        and t.losses is null
++        and t.goals_for is null
++        and t.goals_against is null
++        and t.goal_diff is null
++        and t.points is null
++        and t.clean_sheets is null
++    )
++    or (
++        not s.counts_withheld
++        and (
++            t.played is null
++            or t.wins is null
++            or t.draws is null
++            or t.losses is null
++            or t.goals_for is null
++            or t.goals_against is null
++            or t.goal_diff is null
++            or t.points is null
++            or t.clean_sheets is null
++        )
++    )
++
++union all
++
++select
++    'mart_team_season_insights' as model,
++    s.team_sk,
++    s.season_sk,
++    'values do not follow the flag' as failure
++from {{ ref('mart_team_season_insights') }} as i
++inner join season as s
++    on i.team_season_sk = s.team_season_sk
++where (s.counts_withheld and i.season_games_played is not null)
++    or (not s.counts_withheld and i.season_games_played is null)
++
++union all
++
++select
++    'mart_team_season_record' as model,
++    s.team_sk,
++    s.season_sk,
++    'values do not follow the flag' as failure
++from {{ ref('mart_team_season_record') }} as r
++inner join season as s
++    on
++        r.team_sk = s.team_sk
++        and r.league_code = s.league_code
++        and r.season_api_year = s.season_api_year
++where (s.counts_withheld and r.games_played is not null)
++    or (not s.counts_withheld and r.games_played is null)
++
++union all
++
++select
++    'mart_competition_research_list' as model,
++    l.team_sk,
++    g.season_sk,
++    'listed without a disagreement' as failure
++from {{ ref('mart_competition_research_list') }} as l
++left join {{ ref('int_legs__team_match') }} as g
++    on l.fixture_sk = g.fixture_sk and l.team_sk = g.team_sk
++left join disagreeing as d
++    on g.team_sk = d.team_sk and g.season_sk = d.season_sk
++where l.check_name = 'team_season_off_standings' and d.team_sk is null
++
++union all
++
++select
++    'mart_competition_research_list' as model,
++    g.team_sk,
++    g.season_sk,
++    'match of a disagreeing team-season not listed' as failure
++from {{ ref('int_legs__team_match') }} as g
++inner join disagreeing as d
++    on g.team_sk = d.team_sk and g.season_sk = d.season_sk
++left join {{ ref('mart_competition_research_list') }} as l
++    on
++        g.fixture_sk = l.fixture_sk
++        and g.team_sk = l.team_sk
++        and l.check_name = 'team_season_off_standings'
++where l.fixture_sk is null
+diff --git a/dbt_project/tests/assert_team_season_equals_league_table.sql b/dbt_project/tests/assert_team_season_equals_league_table.sql
+index ff7afae3..a126119a 100644
+--- a/dbt_project/tests/assert_team_season_equals_league_table.sql
++++ b/dbt_project/tests/assert_team_season_equals_league_table.sql
+@@ -1,96 +1,54 @@
+ {#
+-  A team-season equals the provider's league table wherever the table counts the same games: every
+-  table section of the team-season whose played equals our season_games_played must carry our wins,
+-  draws, losses, goals and goals against, and our points must equal the table's points plus the
+-  points the league took, declared with its source in seeds/standings_points_adjustments.csv. A table row with a different played count (a
+-  snapshot older than our last match, a section that counts other games) is not compared. A red row
+-  is a result or an adjustment to research and declare in the seeds, never an exception.
++  A team-season whose counts differ from the provider's league table is withheld. Where a table
++  section counts the same games as our season (its played equals our games played), our wins,
++  draws, losses, goals and goals against must equal the section's, and our points must equal the
++  section's points plus the points the league took, declared with its source in
++  seeds/standings_points_adjustments.csv. A table row with a different played count (a snapshot
++  older than our last match, a section that counts other games) is not compared. Where they differ
++  the results or the table are wrong and nothing says which, so int_team_season__metrics holds the
++  team-season withheld: counts_withheld true and every season value blank.
+ 
+-  Returns one row per disagreeing table row, with both sides.
++  The disagreement is derived here from the legs and fct_standings, never from the flag, by the
++  macro team_seasons_off_standings that assert_team_season_off_standings_answer_key pins to
++  hand-written rows. Returns one row per disagreeing team-season that is not withheld, a flag that
++  is not set, a value that is not blank, or a team-season missing from the model.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+-with ours as (
+-    select
+-        team_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year,
+-        season_games_played,
+-        wins_sum_season as wins,
+-        draws_sum_season as draws,
+-        losses_sum_season as losses,
+-        goals,
+-        goals_against,
+-        points_won
+-    from {{ ref('int_team_season__metrics') }}
++with leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
+ ),
+ 
+-league_table as (
+-    select
+-        team_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year,
+-        team_api_id,
+-        group_name,
+-        played,
+-        wins,
+-        draws,
+-        losses,
+-        goals_scored,
+-        goals_conceded,
+-        points
+-    from {{ ref('fct_standings') }}
+-),
+-
+-adjustments as (
+-    select
+-        league_code,
+-        season,
+-        team_id,
+-        group_name,
+-        sum(points_taken) as points_taken
+-    from {{ ref('standings_points_adjustments') }}
+-    group by league_code, season, team_id, group_name
++disagreeing as (
++    {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
+ )
+ 
+ select
+-    o.league_code,
+-    o.season_api_year,
+-    o.team_sk,
+-    t.group_name,
+-    o.season_games_played as played,
+-    o.wins,
+-    t.wins as table_wins,
+-    o.draws,
+-    t.draws as table_draws,
+-    o.losses,
+-    t.losses as table_losses,
+-    o.goals,
+-    t.goals_scored as table_goals,
+-    o.goals_against,
+-    t.goals_conceded as table_goals_against,
+-    o.points_won,
+-    3 * t.wins + t.draws as table_points_from_results,
+-    a.points_taken,
+-    t.points as table_points
+-from ours as o
+-inner join league_table as t
+-    on
+-        o.team_sk = t.team_sk
+-        and o.season_sk = t.season_sk
+-        and o.season_games_played = t.played
+-left join adjustments as a
+-    on
+-        t.league_code = a.league_code
+-        and t.season_api_year = a.season
+-        and t.team_api_id = a.team_id
+-        and trim(t.group_name) = trim(a.group_name)
++    d.team_sk,
++    d.season_sk,
++    d.reason,
++    m.team_sk is not null as row_found,
++    m.counts_withheld,
++    m.season_games_played,
++    m.wins_sum_season,
++    m.draws_sum_season,
++    m.losses_sum_season,
++    m.goals,
++    m.goals_against,
++    m.points_won
++from disagreeing as d
++left join {{ ref('int_team_season__metrics') }} as m
++    on d.team_sk = m.team_sk and d.season_sk = m.season_sk
+ where
+-    o.wins is distinct from t.wins
+-    or o.draws is distinct from t.draws
+-    or o.losses is distinct from t.losses
+-    or o.goals is distinct from t.goals_scored
+-    or o.goals_against is distinct from t.goals_conceded
+-    or o.points_won is distinct from t.points + coalesce(a.points_taken, 0)
++    d.reason = 'counts_differ'
++    and (
++        m.team_sk is null
++        or not coalesce(m.counts_withheld, false)
++        or m.season_games_played is not null
++        or m.wins_sum_season is not null
++        or m.draws_sum_season is not null
++        or m.losses_sum_season is not null
++        or m.goals is not null
++        or m.goals_against is not null
++        or m.points_won is not null
++    )
+diff --git a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+index b6bb7441..e3414e6e 100644
+--- a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
++++ b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+@@ -1,3 +1,27 @@
++{#
++  A team-season with fewer played games than its standings say is withheld. Our count of a team's
++  played matches must never be LOWER than the number the competition's own standings say it played:
++  when it is, a match a governing body records as played is missing from our legs, whatever the
++  cause (a fixture stuck at SUSP or INT, one mislabelled CANC, one awarded and filed under a status
++  nothing reads, one the provider never published). The standings' played count is produced
++  independently of the status field, so this catches the symptom, not a list of causes. Then the
++  provider's results or its standings are wrong and nothing says which, so int_team_season__metrics
++  holds the team-season withheld: counts_withheld true and every season value blank.
++
++  One direction only, because being ahead of the standings is the normal state: standings are a
++  snapshot taken when they were last ingested and we count fixtures afterwards. Measured over 4,082
++  team-seasons: 2,515 agree, 1,564 have our count higher by 1 to 30 games, 3 have it lower. The
++  standings' played count is the largest of the team-season's standings rows, because one team-season
++  can hold a group table and a play-off table that count different numbers of games (299
++  team-seasons, 204 of them disagreeing on played by up to 13 games); any one of them says the team
++  played that many. The standings are read from fct_standings directly, because
++  int_team_season__standings_primary keeps one row for display.
++
++  The disagreement is derived here from the legs and fct_standings, never from the flag, by the
++  macro team_seasons_off_standings that assert_team_season_off_standings_answer_key pins to
++  hand-written rows. Returns one row per team-season short of its standings that is not withheld, a
++  flag that is not set, a value that is not blank, or a team-season missing from the model.
++#}
+ {{
+     config(
+         severity = 'error',
+@@ -6,69 +30,40 @@
+     )
+ }}
+ 
+--- Our own count of a team's played matches must never be LOWER than the number the competition's
+--- own standings say it played. When it is, we are missing a match that a governing body records as
+--- played — and that is true whatever caused it: a fixture stuck at SUSP or INT, one mislabelled
+--- CANC, one awarded and filed under a status nothing reads, or one the provider never published.
+---
+--- ⭐ THE POINT IS THAT IT ENUMERATES NOTHING. A status list can only catch the causes somebody
+--- thought to list, and the status field is the least reliable thing the provider sends. The
+--- standings' played count is produced independently of it, so this catches the SYMPTOM instead of
+--- guessing at causes. It is the detector an Eredivisie incident actually needed: FC
+--- Utrecht was a game short of its league, and no test asked that question.
+---
+--- ⛔ ONE DIRECTION ONLY, AND THE ASYMMETRY IS MEASURED, NOT ASSUMED. Over 4,082 team-seasons:
+--- 2,515 agree, 1,564 have OUR count HIGHER by 1 to 30 games, and 3 have ours LOWER. The "higher"
+--- population is not a defect — standings are a snapshot taken when they were last ingested, and we
+--- keep counting fixtures afterwards, so being ahead of them is the normal state mid-season. A
+--- two-sided test would be red on 38% of all rows and would be deleted within a week. Only
+--- `ours < standings` means something is missing.
+---
+--- A red row is a match the league counts and we do not, or a standings row filed under the wrong
+--- team: research the official decision and declare it in the correction seeds.
+---
+--- ⛔ IT REPLACES assert_mart_team_season_insights_games_match_played, WHICH COULD NOT FAIL.
+--- That test compared mart_team_season_insights.season_games_played against .played — but
+--- mart_team_season.sql:34 defines `played` as `m.season_games_played as played`, an alias of our own
+--- count. Both operands resolved to the same row through team_season_sk, so it returned zero on any
+--- data by construction. It was deleted rather than kept: a test that cannot fail is not a guard, it
+--- is false assurance appearing in every green run.
+---
+--- Joins fct_standings directly because the genuine count never reaches the marts —
+--- int_team_season__standings_primary projects only the team's table, its standing_rank, form and
+--- group_description.
+---
+--- ⚠ MAX(played), NOT THE LATEST-INGESTED ROW, AND THAT IS NOT A STYLE CHOICE.
+--- fct_standings is grained on (league_code, season, team_id, group_name), so one team-season can
+--- carry several standings rows — a group table and a play-off or relegation table, say. Measured:
+--- 299 team-seasons have more than one row and **204 of those disagree on `played`, by up to 13
+--- games**. Collapsing to one row, as int_team_season__standings_primary does for DISPLAY fields,
+--- keeps the table of the phase being played, not the one with the most matches. For a numeric
+--- reconciliation that is unsound in both directions: it can invent a shortfall or hide one.
+--- MAX is deterministic and errs toward silence: if any authoritative table says the team played N,
+--- we should hold at least N.
+-with standings_played as (
+-    select
+-        team_sk,
+-        season_sk,
+-        max(played) as played
+-    from {{ ref('fct_standings') }}
+-    group by team_sk, season_sk
++with leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
++),
++
++disagreeing as (
++    {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
+ )
+ 
+ select
+-    m.team_sk,
+-    m.season_sk,
+-    m.league_code,
+-    m.season_api_year,
++    d.team_sk,
++    d.season_sk,
++    d.reason,
++    m.team_sk is not null as row_found,
++    m.counts_withheld,
+     m.season_games_played,
+-    s.played as standings_played,
+-    s.played - m.season_games_played as games_missing
+-from {{ ref('int_team_season__metrics') }} as m
+-inner join standings_played as s
+-    on
+-        m.team_sk = s.team_sk
+-        and m.season_sk = s.season_sk
++    m.wins_sum_season,
++    m.draws_sum_season,
++    m.losses_sum_season,
++    m.goals,
++    m.goals_against,
++    m.points_won
++from disagreeing as d
++left join {{ ref('int_team_season__metrics') }} as m
++    on d.team_sk = m.team_sk and d.season_sk = m.season_sk
+ where
+-    s.played is not null
+-    and m.season_games_played < s.played
++    d.reason = 'games_short'
++    and (
++        m.team_sk is null
++        or not coalesce(m.counts_withheld, false)
++        or m.season_games_played is not null
++        or m.wins_sum_season is not null
++        or m.draws_sum_season is not null
++        or m.losses_sum_season is not null
++        or m.goals is not null
++        or m.goals_against is not null
++        or m.points_won is not null
++    )
+diff --git a/dbt_project/tests/assert_team_season_off_standings_answer_key.sql b/dbt_project/tests/assert_team_season_off_standings_answer_key.sql
+new file mode 100644
+index 00000000..161a155f
+--- /dev/null
++++ b/dbt_project/tests/assert_team_season_off_standings_answer_key.sql
+@@ -0,0 +1,133 @@
++{#
++  Hand-written answer key for the macro team_seasons_off_standings. Every team-season below has
++  10 games, 5 wins, 3 draws, 2 losses, 16 goals, 9 goals against and 18 points, and the standings
++  row that counts the same games agrees unless the case says otherwise. Each case names what the
++  macro must return; a case missing from the expected list must return nothing.
++
++   1 agrees                                               -> nothing
++   2 wins, 3 draws, 4 losses, 5 goals, 6 goals against, 7 points each differ -> counts_differ
++   8 table points 15 and 3 points taken by the league     -> nothing (adjusted points agree)
++   9 same, ours 19                                        -> counts_differ
++  10 table points 15, the adjustment is another team's    -> counts_differ
++  11 adjustment group name padded with a space            -> nothing (names are trimmed)
++  12 two adjustments of 3 add to 6 on table points 12     -> nothing
++  13 the table counts 8 games, ours 10 (an older snapshot) -> nothing (ahead is normal, not compared)
++  14 the table counts 11 games, ours 10                   -> games_short
++  15 a group row that agrees and a play-off row of 4 games -> nothing
++  16 rows of 8 and 12 games                               -> games_short (the largest counts)
++  17 two rows of 10 games, one agrees, one has 6 wins     -> counts_differ
++  18 our goals blank, the table has 16                    -> counts_differ
++  19 no standings row                                     -> nothing
++  20 a row of 10 games with 6 wins and a row of 11 games  -> counts_differ and games_short
++  21 the standings row is of another season               -> nothing
++  22 a table row that differs in a count but counts other games than ours -> nothing
++  23 two adjustments of 3 whose group names differ by a space, table points 12 -> nothing
++  Returns every case where the macro's rows differ from the expected rows.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with counts as (
++    select * from unnest([
++        struct(1 as team_sk, 'S1' as season_sk, 10 as season_games_played, 5 as wins, 3 as draws, 2 as losses, 16 as goals, 9 as goals_against, 18 as points_won),
++        (2, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (3, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (4, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (5, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (6, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (7, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (8, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (9, 'S1', 10, 5, 3, 2, 16, 9, 19),
++        (10, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (11, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (12, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (13, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (14, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (15, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (16, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (17, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (18, 'S1', 10, 5, 3, 2, cast(null as int64), 9, 18),
++        (19, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (20, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (21, 'S2', 10, 5, 3, 2, 16, 9, 18),
++        (22, 'S1', 10, 5, 3, 2, 16, 9, 18),
++        (23, 'S1', 10, 5, 3, 2, 16, 9, 18)
++    ])
++),
++
++standings as (
++    select * from unnest([
++        struct(1 as team_sk, 'S1' as season_sk, 'XX' as league_code, 2025 as season_api_year, 1 as team_api_id, 'Main' as group_name, 10 as played, 5 as wins, 3 as draws, 2 as losses, 16 as goals_scored, 9 as goals_conceded, 18 as points),
++        (2, 'S1', 'XX', 2025, 2, 'Main', 10, 6, 3, 2, 16, 9, 18),
++        (3, 'S1', 'XX', 2025, 3, 'Main', 10, 5, 4, 2, 16, 9, 18),
++        (4, 'S1', 'XX', 2025, 4, 'Main', 10, 5, 3, 3, 16, 9, 18),
++        (5, 'S1', 'XX', 2025, 5, 'Main', 10, 5, 3, 2, 17, 9, 18),
++        (6, 'S1', 'XX', 2025, 6, 'Main', 10, 5, 3, 2, 16, 10, 18),
++        (7, 'S1', 'XX', 2025, 7, 'Main', 10, 5, 3, 2, 16, 9, 19),
++        (8, 'S1', 'XX', 2025, 8, 'Main', 10, 5, 3, 2, 16, 9, 15),
++        (9, 'S1', 'XX', 2025, 9, 'Main', 10, 5, 3, 2, 16, 9, 15),
++        (10, 'S1', 'XX', 2025, 10, 'Main', 10, 5, 3, 2, 16, 9, 15),
++        (11, 'S1', 'XX', 2025, 11, 'Main', 10, 5, 3, 2, 16, 9, 15),
++        (12, 'S1', 'XX', 2025, 12, 'Main', 10, 5, 3, 2, 16, 9, 12),
++        (13, 'S1', 'XX', 2025, 13, 'Main', 8, 4, 2, 2, 12, 8, 14),
++        (14, 'S1', 'XX', 2025, 14, 'Main', 11, 1, 1, 1, 1, 1, 1),
++        (15, 'S1', 'XX', 2025, 15, 'Main', 10, 5, 3, 2, 16, 9, 18),
++        (15, 'S1', 'XX', 2025, 15, 'Play-off', 4, 1, 1, 2, 3, 4, 4),
++        (16, 'S1', 'XX', 2025, 16, 'Main', 8, 4, 2, 2, 12, 8, 14),
++        (16, 'S1', 'XX', 2025, 16, 'Play-off', 12, 6, 3, 3, 20, 10, 21),
++        (17, 'S1', 'XX', 2025, 17, 'Main', 10, 5, 3, 2, 16, 9, 18),
++        (17, 'S1', 'XX', 2025, 17, 'Play-off', 10, 6, 3, 2, 16, 9, 18),
++        (18, 'S1', 'XX', 2025, 18, 'Main', 10, 5, 3, 2, 16, 9, 18),
++        (20, 'S1', 'XX', 2025, 20, 'Main', 10, 6, 3, 2, 16, 9, 18),
++        (20, 'S1', 'XX', 2025, 20, 'Play-off', 11, 1, 1, 1, 1, 1, 1),
++        (21, 'S1', 'XX', 2025, 21, 'Main', 99, 9, 9, 9, 9, 9, 9),
++        (22, 'S1', 'XX', 2025, 22, 'Main', 7, 1, 1, 1, 1, 1, 1),
++        (23, 'S1', 'XX', 2025, 23, 'Main', 10, 5, 3, 2, 16, 9, 12)
++    ])
++),
++
++adjustments as (
++    select * from unnest([
++        struct('XX' as league_code, 2025 as season, 8 as team_id, 'Main' as group_name, 3 as points_taken),
++        ('XX', 2025, 9, 'Main', 3),
++        ('XX', 2025, 99, 'Main', 3),
++        ('XX', 2025, 11, 'Main ', 3),
++        ('XX', 2025, 12, 'Main', 3),
++        ('XX', 2025, 12, 'Main', 3),
++        ('XX', 2025, 23, 'Main', 3),
++        ('XX', 2025, 23, 'Main ', 3)
++    ])
++),
++
++expected as (
++    select * from unnest([
++        struct(2 as team_sk, 'S1' as season_sk, 'counts_differ' as reason),
++        (3, 'S1', 'counts_differ'),
++        (4, 'S1', 'counts_differ'),
++        (5, 'S1', 'counts_differ'),
++        (6, 'S1', 'counts_differ'),
++        (7, 'S1', 'counts_differ'),
++        (9, 'S1', 'counts_differ'),
++        (10, 'S1', 'counts_differ'),
++        (14, 'S1', 'games_short'),
++        (16, 'S1', 'games_short'),
++        (17, 'S1', 'counts_differ'),
++        (18, 'S1', 'counts_differ'),
++        (20, 'S1', 'counts_differ'),
++        (20, 'S1', 'games_short')
++    ])
++),
++
++found as (
++    {{ team_seasons_off_standings('counts', 'standings', 'adjustments') }}
++)
++
++select
++    coalesce(f.team_sk, e.team_sk) as team_sk,
++    coalesce(f.season_sk, e.season_sk) as season_sk,
++    coalesce(f.reason, e.reason) as reason,
++    f.team_sk is not null as returned,
++    e.team_sk is not null as expected
++from found as f
++full outer join expected as e
++    on f.team_sk = e.team_sk and f.season_sk = e.season_sk and f.reason = e.reason
++where f.team_sk is null or e.team_sk is null
+diff --git a/dbt_project/tests/assert_team_table_equals_published_tables.sql b/dbt_project/tests/assert_team_table_equals_published_tables.sql
+index cd4c1064..d405e390 100644
+--- a/dbt_project/tests/assert_team_table_equals_published_tables.sql
++++ b/dbt_project/tests/assert_team_table_equals_published_tables.sql
+@@ -8,13 +8,30 @@
+   took effect after that kick-off's day and by the snapshot's day, since the two tables then hold
+   different deductions. A place the league's rule settles by last season's place, or of a team
+   level on points where the rule version has provider_order_differs, is not compared: the
+-  provider orders those teams another way. One row per team whose rebuilt place or table
+-  points differ from the published ones, and one per rebuilt league-season with no comparable
+-  published table.
++  provider orders those teams another way. A team-season withheld against the standings
++  (team_seasons_off_standings, derived here from the legs, never from the flag) is left out. Every
++  other team is a row where its rebuilt points or its rebuilt place differ from the published ones
++  (published_table_mismatches). A team's place is its rank less the withheld teams ranked above it,
++  so a withheld team's points cannot move the places of the others. A withheld team does not decide
++  whether a published section is comparable: the other teams' played counts do. One row per such
++  team, and one per rebuilt league-season with no comparable published table.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+-with snapshots as (
++with leg_counts as (
++    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
++),
++
++withheld_team_seasons as (
++    select distinct
++        team_sk,
++        season_sk
++    from (
++        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
++    )
++),
++
++snapshots as (
+     select
+         league_code,
+         ingested_at
+@@ -203,12 +220,17 @@ compared as (
+         r.table_position as rebuilt_rank,
+         r.table_points as rebuilt_points,
+         coalesce(r.is_place_not_compared, false) as is_place_not_compared,
+-        logical_and(r.played is not null and c.played = r.played) over (
++        logical_and(w.team_sk is not null or r.played is not null and c.played = r.played) over (
+             partition by c.league_code, c.season_api_year, c.group_name, c.ingested_at
+-        ) as is_comparable
++        ) as is_comparable,
++        w.team_sk is not null as is_withheld
+     from corrected as c
+     inner join league_seasons as ls
+         on c.league_code = ls.league_code and c.season_api_year = ls.season_api_year
++    left join {{ ref('dim_competition_season') }} as cs
++        on c.league_code = cs.league_code and c.season_api_year = cs.season_api_year
++    left join withheld_team_seasons as w
++        on c.team_sk = w.team_sk and cs.season_sk = w.season_sk
+     inner join comparable_moments as m
+         on
+             c.league_code = m.league_code
+@@ -245,13 +267,7 @@ select
+     rebuilt_rank,
+     published_points,
+     rebuilt_points
+-from compared
+-where
+-    is_comparable
+-    and (
+-        rebuilt_points != published_points
+-        or (rebuilt_rank is not null and rebuilt_rank != published_rank and not is_place_not_compared)
+-    )
++from ({{ published_table_mismatches('compared') }})
+ union all
+ select
+     league_code,
+diff --git a/tests/test_team_season_withheld_wiring.py b/tests/test_team_season_withheld_wiring.py
+new file mode 100644
+index 00000000..3f3728b0
+--- /dev/null
++++ b/tests/test_team_season_withheld_wiring.py
+@@ -0,0 +1,495 @@
++"""A team-season whose results disagree with the provider's standings is withheld and listed.
++
++The macro team_seasons_off_standings finds the team-seasons whose counts differ from a standings row
++that counts the same games, or whose games played fall below the most any standings row counts.
++int_team_season__metrics holds the flag counts_withheld and blanks every season value where it is
++true, mart_team_leaderboards counts a withheld team-season as having played, and the research list
++carries its matches as team_season_off_standings. The tests of the disagreement derive it from
++the legs and fct_standings, never from the flag, and stay at error.
++Each pin fails when its wiring is undone.
++"""
++
++import pathlib
++import re
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++DBT = ROOT / "dbt_project"
++MACROS = DBT / "macros"
++TESTS = DBT / "tests"
++SEASON = DBT / "models" / "4_intermediate" / "domestic_league" / "team_season"
++MART = DBT / "models" / "5_marts" / "shared"
++
++KEYS = (
++    "team_season_sk",
++    "team_sk",
++    "league_sk",
++    "season_sk",
++    "league_code",
++    "season_api_year",
++    "entity_type",
++    "counts_withheld",
++)
++
++
++def _sql(path):
++    text = path.read_text(encoding="utf-8")
++    text = re.sub(r"\{#.*?#\}", " ", text, flags=re.DOTALL)
++    text = re.sub(r"--[^\n]*", " ", text)
++    return re.sub(r"\s+", " ", text)
++
++
++def _macro(file, name):
++    text = _sql(MACROS / f"{file}.sql")
++    return text.split(f"macro {name}", 1)[1].split("endmacro", 1)[0].rsplit("{%", 1)[0]
++
++
++def _stays_at_error(text):
++    softened = (
++        "error_if",
++        "warn_if",
++        "severity = 'warn'",
++        'severity = "warn"',
++        "where =",
++        "limit =",
++        "enabled =",
++        "fail_calc",
++    )
++    return "severity = 'error'" in text and not any(word in text for word in softened)
++
++
++def _yml_block(path, model):
++    text = path.read_text(encoding="utf-8")
++    return text.split(f"- name: {model}\n", 1)[1].split("\n  - name: ", 1)[0]
++
++
++def test_the_macro_finds_counts_that_differ_where_the_standings_count_the_same_games():
++    body = _macro("team_seasons_off_standings", "team_seasons_off_standings")
++    assert body.lstrip().startswith("(counts, standings, adjustments) -%}")
++    assert (
++        "off_adjusted as ( select league_code, season, team_id, trim(group_name) as group_name, "
++        "sum(points_taken) as points_taken from {{ adjustments }} "
++        "group by league_code, season, team_id, trim(group_name) )"
++    ) in body
++    assert (
++        "off_same_games as ( select distinct o.team_sk, o.season_sk, 'counts_differ' as reason "
++        "from {{ counts }} as o inner join {{ standings }} as t on o.team_sk = t.team_sk "
++        "and o.season_sk = t.season_sk and o.season_games_played = t.played "
++        "left join off_adjusted as a on t.league_code = a.league_code and t.season_api_year = a.season "
++        "and t.team_api_id = a.team_id and trim(t.group_name) = a.group_name "
++        "where o.wins is distinct from t.wins or o.draws is distinct from t.draws "
++        "or o.losses is distinct from t.losses or o.goals is distinct from t.goals_scored "
++        "or o.goals_against is distinct from t.goals_conceded "
++        "or o.points_won is distinct from t.points + coalesce(a.points_taken, 0) )"
++    ) in body
++
++
++def test_the_macro_finds_games_played_below_the_most_any_standings_row_counts():
++    body = _macro("team_seasons_off_standings", "team_seasons_off_standings")
++    assert (
++        "off_most_played as ( select team_sk, season_sk, max(played) as played "
++        "from {{ standings }} group by team_sk, season_sk )"
++    ) in body
++    assert (
++        "off_short as ( select distinct o.team_sk, o.season_sk, 'games_short' as reason "
++        "from {{ counts }} as o inner join off_most_played as s on o.team_sk = s.team_sk "
++        "and o.season_sk = s.season_sk where s.played is not null and o.season_games_played < s.played )"
++    ) in body
++    assert body.rstrip().endswith(
++        "select * from off_same_games union all select * from off_short"
++    )
++
++
++def test_the_macro_that_counts_from_the_legs_follows_the_season_rules():
++    body = _macro("team_season_counts_from_legs", "team_season_counts_from_legs")
++    assert body.lstrip().startswith("(legs) -%}")
++    assert (
++        "select team_sk, season_sk, count(*) as season_games_played, countif(result = 'W') as wins, "
++        "countif(result = 'D') as draws, countif(result = 'L') as losses, "
++        "if(logical_and(goals is not null), sum(goals), null) as goals, "
++        "if(logical_and(goals_against is not null), sum(goals_against), null) as goals_against, "
++        "sum(case result when 'W' then 3 when 'D' then 1 else 0 end) "
++        "+ if(logical_and(is_table_shootout_win is not null), countif(is_table_shootout_win), null) as points_won "
++        "from {{ legs }} group by team_sk, season_sk"
++    ) in body
++
++
++def test_the_model_flags_the_disagreeing_team_seasons_and_blanks_every_value():
++    text = _sql(SEASON / "int_team_season__metrics.sql")
++    assert (
++        "season_counts as ( select team_sk, season_sk, season_games_played, wins_sum_season as wins, "
++        "draws_sum_season as draws, losses_sum_season as losses, goals, goals_against, points_won "
++        "from season_final )"
++    ) in text
++    assert (
++        "off_standings as ( {{ team_seasons_off_standings('season_counts', ref('fct_standings'), "
++        "ref('standings_points_adjustments')) }} )"
++    ) in text
++    assert "withheld as ( select distinct team_sk, season_sk from off_standings )" in text
++    assert "w.team_sk is not null as counts_withheld" in text
++    assert (
++        "left join withheld as w on sf.team_sk = w.team_sk and sf.season_sk = w.season_sk )"
++    ) in text
++    assert text.rstrip().endswith("from season_row")
++    assert " select * replace ( " in text
++
++
++def test_the_model_blanks_exactly_the_columns_the_yml_declares_but_the_keys_and_the_flag():
++    text = _sql(SEASON / "int_team_season__metrics.sql")
++    replaced = re.findall(r"if\(counts_withheld, null, (\w+)\) as (\w+)", text)
++    assert replaced
++    assert all(left == right for left, right in replaced)
++    names = [left for left, _ in replaced]
++    assert len(names) == len(set(names))
++    block = _yml_block(SEASON / "int_team_season.yml", "int_team_season__metrics")
++    block = block.split("\n  - name: ", 1)[0]
++    declared = re.findall(r"^      - name: (\w+)$", block, flags=re.MULTILINE)
++    assert set(declared) - set(KEYS) == set(names)
++    assert set(KEYS) <= set(declared)
++    assert text.count("if(counts_withheld, null,") == len(names)
++
++
++def test_the_flag_is_declared_without_a_hiding_filter_and_the_blankable_values_carry_no_not_null():
++    yml = (SEASON / "int_team_season.yml").read_text(encoding="utf-8")
++    block = yml.split("- name: int_team_season__metrics\n", 1)[1].split("\n  - name: ", 1)[0]
++    flag = block.split("- name: counts_withheld", 1)[1].split("\n      - name: ", 1)[0]
++    assert "tests: [not_null]" in flag
++    games = block.split("- name: season_games_played", 1)[1].split("\n      - name: ", 1)[0]
++    assert "not_null" not in games
++    season = (MART / "shared.yml").read_text(encoding="utf-8")
++    record = season.split("- name: mart_team_season\n", 1)[1].split("\n  - name: ", 1)[0]
++    for column in (
++        "played",
++        "wins",
++        "draws",
++        "losses",
++        "goals_for",
++        "goals_against",
++        "goal_diff",
++        "points",
++        "clean_sheets",
++    ):
++        body = record.split(f"- name: {column}\n", 1)[1].split("\n      - name: ", 1)[0]
++        assert "not_null" not in body, column
++    games_record = season.split("- name: mart_team_season_record\n", 1)[1].split("\n  - name: ", 1)[0]
++    assert "not_null" not in games_record.split("- name: games_played\n", 1)[1].split("\n      - name: ", 1)[0]
++    insights = (DBT / "models" / "5_marts" / "domestic_league" / "domestic_league.yml").read_text(encoding="utf-8")
++    block = insights.split("- name: season_games_played\n", 1)[1].split("\n      - name: ", 1)[0]
++    assert "not_null" not in block
++
++
++def test_a_withheld_team_season_stays_in_the_field_of_teams_that_played():
++    text = _sql(MART / "mart_team_leaderboards.sql")
++    assert (
++        "from {{ ref('int_team_season__metrics') }} where season_games_played >= 1 or counts_withheld ), "
++    ) in text
++    assert (
++        "field as ( select league_code, season_api_year, count(*) as teams_played from season "
++        "group by league_code, season_api_year )"
++    ) in text
++    assert "teams_with_value = teams_played" in text
++    assert (
++        "latest_season as ( select league_code, max(season_api_year) as latest_season_api_year "
++        "from field group by league_code )"
++    ) in text
++    assert "inner join latest_season as ls on l.league_code = ls.league_code" in text
++    assert "season_api_year = latest_season_api_year as is_current_season" in text
++    assert "order by season_api_year desc ) = 1 as is_current_season" not in text
++    coverage = _sql(TESTS / "assert_mart_team_leaderboards_boards_cover_every_team.sql")
++    assert "where season_games_played >= 1 or counts_withheld group by league_code, season_api_year" in coverage
++
++
++def test_the_research_list_carries_every_finished_match_of_a_withheld_team_season():
++    text = _sql(MART / "mart_competition_research_list.sql")
++    assert (
++        "off_standings_items as ( select 'team_season_off_standings' as check_name, 'none' as seed, "
++        "r.fixture_sk, r.team_sk, cast(null as string) as correction, cast(null as int64) as provider_team_id "
++        "from {{ ref('int_team_season_record') }} as r inner join {{ ref('int_team_season__metrics') }} as m "
++        "on r.team_sk = m.team_sk and r.season_sk = m.season_sk where m.counts_withheld )"
++    ) in text
++    assert (
++        "from off_standings_items as s inner join fixtures as f on s.fixture_sk = f.fixture_sk union all"
++    ) in text
++    shared = (MART / "shared.yml").read_text(encoding="utf-8")
++    assert shared.count('"team_season_off_standings", "lineup_duplicate_withheld", "correction_no_longer_needed"]') == 1
++    assert shared.count('"fixture_lineup_corrections", "none"]') == 1
++
++
++def test_the_two_disagreement_tests_derive_the_disagreement_from_the_legs_and_stay_at_error():
++    for name, reason in (
++        ("assert_team_season_equals_league_table", "counts_differ"),
++        ("assert_team_season_games_not_short_of_standings", "games_short"),
++    ):
++        text = _sql(TESTS / f"{name}.sql")
++        assert _stays_at_error(text), name
++        assert (
++            "with leg_counts as ( {{ team_season_counts_from_legs(ref('int_legs__team_match')) }} ), "
++            "disagreeing as ( {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), "
++            "ref('standings_points_adjustments')) }} ) select"
++        ) in text, name
++        assert (
++            "from disagreeing as d left join {{ ref('int_team_season__metrics') }} as m "
++            "on d.team_sk = m.team_sk and d.season_sk = m.season_sk "
++            f"where d.reason = '{reason}' and ( m.team_sk is null or not coalesce(m.counts_withheld, false) "
++            "or m.season_games_played is not null or m.wins_sum_season is not null "
++            "or m.draws_sum_season is not null or m.losses_sum_season is not null "
++            "or m.goals is not null or m.goals_against is not null or m.points_won is not null )"
++        ) in text, name
++        assert "where counts_withheld" not in text
++        assert "from {{ ref('int_team_season__metrics') }} where" not in text
++
++
++def test_the_reverse_test_holds_the_flag_the_values_the_marts_and_the_listing_to_the_disagreement():
++    text = _sql(TESTS / "assert_team_season_blank_exactly_when_withheld.sql")
++    assert _stays_at_error(text)
++    assert (
++        "with leg_counts as ( {{ team_season_counts_from_legs(ref('int_legs__team_match')) }} ), "
++        "disagreeing as ( select distinct team_sk, season_sk from ( "
++        "{{ team_seasons_off_standings('leg_counts', ref('fct_standings'), "
++        "ref('standings_points_adjustments')) }} ) ), "
++        "season as ( select m.*, d.team_sk is not null as disagrees "
++        "from {{ ref('int_team_season__metrics') }} as m left join disagreeing as d "
++        "on m.team_sk = d.team_sk and m.season_sk = d.season_sk )"
++    ) in text
++    assert "where counts_withheld and not disagrees" in text
++    assert "where disagrees and not counts_withheld" in text
++    assert "'withheld and holds a value' as failure from season where counts_withheld and ( {% for column in values %}" in text
++    assert "where not counts_withheld and season_games_played is null" in text
++    for model in ("mart_team_season", "mart_team_season_insights", "mart_team_season_record"):
++        assert f"'{model}' as model" in text, model
++    assert "where l.check_name = 'team_season_off_standings' and d.team_sk is null" in text
++    assert "and l.check_name = 'team_season_off_standings' where l.fixture_sk is null" in text
++    assert "raise_compiler_error" in text
++    assert "{% if values | length == 0 %} {{ exceptions.raise_compiler_error(" in text
++    assert (
++        "{% set kept = [ 'team_season_sk', 'team_sk', 'league_sk', 'season_sk', 'league_code', "
++        "'season_api_year', 'entity_type', 'counts_withheld' ] %}"
++    ) in text
++    assert "{{ column }} is not null{% if not loop.last %} or{% endif %}" in text
++    assert (
++        "where s.counts_withheld != ( t.played is null and t.wins is null and t.draws is null "
++        "and t.losses is null and t.goals_for is null and t.goals_against is null and t.goal_diff is null "
++        "and t.points is null and t.clean_sheets is null ) or ( not s.counts_withheld and ( t.played is null "
++        "or t.wins is null or t.draws is null or t.losses is null or t.goals_for is null "
++        "or t.goals_against is null or t.goal_diff is null or t.points is null or t.clean_sheets is null ) )"
++    ) in text
++    assert (
++        "where (s.counts_withheld and i.season_games_played is not null) "
++        "or (not s.counts_withheld and i.season_games_played is null)"
++    ) in text
++    assert (
++        "where (s.counts_withheld and r.games_played is not null) "
++        "or (not s.counts_withheld and r.games_played is null)"
++    ) in text
++
++
++def test_the_tests_that_read_the_record_and_the_current_season_follow_the_withheld_team_season():
++    form = _sql(TESTS / "assert_team_form_window_follows_the_rule.sql")
++    assert _stays_at_error(form)
++    assert (
++        "with leg_counts as ( {{ team_season_counts_from_legs(ref('int_legs__team_match')) }} ), "
++        "disagreeing as ( select distinct team_sk, season_sk from ( "
++        "{{ team_seasons_off_standings('leg_counts', ref('fct_standings'), "
++        "ref('standings_points_adjustments')) }} ) ), upcoming as ("
++    ) in form
++    assert (
++        "logical_or(l.season_api_year = s.season_api_year and d.team_sk is not null) as this_season_withheld, "
++        "logical_or(l.season_api_year = s.season_api_year - 1 and d.team_sk is not null) as previous_season_withheld"
++    ) in form
++    assert "left join disagreeing as d on l.team_sk = d.team_sk and l.season_sk = d.season_sk" in form
++    assert (
++        "where e.window_type is distinct from m.window_type or e.games_played is distinct from m.games_played )"
++    ) in form
++    assert (
++        "if( legs_this_season > 0, if(this_season_withheld, null, legs_this_season), "
++        "if(previous_season_withheld, null, legs_previous_season) ) as games_played"
++    ) in form
++    leaders = _sql(TESTS / "assert_mart_team_leaderboards_one_leader_per_league.sql")
++    assert (
++        "leg_counts as ( {{ team_season_counts_from_legs(ref('int_legs__team_match')) }} ), "
++        "disagreeing as ( select distinct team_sk, season_sk from ( "
++        "{{ team_seasons_off_standings('leg_counts', ref('fct_standings'), "
++        "ref('standings_points_adjustments')) }} ) ), "
++        "latest_seasons as ( select league_code, max(season_api_year) as latest_season "
++        "from {{ ref('int_team_season__metrics') }} group by league_code ), "
++        "withheld_latest as ( select distinct l.league_code from latest_seasons as l "
++        "inner join {{ ref('int_team_season__metrics') }} as m on l.league_code = m.league_code "
++        "and l.latest_season = m.season_api_year inner join disagreeing as d "
++        "on m.team_sk = d.team_sk and m.season_sk = d.season_sk )"
++    ) in leaders
++    assert (
++        "left join withheld_latest as h on p.league_code = h.league_code group by p.league_code, h.league_code "
++        "having if( h.league_code is not null, countif(p.flagged_rows > 0) > 0, "
++        "countif(p.flagged_rows > 0) != 1 or max(case when p.flagged_rows > 0 then p.season_api_year end) "
++        "!= max(p.season_api_year) or countif(p.flagged_rows > 0 and p.flagged_rows != p.season_rows) > 0 ) )"
++    ) in leaders
++    doc = (DBT / "models" / "docs" / "shared_columns.md").read_text(encoding="utf-8")
++    block = doc.split("{% docs season_games_played__whole_season %}", 1)[1].split("{% enddocs %}", 1)[0]
++    block = " ".join(block.split())
++    assert "NULL only where the team-season is withheld" in block
++    assert "Never NULL" not in block
++    metrics = _yml_block(SEASON / "int_team_season.yml", "int_team_season__metrics")
++    blanked = {
++        left for left, _ in re.findall(r"if\(counts_withheld, null, (\w+)\) as (\w+)", _sql(SEASON / "int_team_season__metrics.sql"))
++    }
++    pairs = re.findall(r"- name: (\w+)\n\s+description: \"\{\{ doc\('(\w+)'\) \}\}", metrics)
++    used = [doc_name for column, doc_name in pairs if column in blanked]
++    assert "season_matchdays_used" in used and "wins_sum_season" in used
++    every_doc = "\n".join(path.read_text(encoding="utf-8") for path in (DBT / "models" / "docs").glob("*.md"))
++    for name in used:
++        text = every_doc.split("{% docs " + name + " %}", 1)[1].split("{% enddocs %}", 1)[0]
++        assert "never null" not in text.lower(), name
++
++
++def test_the_recompute_tests_expect_a_blank_value_where_the_legs_disagree_and_the_hand_worked_key_does_not():
++    key = _sql(TESTS / "assert_team_season_answer_key.sql")
++    assert _stays_at_error(key)
++    assert "team_seasons_off_standings" not in key and "counts_withheld" not in key
++    assert "case when k.numerator is null then null when c.denominator_expr is not null then" in key
++    formula = _sql(TESTS / "assert_team_metrics_follow_catalogue_formula.sql")
++    assert _stays_at_error(formula)
++    assert "'grain': ['team_sk', 'season_sk'], 'windowed': false, 'off_standings': true}" in formula
++    assert (
++        "off_standings_seasons as ( select distinct team_sk, season_sk from ( "
++        "{{ team_seasons_off_standings('leg_counts', ref('fct_standings'), "
++        "ref('standings_points_adjustments')) }} ) )"
++    ) in formula
++    assert "if(d.team_sk is not null, null, cast(e.{{ m.metric }} as float64))" in formula
++    assert (
++        "left join off_standings_seasons as d on coalesce(e.team_sk, m.team_sk) = d.team_sk "
++        "and coalesce(e.season_sk, m.season_sk) = d.season_sk"
++    ) in formula
++    assert formula.count("'off_standings': true") == 1
++
++
++def test_the_flag_is_no_metric_of_the_catalogue():
++    text = _sql(TESTS / "assert_no_uncatalogued_season_metric.sql")
++    assert "'games_expecting_team_stats', 'entity_type', 'counts_withheld'," in text
++
++
++def test_the_answer_key_of_the_macro_runs_both_reasons_and_the_cases_beside_them():
++    text = _sql(TESTS / "assert_team_season_off_standings_answer_key.sql")
++    assert _stays_at_error(text)
++    assert "{{ team_seasons_off_standings('counts', 'standings', 'adjustments') }}" in text
++    assert (
++        "expected as ( select * from unnest([ struct(2 as team_sk, 'S1' as season_sk, 'counts_differ' as reason), "
++        "(3, 'S1', 'counts_differ'), (4, 'S1', 'counts_differ'), (5, 'S1', 'counts_differ'), "
++        "(6, 'S1', 'counts_differ'), (7, 'S1', 'counts_differ'), (9, 'S1', 'counts_differ'), "
++        "(10, 'S1', 'counts_differ'), (14, 'S1', 'games_short'), (16, 'S1', 'games_short'), "
++        "(17, 'S1', 'counts_differ'), (18, 'S1', 'counts_differ'), (20, 'S1', 'counts_differ'), "
++        "(20, 'S1', 'games_short') ]) )"
++    ) in text
++    assert (
++        "from found as f full outer join expected as e on f.team_sk = e.team_sk and f.season_sk = e.season_sk "
++        "and f.reason = e.reason where f.team_sk is null or e.team_sk is null"
++    ) in text
++    assert "('XX', 2025, 11, 'Main ', 3)," in text
++    assert "(18, 'S1', 10, 5, 3, 2, cast(null as int64), 9, 18)," in text
++    assert "('XX', 2025, 23, 'Main', 3), ('XX', 2025, 23, 'Main ', 3) ])" in text
++    assert "(23, 'S1', 'XX', 2025, 23, 'Main', 10, 5, 3, 2, 16, 9, 12) ])" in text
++
++
++def test_the_published_table_test_leaves_out_only_the_withheld_team_seasons():
++    text = _sql(TESTS / "assert_team_table_equals_published_tables.sql")
++    assert _stays_at_error(text)
++    assert (
++        "with leg_counts as ( {{ team_season_counts_from_legs(ref('int_legs__team_match')) }} ), "
++        "withheld_team_seasons as ( select distinct team_sk, season_sk from ( "
++        "{{ team_seasons_off_standings('leg_counts', ref('fct_standings'), "
++        "ref('standings_points_adjustments')) }} ) ), snapshots as ("
++    ) in text
++    assert (
++        "w.team_sk is not null as is_withheld from corrected as c inner join league_seasons as ls "
++        "on c.league_code = ls.league_code and c.season_api_year = ls.season_api_year "
++        "left join {{ ref('dim_competition_season') }} as cs on c.league_code = cs.league_code "
++        "and c.season_api_year = cs.season_api_year left join withheld_team_seasons as w "
++        "on c.team_sk = w.team_sk and cs.season_sk = w.season_sk"
++    ) in text
++    assert "from ({{ published_table_mismatches('compared') }}) union all" in text
++    assert "countif(cp.is_comparable) as comparable_rows" in text
++    assert "table_rank_mismatches" not in text
++    body = _macro("published_table_mismatches", "published_table_mismatches")
++    assert body.lstrip().startswith("(compared) -%}")
++    assert "with section_teams as ( select * from {{ compared }} where is_comparable )," in body
++    assert (
++        "t.published_rank - countif(w.team_sk is not null and w.published_rank < t.published_rank) "
++        "as published_place, "
++        "t.rebuilt_rank - countif(w.team_sk is not null and w.rebuilt_rank < t.rebuilt_rank) "
++        "as rebuilt_place from section_teams as t left join section_teams as w on "
++        "t.league_code = w.league_code and t.season_api_year = w.season_api_year "
++        "and t.group_name = w.group_name and t.ingested_at = w.ingested_at and w.is_withheld group by"
++    ) in body
++    assert "rank()" not in body
++    assert (
++        "from place_counted where not is_withheld and published_place != rebuilt_place "
++        "and not is_place_not_compared union distinct"
++    ) in body
++    assert body.rstrip().endswith(
++        "from section_teams where not is_withheld and rebuilt_points != published_points"
++    )
++
++
++def test_a_withheld_team_does_not_decide_whether_a_published_section_is_comparable():
++    text = _sql(TESTS / "assert_team_table_equals_published_tables.sql")
++    assert (
++        "logical_and(w.team_sk is not null or r.played is not null and c.played = r.played) over ("
++    ) in text
++
++
++def test_the_answer_key_of_the_published_table_comparison_runs_the_macro_on_its_own_rows():
++    text = _sql(TESTS / "assert_published_table_mismatches_answer_key.sql")
++    assert _stays_at_error(text)
++    assert "{{ published_table_mismatches('compared') }}" in text
++    assert "in ('C:3', 'D:3', 'M:2', 'Q:1', 'R:1') as is_withheld from compared_rows" in text
++    assert (
++        "expected as ( select * from unnest([ struct('B' as group_name, 1 as team_sk), ('B', 2), ('D', 1), "
++        "('D', 2), ('H', 2), ('I2', 1), ('I2', 2), ('K', 4), ('L', 2), ('O', 1), ('P', 1) ]) )"
++    ) in text
++    assert (
++        "('XX', 2025, 'P', timestamp('2025-01-16'), 1, 1, 3, 9, 9, false, true), "
++        "('XX', 2025, 'P', timestamp('2025-01-16'), 2, 2, cast(null as int64), 9, 9, false, true), "
++        "('XX', 2025, 'P', timestamp('2025-01-16'), 3, 3, cast(null as int64), 9, 9, false, true), "
++        "('XX', 2025, 'P', timestamp('2025-01-16'), 4, 4, 4, 3, 3, false, true), "
++        "('XX', 2025, 'Q', timestamp('2025-01-17'), 1, 1, 3, 9, 3, false, true), "
++        "('XX', 2025, 'Q', timestamp('2025-01-17'), 2, 2, 1, 6, 6, false, true), "
++        "('XX', 2025, 'Q', timestamp('2025-01-17'), 3, 3, 2, 3, 3, false, true), "
++        "('XX', 2025, 'R', timestamp('2025-01-18'), 1, 1, 1, 9, 3, false, true), "
++        "('XX', 2025, 'R', timestamp('2025-01-18'), 2, 1, 2, 9, 9, false, true), "
++        "('XX', 2025, 'R', timestamp('2025-01-18'), 3, 3, 3, 3, 3, false, true) ]) ),"
++    ) in text
++    assert (
++        "('XX', 2025, 'L', timestamp('2025-01-12'), 2, 2, 2, 6, 5, false, true), "
++        "('XX', 2025, 'L', timestamp('2025-01-12'), 3, 3, 3, 3, 3, false, true), "
++        "('XX', 2025, 'M', timestamp('2025-01-13'), 1, 1, 1, 9, 9, false, true), "
++        "('XX', 2025, 'M', timestamp('2025-01-13'), 2, 2, 2, 6, 5, false, true), "
++    ) in text
++    assert (
++        "('XX', 2025, 'N', timestamp('2025-01-14'), 2, 2, 2, 6, 5, false, false), "
++    ) in text
++    assert "('XX', 2025, 'O', timestamp('2025-01-15'), 1, cast(null as int64), 1, 9, 8, false, true), " in text
++    assert (
++        "('XX', 2025, 'K', timestamp('2025-01-11'), 2, 2, 3, 6, 6, true, true), "
++        "('XX', 2025, 'K', timestamp('2025-01-11'), 3, 3, 4, 6, 6, true, true), "
++        "('XX', 2025, 'K', timestamp('2025-01-11'), 4, 4, 2, 4, 4, false, true), "
++    ) in text
++    assert (
++        "('XX', 2025, 'J', timestamp('2025-01-10'), 1, cast(null as int64), 3, 9, 9, false, true), "
++        "('XX', 2025, 'J', timestamp('2025-01-10'), 2, 1, 1, 9, 9, false, true), "
++        "('XX', 2025, 'J', timestamp('2025-01-10'), 3, 2, 2, 6, 6, false, true), "
++    ) in text
++    assert (
++        "from found as f full outer join expected as e on f.group_name = e.group_name and f.team_sk = e.team_sk "
++        "where f.team_sk is null or e.team_sk is null"
++    ) in text
++
++
++def test_the_cleaning_rule_names_the_withheld_team_season():
++    text = (DBT / "models" / "docs" / "cleaning_rules.md").read_text(encoding="utf-8")
++    assert (
++        "- A team-season whose results disagree with the provider's standings has every season value\n"
++        "  withheld. Its matches stand on mart_competition_research_list."
++    ) in text
++
++
++def test_the_research_skill_does_not_research_the_row_kind():
++    text = (ROOT / ".claude" / "skills" / "research-provider-errors" / "SKILL.md").read_text(encoding="utf-8")
++    assert "`team_season_off_standings` row is not researched" in text
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/262-standings-disagree-withheld/review.md |   29 +
+#    .../review_input.patch                             | 2582 ++++++++++++++++++++
+#    2 files changed, 2611 insertions(+)
+# ============================================================================

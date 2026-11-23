@@ -104,7 +104,6 @@ models:
         tests: [not_null]
       - name: season_games_played
         description: "{{ doc('season_games_played__whole_season') }}"
-        tests: [not_null]
       - name: played
         description: "Finished matches from mart_team_season; null when standings rollup absent."
       - name: team_code

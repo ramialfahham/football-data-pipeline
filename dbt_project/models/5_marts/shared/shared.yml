@@ -1127,8 +1127,7 @@ models:
           - accepted_values:
               values: ["season_to_date", "prev_season"]
       - name: games_played
-        description: "Cumulative matches in the season-to-date window."
-        tests: [not_null]
+        description: "Cumulative matches in the season-to-date window. Blank where the team-season is withheld."
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
@@ -1500,32 +1499,23 @@ models:
       - name: team_logo_url
         description: "{{ doc('team_logo_url') }}"
       - name: played
-        description: "Count of finished matches this team took part in during the season."
-        tests: [not_null]
+        description: "Count of finished matches this team took part in during the season. Blank where the team-season is withheld."
       - name: wins
         description: "{{ doc('wins') }}"
-        tests: [not_null]
       - name: draws
         description: "{{ doc('draws') }}"
-        tests: [not_null]
       - name: losses
         description: "{{ doc('losses') }}"
-        tests: [not_null]
       - name: goals_for
         description: "{{ doc('goals') }}"
-        tests: [not_null]
       - name: goals_against
         description: "{{ doc('goals_against') }}"
-        tests: [not_null]
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
-        tests: [not_null]
       - name: points
         description: "{{ doc('points_won') }}"
-        tests: [not_null]
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
-        tests: [not_null]
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -4043,22 +4033,23 @@ models:
     description: >
       The list of provider errors to research, rebuilt each night. One row per match, or team in a
       match, where a check of the provider's data withholds a value on goals, scores, awards or
-      cards or leaves out a line filed under a team that did not play the match, and one row per
-      correction the provider no longer needs. A value the provider has
-      corrected itself passes its check, and its row leaves the list. The research routine reads
+      cards. A line filed under a team that did not play the match is left out. A team-season whose
+      results disagree with the provider's standings is blanked. One row per correction the
+      provider no longer needs. A value the provider has corrected itself passes its check, and its
+      row leaves the list. The research routine reads
       it; no page does. Grain: item_key.
     columns:
       - name: item_key
-        description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
+        description: "The row's key, its parts separated by a space. It holds check_name, seed, and the correction's key or the fixture id. A line-up team, a misfiled line or a withheld team-season adds the team id."
         tests: [unique, not_null]
       - name: check_name
-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+        description: "What failed. One of result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld, player_team_withheld, lineup_duplicate_withheld, team_season_off_standings or correction_no_longer_needed. misfiled_team_withheld is a line filed under a team that did not play the match. player_team_withheld is a player whose stat line and events name different teams. Both stay out of the facts until a correction row settles them. lineup_duplicate_withheld is a team whose line-up the provider stored twice with different content. team_season_off_standings is a team-season whose results disagree with the provider's standings, so every value of it is blank. correction_no_longer_needed is a correction the provider's own data now carries."
         tests:
           - not_null
           - accepted_values:
-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "correction_no_longer_needed"]
+              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "team_season_off_standings", "lineup_duplicate_withheld", "correction_no_longer_needed"]
       - name: seed
-        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld: no seed fixes it, a newer fetch removes it."
+        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none where no seed fixes it."
         tests:
           - not_null
           - accepted_values:
@@ -4072,7 +4063,7 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: team_sk
-        description: "{{ doc('team_sk') }} On a misfiled-team row, the team the provider filed the line under, only where that team is in dim_team; NULL where it is not."
+        description: "{{ doc('team_sk') }} On a misfiled-team row, the team the provider filed the line under, only where that team is in dim_team; NULL where it is not. On a team-season row, the team of the team-season."
         tests:
           - relationships:
               to: ref('dim_team')

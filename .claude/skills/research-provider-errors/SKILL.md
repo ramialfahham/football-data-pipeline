@@ -50,6 +50,7 @@ order by research_tier nulls last, fixture_date
 - A `misfiled_team_withheld` row is not researched. Its seed, `fixture_team_id_overrides`, is not one this skill edits. Report the row.
 - A `lineup_duplicate_withheld` row is not researched. It has no seed (`none`): a newer provider fetch removes it. Report the row.
 - A `player_team_withheld` row is not researched. Its seed, `fixture_lineup_corrections`, holds line-up research, which this skill does not do. Report the row.
+- A `team_season_off_standings` row is not researched. It has no seed (`none`): the team-season's results disagree with the provider's standings. Report the row.
 
 ## 2. Choose the matches
 

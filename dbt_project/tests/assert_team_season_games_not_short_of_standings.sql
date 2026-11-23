@@ -1,3 +1,27 @@
+{#
+  A team-season with fewer played games than its standings say is withheld. Our count of a team's
+  played matches must never be LOWER than the number the competition's own standings say it played:
+  when it is, a match a governing body records as played is missing from our legs, whatever the
+  cause (a fixture stuck at SUSP or INT, one mislabelled CANC, one awarded and filed under a status
+  nothing reads, one the provider never published). The standings' played count is produced
+  independently of the status field, so this catches the symptom, not a list of causes. Then the
+  provider's results or its standings are wrong and nothing says which, so int_team_season__metrics
+  holds the team-season withheld: counts_withheld true and every season value blank.
+
+  One direction only, because being ahead of the standings is the normal state: standings are a
+  snapshot taken when they were last ingested and we count fixtures afterwards. Measured over 4,082
+  team-seasons: 2,515 agree, 1,564 have our count higher by 1 to 30 games, 3 have it lower. The
+  standings' played count is the largest of the team-season's standings rows, because one team-season
+  can hold a group table and a play-off table that count different numbers of games (299
+  team-seasons, 204 of them disagreeing on played by up to 13 games); any one of them says the team
+  played that many. The standings are read from fct_standings directly, because
+  int_team_season__standings_primary keeps one row for display.
+
+  The disagreement is derived here from the legs and fct_standings, never from the flag, by the
+  macro team_seasons_off_standings that assert_team_season_off_standings_answer_key pins to
+  hand-written rows. Returns one row per team-season short of its standings that is not withheld, a
+  flag that is not set, a value that is not blank, or a team-season missing from the model.
+#}
 {{
     config(
         severity = 'error',
@@ -6,69 +30,40 @@
     )
 }}
 
--- Our own count of a team's played matches must never be LOWER than the number the competition's
--- own standings say it played. When it is, we are missing a match that a governing body records as
--- played — and that is true whatever caused it: a fixture stuck at SUSP or INT, one mislabelled
--- CANC, one awarded and filed under a status nothing reads, or one the provider never published.
---
--- ⭐ THE POINT IS THAT IT ENUMERATES NOTHING. A status list can only catch the causes somebody
--- thought to list, and the status field is the least reliable thing the provider sends. The
--- standings' played count is produced independently of it, so this catches the SYMPTOM instead of
--- guessing at causes. It is the detector an Eredivisie incident actually needed: FC
--- Utrecht was a game short of its league, and no test asked that question.
---
--- ⛔ ONE DIRECTION ONLY, AND THE ASYMMETRY IS MEASURED, NOT ASSUMED. Over 4,082 team-seasons:
--- 2,515 agree, 1,564 have OUR count HIGHER by 1 to 30 games, and 3 have ours LOWER. The "higher"
--- population is not a defect — standings are a snapshot taken when they were last ingested, and we
--- keep counting fixtures afterwards, so being ahead of them is the normal state mid-season. A
--- two-sided test would be red on 38% of all rows and would be deleted within a week. Only
--- `ours < standings` means something is missing.
---
--- A red row is a match the league counts and we do not, or a standings row filed under the wrong
--- team: research the official decision and declare it in the correction seeds.
---
--- ⛔ IT REPLACES assert_mart_team_season_insights_games_match_played, WHICH COULD NOT FAIL.
--- That test compared mart_team_season_insights.season_games_played against .played — but
--- mart_team_season.sql:34 defines `played` as `m.season_games_played as played`, an alias of our own
--- count. Both operands resolved to the same row through team_season_sk, so it returned zero on any
--- data by construction. It was deleted rather than kept: a test that cannot fail is not a guard, it
--- is false assurance appearing in every green run.
---
--- Joins fct_standings directly because the genuine count never reaches the marts —
--- int_team_season__standings_primary projects only the team's table, its standing_rank, form and
--- group_description.
---
--- ⚠ MAX(played), NOT THE LATEST-INGESTED ROW, AND THAT IS NOT A STYLE CHOICE.
--- fct_standings is grained on (league_code, season, team_id, group_name), so one team-season can
--- carry several standings rows — a group table and a play-off or relegation table, say. Measured:
--- 299 team-seasons have more than one row and **204 of those disagree on `played`, by up to 13
--- games**. Collapsing to one row, as int_team_season__standings_primary does for DISPLAY fields,
--- keeps the table of the phase being played, not the one with the most matches. For a numeric
--- reconciliation that is unsound in both directions: it can invent a shortfall or hide one.
--- MAX is deterministic and errs toward silence: if any authoritative table says the team played N,
--- we should hold at least N.
-with standings_played as (
-    select
-        team_sk,
-        season_sk,
-        max(played) as played
-    from {{ ref('fct_standings') }}
-    group by team_sk, season_sk
+with leg_counts as (
+    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
+),
+
+disagreeing as (
+    {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
 )
 
 select
-    m.team_sk,
-    m.season_sk,
-    m.league_code,
-    m.season_api_year,
+    d.team_sk,
+    d.season_sk,
+    d.reason,
+    m.team_sk is not null as row_found,
+    m.counts_withheld,
     m.season_games_played,
-    s.played as standings_played,
-    s.played - m.season_games_played as games_missing
-from {{ ref('int_team_season__metrics') }} as m
-inner join standings_played as s
-    on
-        m.team_sk = s.team_sk
-        and m.season_sk = s.season_sk
+    m.wins_sum_season,
+    m.draws_sum_season,
+    m.losses_sum_season,
+    m.goals,
+    m.goals_against,
+    m.points_won
+from disagreeing as d
+left join {{ ref('int_team_season__metrics') }} as m
+    on d.team_sk = m.team_sk and d.season_sk = m.season_sk
 where
-    s.played is not null
-    and m.season_games_played < s.played
+    d.reason = 'games_short'
+    and (
+        m.team_sk is null
+        or not coalesce(m.counts_withheld, false)
+        or m.season_games_played is not null
+        or m.wins_sum_season is not null
+        or m.draws_sum_season is not null
+        or m.losses_sum_season is not null
+        or m.goals is not null
+        or m.goals_against is not null
+        or m.points_won is not null
+    )
