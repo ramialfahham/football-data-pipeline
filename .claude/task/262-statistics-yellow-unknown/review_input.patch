@@ -1,0 +1,493 @@
+diff --git a/.claude/task/262-statistics-yellow-unknown/contract.md b/.claude/task/262-statistics-yellow-unknown/contract.md
+new file mode 100644
+index 00000000..7396bf99
+--- /dev/null
++++ b/.claude/task/262-statistics-yellow-unknown/contract.md
+@@ -0,0 +1,113 @@
++# Task contract - a team's card count is not shown as 0 in a match whose events name a team that did not play it
++
++objective: >
++  Issue #262, outside item found in the review of the misfiled-team check. base_apif__fixture_statistics
++  fills a team's blank yellow or red card count with 0 where the match's events were delivered and
++  the team has no event of that colour or of none. A card event filed under a team that did not
++  play the match counts against no team of the match, so a team whose line carries no count and
++  whose card sits under that third team gets a 0 that is a wrong value, not the provider's. Now a
++  match with such an event proves no team's card count to be 0: the blank stays blank, as it does
++  where nothing proves the count. The match is already a misfiled_team_withheld row of
++  mart_competition_research_list through that event. The test that recomputes the fill rule,
++  assert_base_team_stats_cleaned, stays at error severity, leaves a blank card count of such a
++  match out of its blank-where-events-prove-none rule, and fails a 0 that such a match fills from
++  its events.
++
++refs: >
++  #262 What exactly / How (approved in chat, 15 Nov 2026). The coordinating session ruled the item
++  after the analytics review of the misfiled-team check: a wrong value, withheld in base on the
++  same pattern, tests at error, no flag filters.
++
++depends_on:
++  - none: every file this change edits is on gitlab/main, which holds the misfiled-team check
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
++  - tests/test_statistics_card_fill_wiring.py
++  - .claude/task/262-statistics-yellow-unknown/contract.md
++  - .claude/task/262-statistics-yellow-unknown/review.md
++  - .claude/task/262-statistics-yellow-unknown/review_input.patch
++
++impact_map: >
++  writers: base_apif__fixture_statistics is written by dbt only (no ingestion code, no raw table);
++  it reads stg_apif__fixture_statistics, base_apif__fixtures_next, base_apif__fixture_events,
++  base_apif__fixture_player_lines and seeds. The change adds one internal column,
++  has_misfiled_event, to its match_events and in_context steps and changes two fill expressions
++  (cards_yellow_filled, cards_red_filled); the model's output columns are unchanged. It uses the
++  macro team_not_in_fixture that the misfiled-team check added. Direct readers
++  (`dbt ls --select "base_apif__fixture_statistics+1" --exclude base_apif__fixture_statistics
++  --resource-type model`): base_apif__fixture_players, fct_fixture_team_stats,
++  mart_competition_research_list.
++  downstream (`dbt ls --select "base_apif__fixture_statistics+" --resource-type model`, from the repo
++  root with `--project-dir dbt_project`, on this branch cut from gitlab/main): 86 models, 689 tests.
++  As printed: base_apif__fixture_events_checked base_apif__fixture_players base_apif__fixture_players_checked
++  base_apif__fixture_players_from_lineups base_apif__fixture_statistics base_apif__lineup_sheets
++  base_apif__lineups base_apif__players dim_player fct_fixture_event fct_fixture_lineup
++  fct_fixture_player_stats fct_fixture_team_stats int_competition_season__player_stat_corrections
++  int_legs__player_match int_legs__team_from_players int_legs__team_match int_pipeline__corrections_no_longer_needed
++  int_player__national_team_minutes int_player__page_profile int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_match__metrics int_player_momentum__metrics int_player_page__window_seasons
++  int_player_profile__contribution int_player_season__metrics int_player_season__team
++  int_player_season_position__metrics int_player_season_record int_player_squad_window__metrics
++  int_player_window__metrics int_standings__official_rank int_team__current_national_competitions
++  int_team__featured_season int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_competition_phase__metrics int_team_momentum__metrics int_team_momentum_window
++  int_team_profile__streaks int_team_season__biggest_results int_team_season__deserved_vs_actual
++  int_team_season__longest_runs int_team_season__metrics int_team_season__metrics_cumulative
++  int_team_season__standings_primary int_team_season__table_by_time int_team_season__table_legs
++  int_team_season__table_state int_team_season_record int_team_window__metrics mart_competition_fixtures
++  mart_competition_index mart_competition_research_list mart_competition_season_summary
++  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
++  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_index mart_player_momentum mart_player_profile
++  mart_player_season_record mart_player_squad_benchmarks mart_player_window_metrics mart_roster
++  mart_standings mart_team_competition_benchmarks mart_team_competitions mart_team_fixtures
++  mart_team_index mart_team_leaderboards mart_team_momentum_window mart_team_page_window_metrics
++  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
++  mart_team_window_metrics. The test that recomputes the rule is assert_base_team_stats_cleaned.
++  layer_rules: the rule is cleaning and sits in base; check_layer_contract applies unchanged: no new
++  model, no materialisation change, no per-competition file.
++  deploy_order: one build; the nightly picks it up after merge. A rule with no failing input
++  changes no value.
++  blast_radius: measured read-only on prod before the build: 0 events are filed under a team that
++  did not play the match, so no team line changes today. The MR states the same measure on its
++  ci_mr tables.
++
++approved_design:
++  - none: no page output changes; a card count that is not proven is blank, as it is where nothing proves it today
++
++decisions_taken: >
++  The smallest unit that is wrong is withheld: the filled 0 stays blank (#262, approved in chat,
++  15 Nov 2026). The cause is a card event under a team of another match, which the misfiled-team
++  check already lists; no new list row is added. The model reads the unchecked events, as it must,
++  because the checked events read the line-ups, which read this model. The match's misfiled events
++  are derived in the model with the macro of the misfiled-team check. The test that recomputes the
++  fill rule derives the same matches inline from the match's two teams in base_apif__fixtures_next,
++  never through the macro, so a fault in the macro cannot hide on both sides; it stays at error
++  severity, and its new rule fails a 0 that such a match fills from its events; the rule counts a
++  count as delivered when any fetch carried it, as the model keeps the newest value of any fetch.
++  The same matches also stop the card bounds of the events from blanking a card count an earlier
++  fetch carried, because the events of such a match bound no team's count: the model's
++  matches_with_events leaves them out, and assert_fixture_statistics_from_every_fetch, which
++  recomputes that bound, leaves them out by the same inline derivation. A dispute between
++  the two teams of a match, which can also leave a card under the other team, is left to a later
++  change, because the model cannot read the line-up and player-line models that decide it.
++
++decisions_reserved: >
++  none: how a blank count looks on a page is the existing blank form; no page, metric, name or
++  rule is added.
++
++done_when:
++  - python scripts/ci_local.py --mr passes
++  - dbt parse passes and sqlfluff lint passes on every changed model
++  - python -m pytest tests/test_statistics_card_fill_wiring.py passes, and fails with the has_misfiled_event guard removed from either fill
++  - the MR pipeline is green, data:build:mr included
++
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index c3d23936..f811db08 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -161,11 +161,22 @@ ranked as (
+     from corrected
+ ),
+ 
++-- The events of a match bound a team's card count only where none is filed under a team that did
++-- not play the match: such a card counts against no team of the match.
+ matches_with_events as (
+-    select fixture_id
+-    from {{ ref('base_apif__fixture_events') }}
+-    group by fixture_id
+-    having logical_or(has_full_events)
++    select events.fixture_id
++    from {{ ref('base_apif__fixture_events') }} as events
++    left join fixture_participants as participants
++        on events.fixture_id = participants.fixture_id
++    group by events.fixture_id
++    having
++        logical_or(events.has_full_events)
++        and not coalesce(
++            logical_or({{ team_not_in_fixture(
++                'events.team_id', 'participants.home_team_id', 'participants.away_team_id'
++            ) }}),
++            false
++        )
+ ),
+ 
+ -- The events that bound a team's card count of each colour: those that are certainly that colour,
+@@ -323,13 +334,21 @@ events as (
+     from {{ ref('base_apif__fixture_events') }}
+ ),
+ 
++-- A card event filed under a team that did not play the match has no team to count against, so a
++-- match with one proves no team's card count to be zero.
+ match_events as (
+     select
+-        fixture_id,
+-        logical_or(has_full_events) as events_delivered,
+-        max(raw_ingested_at) as events_ingested_at
++        events.fixture_id,
++        logical_or(events.has_full_events) as events_delivered,
++        coalesce(
++            logical_or({{ team_not_in_fixture('events.team_id', 'fixtures.home_team_id', 'fixtures.away_team_id') }}),
++            false
++        ) as has_misfiled_event,
++        max(events.raw_ingested_at) as events_ingested_at
+     from events
+-    group by fixture_id
++    left join fixtures
++        on events.fixture_id = fixtures.fixture_id
++    group by events.fixture_id
+ ),
+ 
+ team_events as (
+@@ -394,6 +413,7 @@ in_context as (
+         if(t.team_id = f.home_team_id, f.goals_home, f.goals_away) as goals_for,
+         if(t.team_id = f.home_team_id, f.goals_away, f.goals_home) as goals_conceded,
+         coalesce(me.events_delivered, false) as events_delivered,
++        coalesce(me.has_misfiled_event, false) as has_misfiled_event,
+         coalesce(te.goal_events, 0) as goal_events,
+         coalesce(te.penalty_goal_events, 0) as penalty_goal_events,
+         coalesce(te.own_goal_events, 0) as own_goal_events,
+@@ -456,11 +476,21 @@ filled as (
+         coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
+         coalesce(
+             cards_yellow,
+-            if(opponent_cards_yellow is not null or (events_delivered and events_against_no_yellow = 0), 0, null)
++            if(
++                opponent_cards_yellow is not null
++                or (events_delivered and not has_misfiled_event and events_against_no_yellow = 0),
++                0,
++                null
++            )
+         ) as cards_yellow_filled,
+         coalesce(
+             cards_red,
+-            if(opponent_cards_red is not null or (events_delivered and events_against_no_red = 0), 0, null)
++            if(
++                opponent_cards_red is not null
++                or (events_delivered and not has_misfiled_event and events_against_no_red = 0),
++                0,
++                null
++            )
+         ) as cards_red_filled,
+         coalesce(
+             saves,
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 41ba31cb..ec635b0c 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -19,7 +19,9 @@ match stats are good enough.
+   and for a goalkeeper's saves, another goalkeeper. A team's blank offsides count is also a zero
+   when its own line has fouls and possession and no player of it has an offside. A team's offsides
+   count is never 0 while a player of it has an offside. A 0 the provider sent is then blank. A
+-  blank that the other team's line or its own full line would zero stays blank. A goalkeeper's
++  blank that the other team's line or its own full line would zero stays blank. A team's blank
++  card count is also a zero where the match's events hold no card against it. A match with an event
++  filed under a team that did not play it proves no such zero. A goalkeeper's
+   goals conceded come from the
+   match. The only goalkeeper of a whole match has all the team conceded. One who came on or went
+   off has those between the minute on and off, read from the substitution or a sending-off. That
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 55f0b80f..1e8805c3 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -10,6 +10,11 @@
+   - card_blank_where_events_prove_none: a card count is blank in a match whose events were
+     delivered (a substitution or a card) while the team has no event against that zero: a card of
+     that colour or of none, or a video review of a card (an upgrade or a cancelled red counts as red).
++    A match with an event filed under a team that did not play it proves no zero, so its blank card
++    counts are left out; the matches are derived here from the match's two teams in
++    base_apif__fixtures_next, not through the macro that the model calls.
++  - card_zero_filled_from_events_in_a_match_with_a_misfiled_event: a card count is 0 in such a match
++    although neither team's line delivered it, so the events filled it.
+   - saves_blank_where_opponent_had_no_shot_on_target.
+   - goal_split_blank_where_proven, goal_split_where_unproven, goal_split_not_the_events: penalty and
+     own goals are the team's goal events where the match's events were delivered and those events
+@@ -97,6 +102,21 @@ delivered as (
+     qualify row_number() over (partition by league_code, fixture_id, team_id order by raw_ingested_at desc) = 1
+ ),
+ 
++-- A card count counts as delivered where any fetch carried it: the model keeps the newest value of
++-- any fetch.
++delivered_ever as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        max(if(stat_type = 'Yellow Cards', safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64), null))
++            is not null as cards_yellow_delivered,
++        max(if(stat_type = 'Red Cards', safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64), null))
++            is not null as cards_red_delivered
++    from stat_rows
++    group by league_code, fixture_id, team_id
++),
++
+ fixtures as (
+     select
+         fixture_id,
+@@ -128,6 +148,14 @@ matches_with_events as (
+     where has_full_events
+ ),
+ 
++matches_with_a_misfiled_event as (
++    select distinct e.fixture_id
++    from events as e
++    inner join fixture_participants as p
++        on e.fixture_id = p.fixture_id
++    where e.team_id is not null and e.team_id not in (p.home_team_id, p.away_team_id)
++),
++
+ players_with_an_offside as (
+     select
+         fixture_id,
+@@ -185,6 +213,11 @@ in_context as (
+         f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') and f.goals_home is not null and f.goals_away is not null
+             as is_finished,
+         me.fixture_id is not null as match_has_events,
++        mm.fixture_id is not null as match_has_a_misfiled_event,
++        ld.cards_yellow_delivered as own_cards_yellow_delivered,
++        ld.cards_red_delivered as own_cards_red_delivered,
++        od_ever.cards_yellow_delivered as opponent_cards_yellow_delivered_ever,
++        od_ever.cards_red_delivered as opponent_cards_red_delivered_ever,
+         po.fixture_id is not null as player_has_offside,
+         coalesce(te.goal_events, 0) as goal_events,
+         coalesce(te.penalty_goal_events, 0) as penalty_goal_events,
+@@ -206,6 +239,15 @@ in_context as (
+             and o.team_id = if(l.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
+     left join matches_with_events as me
+         on l.fixture_id = me.fixture_id
++    left join matches_with_a_misfiled_event as mm
++        on l.fixture_id = mm.fixture_id
++    left join delivered_ever as ld
++        on l.league_code = ld.league_code and l.fixture_id = ld.fixture_id and l.team_id = ld.team_id
++    left join delivered_ever as od_ever
++        on
++            l.league_code = od_ever.league_code
++            and l.fixture_id = od_ever.fixture_id
++            and od_ever.team_id = if(l.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
+     left join players_with_an_offside as po
+         on l.fixture_id = po.fixture_id and l.team_id = po.team_id
+     left join team_events as te
+@@ -262,7 +304,27 @@ violations as (
+             struct('cards_yellow' as stat, cards_yellow as value, events_against_no_yellow as against),
+             struct('cards_red', cards_red, events_against_no_red)
+         ])
+-    where value is null and match_has_events and against = 0
++    where value is null and match_has_events and against = 0 and not match_has_a_misfiled_event
++
++    union all
++    select
++        'card_zero_filled_from_events_in_a_match_with_a_misfiled_event',
++        league_code,
++        fixture_id,
++        team_id,
++        stat,
++        null
++    from in_context,
++        unnest([
++            struct(
++                'cards_yellow' as stat, cards_yellow as value, own_cards_yellow_delivered as own_delivered,
++                opponent_cards_yellow_delivered_ever as opponent_delivered
++            ),
++            struct('cards_red', cards_red, own_cards_red_delivered, opponent_cards_red_delivered_ever)
++        ])
++    where
++        value = 0 and match_has_a_misfiled_event
++        and not coalesce(own_delivered, false) and not coalesce(opponent_delivered, false)
+ 
+     union all
+     select
+diff --git a/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql b/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
+index 46589a7b..7df31ffb 100644
+--- a/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
++++ b/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
+@@ -3,7 +3,10 @@
+   and stat blank in base_apif__fixture_statistics while a fetch in stg_apif__fixture_statistics
+   carries it, unless the cleaning blanked it (a stat_corrections entry) or, for a card count, the
+   match's events hold fewer cards that could be of that colour, or more that certainly are, or,
+-  for offsides, the team has a player with an offside above 0 (the 0 is withheld).
++  for offsides, the team has a player with an offside above 0 (the 0 is withheld). The events of a
++  match with an event filed under a team that did not play it bound no count; those matches are
++  derived here from the match's two teams in base_apif__fixtures_next, not through the macro the
++  model calls.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -30,10 +33,22 @@ newest_card_counts as (
+ ),
+ 
+ matches_with_events as (
+-    select fixture_id
+-    from {{ ref('base_apif__fixture_events') }}
+-    group by fixture_id
+-    having logical_or(has_full_events)
++    select e.fixture_id
++    from {{ ref('base_apif__fixture_events') }} as e
++    left join {{ ref('base_apif__fixtures_next') }} as p
++        on e.fixture_id = p.fixture_id
++    group by e.fixture_id
++    having
++        logical_or(e.has_full_events)
++        and not coalesce(
++            logical_or(
++                e.team_id is not null
++                and p.home_team_id is not null
++                and p.away_team_id is not null
++                and e.team_id not in (cast(p.home_team_id as int64), cast(p.away_team_id as int64))
++            ),
++            false
++        )
+ ),
+ 
+ card_bounds as (
+diff --git a/tests/test_statistics_card_fill_wiring.py b/tests/test_statistics_card_fill_wiring.py
+new file mode 100644
+index 00000000..d7fe879f
+--- /dev/null
++++ b/tests/test_statistics_card_fill_wiring.py
+@@ -0,0 +1,94 @@
++"""The statistics model leaves a card count blank in a match with an event filed under a team that did not play it.
++
++dbt 1.7 has no unit tests and prod holds no such event, so a guard that is removed leaves every data
++test green. These tests render the real model text, with the real macros, and check the rendered
++SQL where the guard is set and read.
++"""
++
++import pathlib
++import re
++import types
++
++import jinja2
++
++DBT = pathlib.Path(__file__).resolve().parents[1] / "dbt_project"
++MACROS = DBT / "macros"
++MODELS = DBT / "models"
++
++
++def _environment() -> jinja2.Environment:
++    environment = jinja2.Environment()
++    environment.globals.update(
++        ref=lambda name: f"`{name}`",
++        source=lambda source, name: f"`{source}.{name}`",
++        config=lambda **kwargs: "",
++        var=lambda name, default=None: default,
++        dbt_utils=types.SimpleNamespace(generate_surrogate_key=lambda columns: "surrogate_key"),
++    )
++    text = "\n".join(path.read_text(encoding="utf-8") for path in sorted(MACROS.glob("*.sql")))
++    module = environment.from_string(text).module
++    environment.globals.update({name: getattr(module, name) for name in dir(module) if not name.startswith("_")})
++    return environment
++
++
++def render_model(name: str) -> str:
++    """The model's SQL with every dbt macro and ref expanded, comments removed, whitespace collapsed."""
++    (path,) = MODELS.rglob(f"{name}.sql")
++    template = _environment().from_string(path.read_text(encoding="utf-8"))
++    return " ".join(re.sub(r"--[^\n]*", "", template.render()).split())
++
++
++def _cte(sql: str, name: str) -> str:
++    """The body of the CTE `name`, up to its closing parenthesis."""
++    start = re.search(rf"\b{name} as \( ", sql)
++    assert start, f"no CTE {name}"
++    depth = 1
++    for position in range(start.end(), len(sql)):
++        depth += {"(": 1, ")": -1}.get(sql[position], 0)
++        if depth == 0:
++            return sql[start.end():position].strip()
++    raise AssertionError(f"CTE {name} is not closed")
++
++
++def test_a_match_with_an_event_under_a_team_that_did_not_play_it_is_marked():
++    match_events = _cte(render_model("base_apif__fixture_statistics"), "match_events")
++    assert re.fullmatch(
++        r"select events\.fixture_id, logical_or\(events\.has_full_events\) as events_delivered, "
++        r"coalesce\( logical_or\(coalesce\( events\.team_id is not null and fixtures\.home_team_id is not null "
++        r"and fixtures\.away_team_id is not null and events\.team_id not in \(fixtures\.home_team_id, "
++        r"fixtures\.away_team_id\), false \)\), false \) as has_misfiled_event, "
++        r"max\(events\.raw_ingested_at\) as events_ingested_at from events "
++        r"left join fixtures on events\.fixture_id = fixtures\.fixture_id group by events\.fixture_id",
++        match_events,
++    )
++
++
++def test_the_events_of_such_a_match_bound_no_card_count():
++    matches = _cte(render_model("base_apif__fixture_statistics"), "matches_with_events")
++    assert re.fullmatch(
++        r"select events\.fixture_id from `base_apif__fixture_events` as events "
++        r"left join fixture_participants as participants on events\.fixture_id = participants\.fixture_id "
++        r"group by events\.fixture_id having logical_or\(events\.has_full_events\) "
++        r"and not coalesce\( logical_or\(coalesce\( events\.team_id is not null and participants\.home_team_id is not null "
++        r"and participants\.away_team_id is not null and events\.team_id not in "
++        r"\(participants\.home_team_id, participants\.away_team_id\), false \)\), false \)",
++        matches,
++    )
++    assert re.search(r"left join matches_with_events as m on n\.fixture_id = m\.fixture_id", render_model("base_apif__fixture_statistics"))
++
++
++def test_the_mark_reaches_the_fill_of_a_card_count():
++    sql = render_model("base_apif__fixture_statistics")
++    assert "coalesce(me.has_misfiled_event, false) as has_misfiled_event" in _cte(sql, "in_context")
++    assert re.search(
++        r"coalesce\( cards_yellow, if\( opponent_cards_yellow is not null "
++        r"or \(events_delivered and not has_misfiled_event and events_against_no_yellow = 0\), 0, null \) "
++        r"\) as cards_yellow_filled",
++        sql,
++    )
++    assert re.search(
++        r"coalesce\( cards_red, if\( opponent_cards_red is not null "
++        r"or \(events_delivered and not has_misfiled_event and events_against_no_red = 0\), 0, null \) "
++        r"\) as cards_red_filled",
++        sql,
++    )
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/262-statistics-yellow-unknown/review.md   |  23 +
+#    .../review_input.patch                             | 490 +++++++++++++++++++++
+#    2 files changed, 513 insertions(+)
+# ============================================================================

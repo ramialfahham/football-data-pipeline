@@ -161,11 +161,22 @@ ranked as (
     from corrected
 ),
 
+-- The events of a match bound a team's card count only where none is filed under a team that did
+-- not play the match: such a card counts against no team of the match.
 matches_with_events as (
-    select fixture_id
-    from {{ ref('base_apif__fixture_events') }}
-    group by fixture_id
-    having logical_or(has_full_events)
+    select events.fixture_id
+    from {{ ref('base_apif__fixture_events') }} as events
+    left join fixture_participants as participants
+        on events.fixture_id = participants.fixture_id
+    group by events.fixture_id
+    having
+        logical_or(events.has_full_events)
+        and not coalesce(
+            logical_or({{ team_not_in_fixture(
+                'events.team_id', 'participants.home_team_id', 'participants.away_team_id'
+            ) }}),
+            false
+        )
 ),
 
 -- The events that bound a team's card count of each colour: those that are certainly that colour,
@@ -323,13 +334,21 @@ events as (
     from {{ ref('base_apif__fixture_events') }}
 ),
 
+-- A card event filed under a team that did not play the match has no team to count against, so a
+-- match with one proves no team's card count to be zero.
 match_events as (
     select
-        fixture_id,
-        logical_or(has_full_events) as events_delivered,
-        max(raw_ingested_at) as events_ingested_at
+        events.fixture_id,
+        logical_or(events.has_full_events) as events_delivered,
+        coalesce(
+            logical_or({{ team_not_in_fixture('events.team_id', 'fixtures.home_team_id', 'fixtures.away_team_id') }}),
+            false
+        ) as has_misfiled_event,
+        max(events.raw_ingested_at) as events_ingested_at
     from events
-    group by fixture_id
+    left join fixtures
+        on events.fixture_id = fixtures.fixture_id
+    group by events.fixture_id
 ),
 
 team_events as (
@@ -394,6 +413,7 @@ in_context as (
         if(t.team_id = f.home_team_id, f.goals_home, f.goals_away) as goals_for,
         if(t.team_id = f.home_team_id, f.goals_away, f.goals_home) as goals_conceded,
         coalesce(me.events_delivered, false) as events_delivered,
+        coalesce(me.has_misfiled_event, false) as has_misfiled_event,
         coalesce(te.goal_events, 0) as goal_events,
         coalesce(te.penalty_goal_events, 0) as penalty_goal_events,
         coalesce(te.own_goal_events, 0) as own_goal_events,
@@ -456,11 +476,21 @@ filled as (
         coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
         coalesce(
             cards_yellow,
-            if(opponent_cards_yellow is not null or (events_delivered and events_against_no_yellow = 0), 0, null)
+            if(
+                opponent_cards_yellow is not null
+                or (events_delivered and not has_misfiled_event and events_against_no_yellow = 0),
+                0,
+                null
+            )
         ) as cards_yellow_filled,
         coalesce(
             cards_red,
-            if(opponent_cards_red is not null or (events_delivered and events_against_no_red = 0), 0, null)
+            if(
+                opponent_cards_red is not null
+                or (events_delivered and not has_misfiled_event and events_against_no_red = 0),
+                0,
+                null
+            )
         ) as cards_red_filled,
         coalesce(
             saves,

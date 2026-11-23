@@ -10,6 +10,11 @@
   - card_blank_where_events_prove_none: a card count is blank in a match whose events were
     delivered (a substitution or a card) while the team has no event against that zero: a card of
     that colour or of none, or a video review of a card (an upgrade or a cancelled red counts as red).
+    A match with an event filed under a team that did not play it proves no zero, so its blank card
+    counts are left out; the matches are derived here from the match's two teams in
+    base_apif__fixtures_next, not through the macro that the model calls.
+  - card_zero_filled_from_events_in_a_match_with_a_misfiled_event: a card count is 0 in such a match
+    although neither team's line delivered it, so the events filled it.
   - saves_blank_where_opponent_had_no_shot_on_target.
   - goal_split_blank_where_proven, goal_split_where_unproven, goal_split_not_the_events: penalty and
     own goals are the team's goal events where the match's events were delivered and those events
@@ -97,6 +102,21 @@ delivered as (
     qualify row_number() over (partition by league_code, fixture_id, team_id order by raw_ingested_at desc) = 1
 ),
 
+-- A card count counts as delivered where any fetch carried it: the model keeps the newest value of
+-- any fetch.
+delivered_ever as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        max(if(stat_type = 'Yellow Cards', safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64), null))
+            is not null as cards_yellow_delivered,
+        max(if(stat_type = 'Red Cards', safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64), null))
+            is not null as cards_red_delivered
+    from stat_rows
+    group by league_code, fixture_id, team_id
+),
+
 fixtures as (
     select
         fixture_id,
@@ -126,6 +146,14 @@ matches_with_events as (
     select distinct fixture_id
     from events
     where has_full_events
+),
+
+matches_with_a_misfiled_event as (
+    select distinct e.fixture_id
+    from events as e
+    inner join fixture_participants as p
+        on e.fixture_id = p.fixture_id
+    where e.team_id is not null and e.team_id not in (p.home_team_id, p.away_team_id)
 ),
 
 players_with_an_offside as (
@@ -185,6 +213,11 @@ in_context as (
         f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') and f.goals_home is not null and f.goals_away is not null
             as is_finished,
         me.fixture_id is not null as match_has_events,
+        mm.fixture_id is not null as match_has_a_misfiled_event,
+        ld.cards_yellow_delivered as own_cards_yellow_delivered,
+        ld.cards_red_delivered as own_cards_red_delivered,
+        od_ever.cards_yellow_delivered as opponent_cards_yellow_delivered_ever,
+        od_ever.cards_red_delivered as opponent_cards_red_delivered_ever,
         po.fixture_id is not null as player_has_offside,
         coalesce(te.goal_events, 0) as goal_events,
         coalesce(te.penalty_goal_events, 0) as penalty_goal_events,
@@ -206,6 +239,15 @@ in_context as (
             and o.team_id = if(l.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
     left join matches_with_events as me
         on l.fixture_id = me.fixture_id
+    left join matches_with_a_misfiled_event as mm
+        on l.fixture_id = mm.fixture_id
+    left join delivered_ever as ld
+        on l.league_code = ld.league_code and l.fixture_id = ld.fixture_id and l.team_id = ld.team_id
+    left join delivered_ever as od_ever
+        on
+            l.league_code = od_ever.league_code
+            and l.fixture_id = od_ever.fixture_id
+            and od_ever.team_id = if(l.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
     left join players_with_an_offside as po
         on l.fixture_id = po.fixture_id and l.team_id = po.team_id
     left join team_events as te
@@ -262,7 +304,27 @@ violations as (
             struct('cards_yellow' as stat, cards_yellow as value, events_against_no_yellow as against),
             struct('cards_red', cards_red, events_against_no_red)
         ])
-    where value is null and match_has_events and against = 0
+    where value is null and match_has_events and against = 0 and not match_has_a_misfiled_event
+
+    union all
+    select
+        'card_zero_filled_from_events_in_a_match_with_a_misfiled_event',
+        league_code,
+        fixture_id,
+        team_id,
+        stat,
+        null
+    from in_context,
+        unnest([
+            struct(
+                'cards_yellow' as stat, cards_yellow as value, own_cards_yellow_delivered as own_delivered,
+                opponent_cards_yellow_delivered_ever as opponent_delivered
+            ),
+            struct('cards_red', cards_red, own_cards_red_delivered, opponent_cards_red_delivered_ever)
+        ])
+    where
+        value = 0 and match_has_a_misfiled_event
+        and not coalesce(own_delivered, false) and not coalesce(opponent_delivered, false)
 
     union all
     select
