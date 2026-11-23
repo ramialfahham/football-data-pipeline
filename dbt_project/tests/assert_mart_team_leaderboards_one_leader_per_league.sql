@@ -123,14 +123,53 @@ per_season as (
     group by league_code, season_api_year
 ),
 
-bad_current_season as (
-    select league_code
-    from per_season
+-- A league whose latest season holds a team-season withheld against the standings has every board of
+-- that season withheld, so it keeps no current season: the flag never moves to the season before it.
+-- The withheld team-seasons are derived from the legs and fct_standings, never from the flag.
+leg_counts as (
+    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
+),
+
+disagreeing as (
+    select distinct
+        team_sk,
+        season_sk
+    from (
+        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
+    )
+),
+
+latest_seasons as (
+    select
+        league_code,
+        max(season_api_year) as latest_season
+    from {{ ref('int_team_season__metrics') }}
     group by league_code
+),
+
+withheld_latest as (
+    select distinct l.league_code
+    from latest_seasons as l
+    inner join {{ ref('int_team_season__metrics') }} as m
+        on l.league_code = m.league_code and l.latest_season = m.season_api_year
+    inner join disagreeing as d
+        on m.team_sk = d.team_sk and m.season_sk = d.season_sk
+),
+
+bad_current_season as (
+    select p.league_code
+    from per_season as p
+    left join withheld_latest as h
+        on p.league_code = h.league_code
+    group by p.league_code, h.league_code
     having
-        countif(flagged_rows > 0) != 1
-        or max(case when flagged_rows > 0 then season_api_year end) != max(season_api_year)
-        or countif(flagged_rows > 0 and flagged_rows != season_rows) > 0
+        if(
+            h.league_code is not null,
+            countif(p.flagged_rows > 0) > 0,
+            countif(p.flagged_rows > 0) != 1
+            or max(case when p.flagged_rows > 0 then p.season_api_year end) != max(p.season_api_year)
+            or countif(p.flagged_rows > 0 and p.flagged_rows != p.season_rows) > 0
+        )
 )
 
 select

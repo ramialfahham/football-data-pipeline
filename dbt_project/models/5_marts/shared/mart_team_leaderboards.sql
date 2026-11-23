@@ -81,7 +81,9 @@ with season as (
         cast(cards_yellow as float64) as cards_yellow,
         cast(cards_red as float64) as cards_red
     from {{ ref('int_team_season__metrics') }}
-    where season_games_played >= 1
+    -- a withheld team-season has no values but played: it stays in the field, so every board of its
+    -- competition-season is withheld
+    where season_games_played >= 1 or counts_withheld
 ),
 
 -- The direction and format of each board's metric, from the catalogue: the one place a metric's
@@ -127,6 +129,15 @@ field as (
     group by league_code, season_api_year
 ),
 
+-- The latest competition-season of each league among those whose teams played, withheld or not.
+latest_season as (
+    select
+        league_code,
+        max(season_api_year) as latest_season_api_year
+    from field
+    group by league_code
+),
+
 -- Identity only. dim_team is unique on team_sk, so the left join cannot fan the row count out.
 teams as (
     select
@@ -160,6 +171,7 @@ base as (
         t.team_logo_url,
         cs.competition_group,
         f.teams_played,
+        ls.latest_season_api_year,
         -- counted before the zero rule: a team with a value of 0 has a value
         count(*) over (partition by l.league_code, l.season_api_year, l.metric_key) as teams_with_value,
         case
@@ -174,6 +186,7 @@ base as (
     from long as l
     inner join field as f
         on l.league_code = f.league_code and l.season_api_year = f.season_api_year
+    inner join latest_season as ls on l.league_code = ls.league_code
     left join teams as t on l.team_sk = t.team_sk
     left join competition_seasons as cs on l.season_sk = cs.season_sk
     -- inner: a board whose metric the catalogue does not define has no direction and no rows,
@@ -188,12 +201,10 @@ signed as (
         if(rank_order = 'asc', metric_value, -metric_value) as sort_key,
         if(rank_order = 'asc', display_value, -display_value) as display_key,
         -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so
-        -- every row of a league agrees. Computed before a withheld board leaves, so a withheld
-        -- latest season never hands the flag to the season before it.
-        rank() over (
-            partition by league_code
-            order by season_api_year desc
-        ) = 1 as is_current_season
+        -- every row of a league agrees. Taken from the seasons whose teams played, not from the
+        -- seasons that have a board, so a withheld latest season never hands the flag to the
+        -- season before it.
+        season_api_year = latest_season_api_year as is_current_season
     from base
 ),
 

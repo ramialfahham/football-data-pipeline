@@ -1,7 +1,8 @@
 -- A team board of a competition-season is served only when every team that played has a value for
 -- its metric (the ranking_rules doc block). Returns a row (= fails) for each served board whose
 -- metric has no value for some team that played, counted from int_team_season__metrics with the
--- zero rule not applied.
+-- zero rule not applied. A withheld team-season played and has no value, so a board of its
+-- competition-season is served only if the mart has a bug.
 -- depends_on: {{ ref('int_team_season__metrics') }}
 {{ config(store_failures = true) }}
 {% set keys = dbt_utils.get_column_values(ref('mart_team_leaderboards'), 'metric_key') if execute else [] %}
@@ -23,7 +24,7 @@ coverage as (
         count(*) as teams_played,
         countif({{ key }} is not null) as teams_with_value
     from {{ ref('int_team_season__metrics') }}
-    where season_games_played >= 1
+    where season_games_played >= 1 or counts_withheld
     group by league_code, season_api_year
     {% if not loop.last %}
     union all

@@ -251,6 +251,9 @@ models:
 
       Same sum and rate semantics as the recent-form metrics, without the five-game cap — so a
       season figure and a form figure are directly comparable.
+
+      A team-season whose results disagree with the provider's standings has counts_withheld true
+      and every value blank. The team and the row stay.
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
@@ -293,7 +296,6 @@ models:
         tests: [not_null]
       - name: season_games_played
         description: "{{ doc('season_games_played__whole_season') }}"
-        tests: [not_null]
       - name: shots_on_goal_difference_per_match
         description: "{{ doc('shots_on_goal_difference_per_match') }}"
       - name: shots_on_goal_against_per_match
@@ -438,6 +440,9 @@ models:
         description: "{{ doc('cards_red_per_match') }}"
       - name: season_matchdays_used
         description: "{{ doc('season_matchdays_used') }}"
+      - name: counts_withheld
+        description: "True where the team-season's results disagree with the provider's standings. Every season value of the row is then blank."
+        tests: [not_null]
 
   - name: int_team_season__metrics_cumulative
     description: >

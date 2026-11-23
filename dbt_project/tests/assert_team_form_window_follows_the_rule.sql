@@ -9,13 +9,29 @@
     cap (last_5).
   - the season record (mart_team_season_record): the team's record in the fixture's competition this
     season, or the previous season's before its first match (prev_season), with the number of
-    matches it holds.
+    matches it holds. The number is blank where that team-season's results disagree with the
+    provider's standings (team_seasons_off_standings, derived here from the legs).
 
   One row per side whose window differs: the window, the model's matches and the expected ones.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
-with upcoming as (
+with leg_counts as (
+    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
+),
+
+-- a team-season withheld against the provider's standings has no season record, derived from the legs
+-- and fct_standings, never from the flag
+disagreeing as (
+    select distinct
+        team_sk,
+        season_sk
+    from (
+        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
+    )
+),
+
+upcoming as (
     select
         f.fixture_sk,
         f.home_team_sk,
@@ -146,13 +162,17 @@ season_legs as (
         s.upcoming_fixture_sk,
         s.team_sk,
         countif(l.season_api_year = s.season_api_year) as legs_this_season,
-        countif(l.season_api_year = s.season_api_year - 1) as legs_previous_season
+        countif(l.season_api_year = s.season_api_year - 1) as legs_previous_season,
+        logical_or(l.season_api_year = s.season_api_year and d.team_sk is not null) as this_season_withheld,
+        logical_or(l.season_api_year = s.season_api_year - 1 and d.team_sk is not null) as previous_season_withheld
     from sides as s
     inner join {{ ref('int_legs__team_match') }} as l
         on
             s.team_sk = l.team_sk
             and s.league_code = l.league_code
             and l.season_api_year in (s.season_api_year, s.season_api_year - 1)
+    left join disagreeing as d
+        on l.team_sk = d.team_sk and l.season_sk = d.season_sk
     group by s.upcoming_fixture_sk, s.team_sk
 ),
 
@@ -161,7 +181,11 @@ expected_record as (
         upcoming_fixture_sk,
         team_sk,
         if(legs_this_season > 0, 'season_to_date', 'prev_season') as window_type,
-        if(legs_this_season > 0, legs_this_season, legs_previous_season) as games_played
+        if(
+            legs_this_season > 0,
+            if(this_season_withheld, null, legs_this_season),
+            if(previous_season_withheld, null, legs_previous_season)
+        ) as games_played
     from season_legs
 ),
 
@@ -169,8 +193,8 @@ record_compared as (
     select
         coalesce(e.upcoming_fixture_sk, m.upcoming_fixture_sk) as upcoming_fixture_sk,
         coalesce(e.team_sk, m.team_sk) as team_sk,
-        [format('%s %d', m.window_type, m.games_played)] as model_matches,
-        [format('%s %d', e.window_type, e.games_played)] as expected_matches
+        [format('%s %s', m.window_type, ifnull(cast(m.games_played as string), 'blank'))] as model_matches,
+        [format('%s %s', e.window_type, ifnull(cast(e.games_played as string), 'blank'))] as expected_matches
     from expected_record as e
     full outer join {{ ref('mart_team_season_record') }} as m
         on e.upcoming_fixture_sk = m.upcoming_fixture_sk and e.team_sk = m.team_sk
