@@ -579,7 +579,8 @@ def _shape_team_benchmark_member(row: dict) -> dict:
 def _shape_team_benchmarks(rows: list[dict]) -> list[dict]:
     """A season's mart_team_competition_benchmarks rows -> a flat metrics[] list (GAP-23). No position
     grouping (teams have no positional peers, unlike the player Stats screen); ordered byte-stable by
-    metric_key (the frontend re-orders per the metrics_display block order). No derivation."""
+    metric_key (the frontend orders by the catalogue's metric_group_order and metric_order). No
+    derivation."""
     return [
         _shape_team_benchmark_member(r)
         for r in sorted(rows, key=lambda r: r.get("metric_key") or "")

@@ -1224,6 +1224,12 @@ PLAYED_METRIC = {
     "fouls": "fouls_per_match", "offsides": "offsides_per_match",
     "yellow_cards": "cards_yellow", "red_cards": "cards_red",
 }
+# The catalogue player metric each Match leaders board ranks; the catalogue's place orders the boards.
+LEADER_METRIC = {
+    "Shots": "shots_player", "Passes": "passes_player", "Key passes": "passes_key_player",
+    "Ball actions": "ball_actions_player", "Dribbles attempted": "dribbles_attempts_player",
+    "Duels won": "duels_won_player", "Defensive actions": "defensive_actions_player", "Fouls": "fouls_player",
+}
 APPROVED_RENDER = HERE / "renders" / "match-page_2026-09-27_56.html"
 
 PLAYED_CSS = """
@@ -1620,7 +1626,10 @@ def leaders_block(fx):
     players = {p[1]: p for p in fx["players"]}
     teams = {fx["home"]["team_id"]: fx["home"], fx["away"]["team_id"]: fx["away"]}
     groups = []
-    for group, boards in fx["leaders"]:
+    ordered = sorted(((group, sorted(boards, key=lambda b: place(LEADER_METRIC[b[0]], "player")))
+                      for group, boards in fx["leaders"]),
+                     key=lambda g: place(LEADER_METRIC[g[1][0][0]], "player"))
+    for group, boards in ordered:
         drawn = []
         for name, rows in boards:
             body = []

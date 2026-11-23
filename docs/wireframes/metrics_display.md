@@ -193,13 +193,13 @@ mixes groups; (2) ratio displays standardized to the full triple
 | # | Row | Display string | Atomics | Group |
 |---|---|---|---|---|
 | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
-| 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
+| 2 | Shots on target | `{shots_on}` | shots_on_goal_player | Shooting |
 | 3 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
 | 4 | Key passes | `{count}` | passes_key_player | Passing |
 | 5 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
 | 6 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
 | 7 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
-| 8 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
+| 8 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_goal_against_player (new)**, saves_player_pct | Goalkeeping |
 | 9 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
 
 - Row 8 renders only for `position_code = 'G'`; whether a GK profile pulls the
@@ -220,10 +220,10 @@ mixes groups; (2) ratio displays standardized to the full triple
   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),
   the finishing relabel, catalogue description tightenings (coverage denominators,
   blocked-shots note, >100% finishing caveat).
-- **GAP-12** — player additions: `saves_player` + `shots_on_target_faced` atomics (data
-  exists as `goals_saves`/`goals_conceded`), display strings standardized to the
-  full triple (duels, pass accuracy, saves_player), the legacy player display table
-  superseded by this document.
+- **GAP-12** — player additions: `saves_player` + `shots_on_goal_against_player` atomics (data
+  exists as `goals_saves`/`goals_conceded`). Display strings standardized to the
+  full triple (duels, pass accuracy, saves_player). This document supersedes the legacy player
+  display table.
 - **GAP-13** — full-season variants of the five player-stat-derived team rows
   (shots on target, duels pair, defensive actions, key passes) in the season
   rollup + `mart_team_profile` (the team profile renders the same locked table).
