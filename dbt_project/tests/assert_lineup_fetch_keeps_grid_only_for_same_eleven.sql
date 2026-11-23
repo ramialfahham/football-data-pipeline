@@ -34,6 +34,21 @@ newest as (
     ) = 1
 ),
 
+lender_candidates as (
+    select
+        f.league_code,
+        f.fixture_id,
+        f.team_id,
+        f.raw_ingested_at,
+        f.formation,
+        f.start_xi_json,
+        farm_fingerprint(to_json_string(struct(f.formation, f.start_xi_json))) as content_hash
+    from fetches as f
+    inner join newest as n
+        on f.league_code = n.league_code and f.fixture_id = n.fixture_id and f.team_id = n.team_id
+    where not n.has_grid and f.has_grid and f.starting_eleven = n.starting_eleven
+),
+
 lender as (
     select
         f.league_code,
@@ -41,13 +56,11 @@ lender as (
         f.team_id,
         f.formation,
         f.start_xi_json
-    from fetches as f
-    inner join newest as n
-        on f.league_code = n.league_code and f.fixture_id = n.fixture_id and f.team_id = n.team_id
-    where not n.has_grid and f.has_grid and f.starting_eleven = n.starting_eleven
-    qualify row_number() over (
-        partition by f.league_code, f.fixture_id, f.team_id order by f.raw_ingested_at desc
-    ) = 1
+    from lender_candidates as f
+    qualify f.raw_ingested_at = max(f.raw_ingested_at) over (partition by f.league_code, f.fixture_id, f.team_id)
+        and min(content_hash) over (partition by f.league_code, f.fixture_id, f.team_id, f.raw_ingested_at)
+        = max(content_hash) over (partition by f.league_code, f.fixture_id, f.team_id, f.raw_ingested_at)
+        and row_number() over (partition by f.league_code, f.fixture_id, f.team_id order by f.raw_ingested_at desc) = 1
 ),
 
 lent_places as (

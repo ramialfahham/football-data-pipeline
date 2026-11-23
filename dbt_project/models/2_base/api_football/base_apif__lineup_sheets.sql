@@ -5,73 +5,20 @@
 -- Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
 with src as (
     select
-        league_code,
-        fixture_id,
-        team_id,
-        formation,
-        start_xi_json,
-        substitutes_json,
-        raw_ingested_at
-    from {{ ref('stg_apif__lineups') }}
-    where
-        fixture_id is not null
-        and team_id is not null
-),
-
-fixture_participants as (
-    select
-        league_code,
-        fixture_id,
-        season,
-        fixture_date,
-        cast(home_team_id as int64) as home_team_id,
-        cast(away_team_id as int64) as away_team_id
-    from {{ ref('base_apif__fixtures_next') }}
-    where
-        home_team_id is not null
-        and away_team_id is not null
-),
-
-overrides as (
-    select
-        cast(wrong_team_api_id as int64) as wrong_team_api_id,
-        cast(correct_team_api_id as int64) as correct_team_api_id,
-        mode,
-        cast(fixture_id as int64) as fixture_id
-    from {{ ref('fixture_team_id_overrides') }}
-),
-
-corrected as (
-    select
-        src.* except (team_id),
-        coalesce(
-            fixture_override.correct_team_api_id,
-            alias_override.correct_team_api_id,
-            reattribute_override.correct_team_api_id,
-            src.team_id
-        ) as team_id
-    from src
-    left join overrides as fixture_override
+        sheet.league_code,
+        sheet.fixture_id,
+        sheet.team_id,
+        sheet.formation,
+        sheet.start_xi_json,
+        sheet.substitutes_json,
+        sheet.raw_ingested_at
+    from {{ ref('base_apif__lineup_fetches') }} as sheet
+    left join {{ ref('base_apif__lineup_fetch_ties') }} as ties
         on
-            src.team_id = fixture_override.wrong_team_api_id
-            and src.fixture_id = fixture_override.fixture_id
-            and fixture_override.mode = 'reattribute_in_fixture'
-    left join overrides as alias_override
-        on
-            src.team_id = alias_override.wrong_team_api_id
-            and alias_override.mode = 'alias'
-    left join fixture_participants
-        on src.fixture_id = fixture_participants.fixture_id
-    left join overrides as reattribute_override
-        on
-            src.team_id = reattribute_override.wrong_team_api_id
-            and reattribute_override.mode = 'reattribute_if_cohabiting'
-            and reattribute_override.correct_team_api_id in (
-                fixture_participants.home_team_id, fixture_participants.away_team_id
-            )
-            and reattribute_override.wrong_team_api_id not in (
-                fixture_participants.home_team_id, fixture_participants.away_team_id
-            )
+            sheet.league_code = ties.league_code
+            and sheet.fixture_id = ties.fixture_id
+            and sheet.team_id = ties.team_id
+    where not coalesce(ties.rows_differ, false)
 ),
 
 fetches as (
@@ -86,7 +33,7 @@ fetches as (
             from unnest(json_query_array(start_xi_json)) as el,
                 unnest([coalesce(json_value(el, '$.player.id'), '')]) as id
         ) as starting_eleven
-    from corrected
+    from src
 ),
 
 fetch_history as (
@@ -114,17 +61,31 @@ latest as (
             null,
             (
                 select as struct
-                    h.fetch_formation as formation,
-                    h.fetch_start_xi_json as start_xi_json
-                from unnest(history) as h
-                where h.fetch_has_grid and h.fetch_starting_eleven = fetch_history.starting_eleven
-                order by h.fetched_at desc
+                    candidate.formation,
+                    candidate.start_xi_json
+                from (
+                    select
+                        h.fetch_formation as formation,
+                        h.fetch_start_xi_json as start_xi_json,
+                        h.fetched_at,
+                        farm_fingerprint(to_json_string(struct(h.fetch_formation, h.fetch_start_xi_json)))
+                            as content_hash
+                    from unnest(history) as h
+                    where h.fetch_has_grid and h.fetch_starting_eleven = fetch_history.starting_eleven
+                ) as candidate
+                -- The newest candidate lends only when the candidates tied at its ingest time agree.
+                qualify
+                    candidate.fetched_at = max(candidate.fetched_at) over ()
+                    and min(candidate.content_hash) over (partition by candidate.fetched_at)
+                    = max(candidate.content_hash) over (partition by candidate.fetched_at)
+                order by candidate.fetched_at desc
                 limit 1
             )
         ) as lender
     from fetch_history
-    -- Two fetches at one ingest time both stay, so the grain test fails instead of a build choosing.
-    qualify rank() over (
+    -- A team whose sheets tied at the newest ingest time differ is left out above, so the tied sheets
+    -- that remain are identical and one stands for the team.
+    qualify row_number() over (
         partition by league_code, fixture_id, team_id
         order by raw_ingested_at desc
     ) = 1

@@ -503,15 +503,12 @@ models:
   - name: stg_apif__lineups
     description: >
       One row per team per fixture, from $.lineups in raw_apif_fixture_details — an append-only
-      table holding one row per FETCH of a fixture. Grain: (fixture_id, team_id, raw_ingested_at).
+      table holding one row per FETCH of a fixture. Grain: one row per team per fetch.
 
       Staging reads every row faithfully, with no latest-snapshot filter, because the raw grain is
       finer than a league. That means a fixture fetched five times has five rows here, and
-      resolving which version to use is left to whatever reads it.
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          name: stg_apif__lineups_order_keys_unique
-          combination_of_columns: [fixture_id, team_id, raw_ingested_at]
+      resolving which version to use is left to whatever reads it. The provider can list one
+      team's sheet twice in one fetch. base_apif__lineup_fetch_ties finds those sheets.
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"

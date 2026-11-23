@@ -81,6 +81,7 @@ match stats are good enough.
   - No player is on both sheets, and the stat lines put no player on the other team.
   - No team sheet names two people under one player id; one person listed twice keeps his first
     listing.
+  - A team whose line-up the provider stored twice at the newest ingest time with different content has no sheet, and the match is listed; identical copies count once.
   - Every substitution brings on a substitute for a player of the same team on the sheets, at the
     minute that player went off.
   - Research covers, in this order: every match of a domestic league in the registry;

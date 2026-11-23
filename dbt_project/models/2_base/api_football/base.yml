@@ -530,14 +530,74 @@ models:
         description: "{{ doc('player_team_needs_research') }}"
         tests: [not_null]
 
+  - name: base_apif__lineup_fetches
+    description: >
+      Every stored fetch of a team's sheet, under the team id after fixture_team_id_overrides.
+      provider_team_id is the id the provider filed the sheet under, and team_id is the id it is
+      kept under. base_apif__lineup_fetch_ties, base_apif__lineup_sheets and base_apif__fixture_players
+      read it. Grain: (league_code, fixture_id, provider_team_id, raw_ingested_at).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: provider_team_id
+        description: "The team id the provider filed the sheet under."
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
+        tests: [not_null]
+
+  - name: base_apif__lineup_fetch_ties
+    description: >
+      The sheets of each team in each match that carry the newest ingest time of the team's sheets.
+      The team is the team after fixture_team_id_overrides. Each group is counted, with whether its
+      sheets differ. A team with a differing tie has no sheet. base_apif__lineup_sheets and
+      base_apif__fixture_players leave it out, and its match has one sheet. base_apif__lineups then
+      says not_available. mart_competition_research_list lists the match.
+      Grain: (league_code, fixture_id, team_id).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
+        tests: [not_null]
+      - name: tied_rows
+        description: "How many sheets of the team carry that ingest time: 1 when the provider stored the sheet once."
+        tests: [not_null]
+      - name: rows_differ
+        description: "True when the tied sheets are not all identical, so none can be picked."
+        tests: [not_null]
+
   - name: base_apif__lineup_sheets
     description: >
       One row per player each team's latest fetch of the stg_apif__lineups model names on its
       sheet: the starting eleven and the bench, in the provider's order. When the latest fetch has
       no grid places, the latest earlier fetch that has them and names the same starting eleven
       lends its starters' grid places and the formation. Known provider team-id defects are
-      corrected from the fixture_team_id_overrides seed before the latest fetch is chosen.
-      base_apif__lineups reads it.
+      corrected from the fixture_team_id_overrides seed before the latest fetch is chosen
+      (base_apif__lineup_fetches). Sheets the provider stored twice at the latest ingest time
+      collapse to one when they are identical. A team whose tied sheets differ has no sheet here
+      (base_apif__lineup_fetch_ties). base_apif__lineups reads it.
       Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
 
       The provider sometimes files one player under two ids in a match. A sheet player whose id has

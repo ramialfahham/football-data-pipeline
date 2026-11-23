@@ -1,0 +1,1158 @@
+diff --git a/.claude/skills/research-provider-errors/SKILL.md b/.claude/skills/research-provider-errors/SKILL.md
+index 90579d94..c4dddef6 100644
+--- a/.claude/skills/research-provider-errors/SKILL.md
++++ b/.claude/skills/research-provider-errors/SKILL.md
+@@ -48,6 +48,7 @@ order by research_tier nulls last, fixture_date
+ - Report every row you do not research, with its reason, in the final report.
+ - A `correction_no_longer_needed` row needs no research. Go to section 9.
+ - A `misfiled_team_withheld` row is not researched. Its seed, `fixture_team_id_overrides`, is not one this skill edits. Report the row.
++- A `lineup_duplicate_withheld` row is not researched. It has no seed (`none`): a newer provider fetch removes it. Report the row.
+ - A `player_team_withheld` row is not researched. Its seed, `fixture_lineup_corrections`, holds line-up research, which this skill does not do. Report the row.
+ 
+ ## 2. Choose the matches
+diff --git a/.claude/task/262-lineup-ties-withheld/contract.md b/.claude/task/262-lineup-ties-withheld/contract.md
+new file mode 100644
+index 00000000..ec7d74ea
+--- /dev/null
++++ b/.claude/task/262-lineup-ties-withheld/contract.md
+@@ -0,0 +1,133 @@
++# Task contract - a line-up the provider stored twice with different content is withheld and listed
++
++objective: >
++  Issue #262, box "Only a check that catches a defect in our own code stops the nightly." The staging
++  test stg_apif__lineups_order_keys_unique and the base test assert_lineup_fetches_never_tie stop the
++  build when the provider's response lists one fixture's line-up twice at one ingest time (a "tie").
++  The cause is provider data: the loader writes one raw row per element of the provider's batch response
++  with one ingest time per call (ingestion/api_football/loads/batch_fixtures.py:96-107). Now a tie of
++  identical sheets collapses to one sheet in base and nothing is lost; a tie whose sheets DIFFER withholds
++  the sheet of that team (no sheet of the team reaches base_apif__lineup_sheets, base_apif__lineups,
++  fct_fixture_lineup or the player lines read from line-ups; the other team keeps its sheet and the
++  match line-up is not_available, as for any match with one sheet) and the match is listed on
++  mart_competition_research_list as lineup_duplicate_withheld. A fetch newer than the tie removes the row.
++  A grid lender among older fetches lends nothing when the fetches tied at its ingest time differ.
++  The base uniqueness tests stay at error. assert_lineup_fetches_never_tie becomes the proof that no
++  differing tie reaches a published value. A hand-written answer key runs identical and differing ties,
++  and a column we add to a row, through the macro that finds them, and python pins fix the wiring. The
++  staging test is removed.
++
++refs: >
++  #262 What exactly / How (approved in chat, 15 Nov 2026). The coordinating session ruled: the staging
++  uniqueness tests are provider-data checks and go; in base, tied rows that are identical collapse to one
++  and tied rows that differ are withheld, never picked by a tie-break; the match is listed on
++  mart_competition_research_list whenever it can be identified; the base unique tests stay at error.
++  This change covers the line-ups (stg_apif__lineups). The other five staging uniqueness tests
++  (fixtures_next, fixture_events, teams, leagues, standings) are their own changes.
++
++depends_on:
++  - none: every file this change edits is on gitlab/main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/macros/newest_fetch_ties.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineup_fetches.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineup_fetch_ties.sql
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_lineup_fetches_never_tie.sql
++  - dbt_project/tests/assert_newest_fetch_ties_answer_key.sql
++  - dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
++  - tests/test_lineup_ties_wiring.py
++  - tests/test_player_team_conflict_wiring.py
++  - .claude/skills/research-provider-errors/SKILL.md
++  - .claude/task/262-lineup-ties-withheld/contract.md
++  - .claude/task/262-lineup-ties-withheld/review.md
++  - .claude/task/262-lineup-ties-withheld/review_input.patch
++
++impact_map: >
++  writers: one staging test removed, two base models (base_apif__lineup_fetches, which takes the
++  team-id correction out of base_apif__lineup_sheets, and base_apif__lineup_fetch_ties) and one macro
++  added, two base models change (base_apif__lineup_sheets, base_apif__fixture_players), one sentence
++  added to the Line-ups rule of the cleaning_rules doc block, one mart branch and one row kind added, one
++  base test rewritten, one answer key added, one existing pin test
++  (tests/test_player_team_conflict_wiring.py) no longer asserts that the branch of player_team_withheld
++  closes the items CTE, and assert_lineup_fetch_keeps_grid_only_for_same_eleven picks its grid lender
++  the way base does. assert_lineup_fetches_never_tie reads the sheets from base_apif__lineup_fetches
++  (the team after the correction) and compares them as JSON itself, never through the macro or the
++  ties model. The tests that read the line-up from staging and start from base rows
++  (assert_lineup_two_people_one_id_not_held, assert_sheet_and_stats_player_join_on_shirt) cannot fail on
++  a team left out of base; assert_names_carry_no_html_entity and base_apif__fixture_fetches read names
++  and ingest times only. The test removed (`dbt ls --select stg_apif__lineups --resource-type test`):
++  stg_apif__lineups_order_keys_unique. The base proof stays: base_apif__lineup_sheets carries
++  unique_combination_of_columns on (league_code, fixture_id, team_id, is_starter, sheet_index).
++  The changed models and their readers, pasted from `dbt ls --select <model>+ --resource-type model`
++  (the .venv dbt, repo root):
++  base_apif__lineup_sheets+ and base_apif__fixture_players+ (union): base_apif__fixture_events_checked,
++  base_apif__fixture_players, base_apif__fixture_players_checked, base_apif__fixture_players_from_lineups,
++  base_apif__lineup_sheets, base_apif__lineups, base_apif__players, dim_player, fct_fixture_event,
++  fct_fixture_lineup, fct_fixture_player_stats, int_competition_season__player_stat_corrections,
++  int_legs__player_match, int_legs__team_from_players, int_pipeline__corrections_no_longer_needed,
++  int_player__national_team_minutes, int_player__page_profile, int_player_club_season__metrics,
++  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
++  int_player_match__metrics, int_player_momentum__metrics, int_player_page__window_seasons,
++  int_player_profile__contribution, int_player_season__metrics, int_player_season__team,
++  int_player_season_position__metrics, int_player_season_record, int_player_squad_window__metrics,
++  int_player_window__metrics, int_team__current_national_competitions, int_team__featured_season,
++  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
++  int_team_competition_phase__metrics, int_team_momentum__metrics, int_team_season__deserved_vs_actual,
++  int_team_season__metrics, int_team_season__metrics_cumulative, int_team_season_record,
++  int_team_window__metrics, mart_competition_fixtures, mart_competition_research_list, mart_leaderboards,
++  mart_match_days, mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
++  mart_player_fixture_stats, mart_player_index, mart_player_momentum, mart_player_profile,
++  mart_player_season_record, mart_player_squad_benchmarks, mart_player_window_metrics, mart_roster,
++  mart_team_competition_benchmarks, mart_team_competitions, mart_team_index, mart_team_leaderboards,
++  mart_team_momentum_window, mart_team_page_window_metrics, mart_team_profile, mart_team_season,
++  mart_team_season_insights, mart_team_season_record, mart_team_window_metrics.
++  mart_competition_research_list+ : mart_competition_research_list. The new base model
++  base_apif__lineup_fetch_ties is read by base_apif__lineup_sheets, base_apif__fixture_players and the
++  mart.
++  downstream: prod holds no tie today (the staging test and assert_lineup_fetches_never_tie pass), so no
++  row, no number and no page changes.
++  layer_rules: base models, one macro, one mart branch, tests; check_layer_contract applies unchanged.
++  deploy_order: one build; the nightly picks it up after merge.
++  blast_radius: none for any model or value today. A provider tie no longer stops the nightly: an
++  identical tie collapses, a differing tie withholds the match's line-up and lists the match.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  Ruled by the coordinating session on #262's approved rule (approved in chat, 15 Nov 2026). A tie is
++  the rows of one team's sheet in one match that carry the same ingest time as the newest fetch; its
++  rows are identical when farm_fingerprint(to_json_string(row)) is equal for all of them; the
++  fingerprint covers the provider's content only (raw_ingested_at is ours and is left out; the
++  macro takes the columns to leave out). Only the team whose tied sheets differ is withheld: its
++  match then has one sheet, which base_apif__lineups already marks not_available (check two_sheets),
++  so no reader needs both sides together. A newer fetch without the tie removes the withhold and the
++  row; a tie among older fetches never withholds the team, but the grid lender lends nothing when the
++  fetches tied at its ingest time differ. A team is the team after fixture_team_id_overrides, so two
++  provider ids of one team in one fixture at one ingest time are tied: identical sheets collapse,
++  differing sheets are withheld and listed. base_apif__lineup_fetches holds the sheets under that
++  team id, and the ties model, base_apif__lineup_sheets and the line-up read of
++  base_apif__fixture_players read it. No seed fixes the row, so its seed value is none (engineering decision, working
++  agreement section 10 unclear cases, as is the row kind name lineup_duplicate_withheld, one kind per
++  table so that the later places of this rule cannot share an item_key).
++
++decisions_reserved: >
++  none: no page, metric, name or rule is added.
++
++done_when:
++  - python scripts/ci_local.py --mr passes
++  - dbt parse passes
++  - python -m pytest tests/test_lineup_ties_wiring.py passes, and fails with the macro, the ties model, a base filter, the mart branch or a test changed
++  - the MR pipeline is green, data:build:mr included
++
++amendments: (none)
+diff --git a/dbt_project/macros/newest_fetch_ties.sql b/dbt_project/macros/newest_fetch_ties.sql
+new file mode 100644
+index 00000000..84f35f04
+--- /dev/null
++++ b/dbt_project/macros/newest_fetch_ties.sql
+@@ -0,0 +1,33 @@
++{#- The rows of each key that carry the newest ingest time of that key, counted, and whether they
++    differ. Rows are "tied" when the provider's response held the same entity twice at one ingest
++    time. They are identical when farm_fingerprint(to_json_string(row)) is equal for all of them, so
++    one stands for the key and nothing is lost; a key whose tied rows differ has no value that can
++    be picked, so its reader withholds it. The fingerprint covers the provider's content only: the
++    caller names in ignore_columns every column we add per row (ingest time, an offset, a load id),
++    so identical provider rows are never read as different. A tie in an older fetch does not
++    withhold the key: the newer fetch replaces it, and a reader that still takes a value from an
++    older fetch takes none when the rows tied there differ. The relation carries the key columns and
++    raw_ingested_at. -#}
++{% macro newest_fetch_ties(relation, key_columns, ignore_columns=[]) -%}
++    select
++        {{ key_columns | join(', ') }},
++        raw_ingested_at,
++        count(*) as tied_rows,
++        min(row_hash) != max(row_hash) as rows_differ
++    from (
++        select
++            *,
++            farm_fingerprint(to_json_string(
++                {%- if ignore_columns %}
++                (select as struct source_row.* except ({{ ignore_columns | join(', ') }}))
++                {%- else %}
++                source_row
++                {%- endif %}
++            )) as row_hash,
++            raw_ingested_at = max(raw_ingested_at) over (partition by {{ key_columns | join(', ') }})
++                as in_newest_fetch
++        from {{ relation }} as source_row
++    )
++    where in_newest_fetch
++    group by {{ key_columns | join(', ') }}, raw_ingested_at
++{%- endmacro %}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index fc3900f3..b54f7acb 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -503,15 +503,12 @@ models:
+   - name: stg_apif__lineups
+     description: >
+       One row per team per fixture, from $.lineups in raw_apif_fixture_details — an append-only
+-      table holding one row per FETCH of a fixture. Grain: (fixture_id, team_id, raw_ingested_at).
++      table holding one row per FETCH of a fixture. Grain: one row per team per fetch.
+ 
+       Staging reads every row faithfully, with no latest-snapshot filter, because the raw grain is
+       finer than a league. That means a fixture fetched five times has five rows here, and
+-      resolving which version to use is left to whatever reads it.
+-    tests:
+-      - dbt_utils.unique_combination_of_columns:
+-          name: stg_apif__lineups_order_keys_unique
+-          combination_of_columns: [fixture_id, team_id, raw_ingested_at]
++      resolving which version to use is left to whatever reads it. The provider can list one
++      team's sheet twice in one fetch. base_apif__lineup_fetch_ties finds those sheets.
+     columns:
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 7c894574..90885532 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -530,14 +530,74 @@ models:
+         description: "{{ doc('player_team_needs_research') }}"
+         tests: [not_null]
+ 
++  - name: base_apif__lineup_fetches
++    description: >
++      Every stored fetch of a team's sheet, under the team id after fixture_team_id_overrides.
++      provider_team_id is the id the provider filed the sheet under, and team_id is the id it is
++      kept under. base_apif__lineup_fetch_ties, base_apif__lineup_sheets and base_apif__fixture_players
++      read it. Grain: (league_code, fixture_id, provider_team_id, raw_ingested_at).
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: provider_team_id
++        description: "The team id the provider filed the sheet under."
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++        tests: [not_null]
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }}"
++        tests: [not_null]
++
++  - name: base_apif__lineup_fetch_ties
++    description: >
++      The sheets of each team in each match that carry the newest ingest time of the team's sheets.
++      The team is the team after fixture_team_id_overrides. Each group is counted, with whether its
++      sheets differ. A team with a differing tie has no sheet. base_apif__lineup_sheets and
++      base_apif__fixture_players leave it out, and its match has one sheet. base_apif__lineups then
++      says not_available. mart_competition_research_list lists the match.
++      Grain: (league_code, fixture_id, team_id).
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_id, team_id]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++        tests: [not_null]
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }}"
++        tests: [not_null]
++      - name: tied_rows
++        description: "How many sheets of the team carry that ingest time: 1 when the provider stored the sheet once."
++        tests: [not_null]
++      - name: rows_differ
++        description: "True when the tied sheets are not all identical, so none can be picked."
++        tests: [not_null]
++
+   - name: base_apif__lineup_sheets
+     description: >
+       One row per player each team's latest fetch of the stg_apif__lineups model names on its
+       sheet: the starting eleven and the bench, in the provider's order. When the latest fetch has
+       no grid places, the latest earlier fetch that has them and names the same starting eleven
+       lends its starters' grid places and the formation. Known provider team-id defects are
+-      corrected from the fixture_team_id_overrides seed before the latest fetch is chosen.
+-      base_apif__lineups reads it.
++      corrected from the fixture_team_id_overrides seed before the latest fetch is chosen
++      (base_apif__lineup_fetches). Sheets the provider stored twice at the latest ingest time
++      collapse to one when they are identical. A team whose tied sheets differ has no sheet here
++      (base_apif__lineup_fetch_ties). base_apif__lineups reads it.
+       Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
+ 
+       The provider sometimes files one player under two ids in a match. A sheet player whose id has
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index b794f3f1..860db20b 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -181,13 +181,20 @@ team_stat_cards as (
+ 
+ latest_sheets as (
+     select
+-        fixture_id,
+-        team_id,
+-        start_xi_json,
+-        substitutes_json
+-    from {{ ref('stg_apif__lineups') }}
+-    where fixture_id is not null and team_id is not null
+-    qualify row_number() over (partition by fixture_id, team_id order by raw_ingested_at desc) = 1
++        sheet.fixture_id,
++        sheet.provider_team_id as team_id,
++        sheet.start_xi_json,
++        sheet.substitutes_json
++    from {{ ref('base_apif__lineup_fetches') }} as sheet
++    left join {{ ref('base_apif__lineup_fetch_ties') }} as ties
++        on
++            sheet.league_code = ties.league_code
++            and sheet.fixture_id = ties.fixture_id
++            and sheet.team_id = ties.team_id
++    where not coalesce(ties.rows_differ, false)
++    qualify row_number() over (
++        partition by sheet.fixture_id, sheet.provider_team_id order by sheet.raw_ingested_at desc
++    ) = 1
+ ),
+ 
+ sheet_players as (
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineup_fetch_ties.sql b/dbt_project/models/2_base/api_football/base_apif__lineup_fetch_ties.sql
+new file mode 100644
+index 00000000..a1a92aa9
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__lineup_fetch_ties.sql
+@@ -0,0 +1,21 @@
++{#
++  The sheets of each team in each match that carry the newest ingest time of the team's sheets.
++  The team is the team after fixture_team_id_overrides, so two provider ids of one team count as one.
++  Each group is counted, with whether its sheets differ. A team with a differing tie has no sheet.
++  base_apif__lineup_sheets and base_apif__fixture_players leave it out. The research list names the
++  match. Grain: (league_code, fixture_id, team_id).
++#}
++select
++    league_code,
++    fixture_id,
++    team_id,
++    raw_ingested_at,
++    tied_rows,
++    rows_differ
++from (
++    {{ newest_fetch_ties(
++        ref('base_apif__lineup_fetches'),
++        ['league_code', 'fixture_id', 'team_id'],
++        ['raw_ingested_at', 'provider_team_id']
++    ) }}
++)
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineup_fetches.sql b/dbt_project/models/2_base/api_football/base_apif__lineup_fetches.sql
+new file mode 100644
+index 00000000..e0edded2
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__lineup_fetches.sql
+@@ -0,0 +1,80 @@
++{#
++  Every stored fetch of a team's sheet, under the team id after fixture_team_id_overrides.
++  provider_team_id is the id the provider filed the sheet under, team_id the id it is kept under.
++  base_apif__lineup_fetch_ties, base_apif__lineup_sheets and base_apif__fixture_players read it.
++  Grain: one row per provider sheet fetch, (league_code, fixture_id, provider_team_id, raw_ingested_at).
++#}
++with src as (
++    select
++        league_code,
++        fixture_id,
++        team_id as provider_team_id,
++        formation,
++        start_xi_json,
++        substitutes_json,
++        raw_ingested_at
++    from {{ ref('stg_apif__lineups') }}
++    where
++        fixture_id is not null
++        and team_id is not null
++),
++
++fixture_participants as (
++    select
++        league_code,
++        fixture_id,
++        season,
++        fixture_date,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where
++        home_team_id is not null
++        and away_team_id is not null
++),
++
++overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id,
++        mode,
++        cast(fixture_id as int64) as fixture_id
++    from {{ ref('fixture_team_id_overrides') }}
++)
++
++select
++    src.league_code,
++    src.fixture_id,
++    src.provider_team_id,
++    src.formation,
++    src.start_xi_json,
++    src.substitutes_json,
++    src.raw_ingested_at,
++    coalesce(
++        fixture_override.correct_team_api_id,
++        alias_override.correct_team_api_id,
++        reattribute_override.correct_team_api_id,
++        src.provider_team_id
++    ) as team_id
++from src
++left join overrides as fixture_override
++    on
++        src.provider_team_id = fixture_override.wrong_team_api_id
++        and src.fixture_id = fixture_override.fixture_id
++        and fixture_override.mode = 'reattribute_in_fixture'
++left join overrides as alias_override
++    on
++        src.provider_team_id = alias_override.wrong_team_api_id
++        and alias_override.mode = 'alias'
++left join fixture_participants
++    on src.fixture_id = fixture_participants.fixture_id
++left join overrides as reattribute_override
++    on
++        src.provider_team_id = reattribute_override.wrong_team_api_id
++        and reattribute_override.mode = 'reattribute_if_cohabiting'
++        and reattribute_override.correct_team_api_id in (
++            fixture_participants.home_team_id, fixture_participants.away_team_id
++        )
++        and reattribute_override.wrong_team_api_id not in (
++            fixture_participants.home_team_id, fixture_participants.away_team_id
++        )
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql b/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
+index b5e22e36..d3c7e8c1 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
+@@ -5,73 +5,20 @@
+ -- Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
+ with src as (
+     select
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        formation,
+-        start_xi_json,
+-        substitutes_json,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__lineups') }}
+-    where
+-        fixture_id is not null
+-        and team_id is not null
+-),
+-
+-fixture_participants as (
+-    select
+-        league_code,
+-        fixture_id,
+-        season,
+-        fixture_date,
+-        cast(home_team_id as int64) as home_team_id,
+-        cast(away_team_id as int64) as away_team_id
+-    from {{ ref('base_apif__fixtures_next') }}
+-    where
+-        home_team_id is not null
+-        and away_team_id is not null
+-),
+-
+-overrides as (
+-    select
+-        cast(wrong_team_api_id as int64) as wrong_team_api_id,
+-        cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode,
+-        cast(fixture_id as int64) as fixture_id
+-    from {{ ref('fixture_team_id_overrides') }}
+-),
+-
+-corrected as (
+-    select
+-        src.* except (team_id),
+-        coalesce(
+-            fixture_override.correct_team_api_id,
+-            alias_override.correct_team_api_id,
+-            reattribute_override.correct_team_api_id,
+-            src.team_id
+-        ) as team_id
+-    from src
+-    left join overrides as fixture_override
+-        on
+-            src.team_id = fixture_override.wrong_team_api_id
+-            and src.fixture_id = fixture_override.fixture_id
+-            and fixture_override.mode = 'reattribute_in_fixture'
+-    left join overrides as alias_override
+-        on
+-            src.team_id = alias_override.wrong_team_api_id
+-            and alias_override.mode = 'alias'
+-    left join fixture_participants
+-        on src.fixture_id = fixture_participants.fixture_id
+-    left join overrides as reattribute_override
++        sheet.league_code,
++        sheet.fixture_id,
++        sheet.team_id,
++        sheet.formation,
++        sheet.start_xi_json,
++        sheet.substitutes_json,
++        sheet.raw_ingested_at
++    from {{ ref('base_apif__lineup_fetches') }} as sheet
++    left join {{ ref('base_apif__lineup_fetch_ties') }} as ties
+         on
+-            src.team_id = reattribute_override.wrong_team_api_id
+-            and reattribute_override.mode = 'reattribute_if_cohabiting'
+-            and reattribute_override.correct_team_api_id in (
+-                fixture_participants.home_team_id, fixture_participants.away_team_id
+-            )
+-            and reattribute_override.wrong_team_api_id not in (
+-                fixture_participants.home_team_id, fixture_participants.away_team_id
+-            )
++            sheet.league_code = ties.league_code
++            and sheet.fixture_id = ties.fixture_id
++            and sheet.team_id = ties.team_id
++    where not coalesce(ties.rows_differ, false)
+ ),
+ 
+ fetches as (
+@@ -86,7 +33,7 @@ fetches as (
+             from unnest(json_query_array(start_xi_json)) as el,
+                 unnest([coalesce(json_value(el, '$.player.id'), '')]) as id
+         ) as starting_eleven
+-    from corrected
++    from src
+ ),
+ 
+ fetch_history as (
+@@ -114,17 +61,31 @@ latest as (
+             null,
+             (
+                 select as struct
+-                    h.fetch_formation as formation,
+-                    h.fetch_start_xi_json as start_xi_json
+-                from unnest(history) as h
+-                where h.fetch_has_grid and h.fetch_starting_eleven = fetch_history.starting_eleven
+-                order by h.fetched_at desc
++                    candidate.formation,
++                    candidate.start_xi_json
++                from (
++                    select
++                        h.fetch_formation as formation,
++                        h.fetch_start_xi_json as start_xi_json,
++                        h.fetched_at,
++                        farm_fingerprint(to_json_string(struct(h.fetch_formation, h.fetch_start_xi_json)))
++                            as content_hash
++                    from unnest(history) as h
++                    where h.fetch_has_grid and h.fetch_starting_eleven = fetch_history.starting_eleven
++                ) as candidate
++                -- The newest candidate lends only when the candidates tied at its ingest time agree.
++                qualify
++                    candidate.fetched_at = max(candidate.fetched_at) over ()
++                    and min(candidate.content_hash) over (partition by candidate.fetched_at)
++                    = max(candidate.content_hash) over (partition by candidate.fetched_at)
++                order by candidate.fetched_at desc
+                 limit 1
+             )
+         ) as lender
+     from fetch_history
+-    -- Two fetches at one ingest time both stay, so the grain test fails instead of a build choosing.
+-    qualify rank() over (
++    -- A team whose sheets tied at the newest ingest time differ is left out above, so the tied sheets
++    -- that remain are identical and one stands for the team.
++    qualify row_number() over (
+         partition by league_code, fixture_id, team_id
+         order by raw_ingested_at desc
+     ) = 1
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+index 564996a9..44cf6b29 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+@@ -18,6 +18,10 @@
+   - player_team_withheld: a player's stat line and his events name different teams of the match, and
+     nothing decides which is right (player_team_needs_research). His line and his events are left
+     out of the facts; the repair is a row in fixture_lineup_corrections;
++  - lineup_duplicate_withheld: the provider stored a team's line-up twice at the newest ingest time
++    with different content (base_apif__lineup_fetch_ties), so that team has no sheet and the match
++    line-up is not_available. No seed fixes the row (seed none); a newer fetch without the tie
++    removes it;
+   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
+     (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
+   seed names the correction seed that fixes the row. research_tier is the research order of the
+@@ -123,6 +127,15 @@ items as (
+         cast(null as string) as correction
+     from {{ ref('base_apif__fixture_events_checked') }}
+     where player_team_needs_research
++    union all
++    select distinct
++        'lineup_duplicate_withheld' as check_name,
++        'none' as seed,
++        fixture_id as fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('base_apif__lineup_fetch_ties') }}
++    where rows_differ
+ ),
+ 
+ misfiled_lines as (
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index fef509a1..ee3d2b44 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -4052,17 +4052,17 @@ models:
+         description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
+         tests: [unique, not_null]
+       - name: check_name
+-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
++        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "correction_no_longer_needed"]
++              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "correction_no_longer_needed"]
+       - name: seed
+-        description: "The correction seed that fixes the row, or that holds the correction no longer needed."
++        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld: no seed fixes it, a newer fetch removes it."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections", "fixture_team_id_overrides", "fixture_lineup_corrections"]
++              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections", "fixture_team_id_overrides", "fixture_lineup_corrections", "none"]
+       - name: correction
+         description: "On a correction no longer needed, the seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name. NULL on every other row."
+       - name: fixture_sk
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index bca81240..c47264c4 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -81,6 +81,7 @@ match stats are good enough.
+   - No player is on both sheets, and the stat lines put no player on the other team.
+   - No team sheet names two people under one player id; one person listed twice keeps his first
+     listing.
++  - A team whose line-up the provider stored twice at the newest ingest time with different content has no sheet, and the match is listed; identical copies count once.
+   - Every substitution brings on a substitute for a player of the same team on the sheets, at the
+     minute that player went off.
+   - Research covers, in this order: every match of a domestic league in the registry;
+diff --git a/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql b/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
+index 206965ad..69712db9 100644
+--- a/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
++++ b/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
+@@ -34,20 +34,33 @@ newest as (
+     ) = 1
+ ),
+ 
+-lender as (
++lender_candidates as (
+     select
+         f.league_code,
+         f.fixture_id,
+         f.team_id,
++        f.raw_ingested_at,
+         f.formation,
+-        f.start_xi_json
++        f.start_xi_json,
++        farm_fingerprint(to_json_string(struct(f.formation, f.start_xi_json))) as content_hash
+     from fetches as f
+     inner join newest as n
+         on f.league_code = n.league_code and f.fixture_id = n.fixture_id and f.team_id = n.team_id
+     where not n.has_grid and f.has_grid and f.starting_eleven = n.starting_eleven
+-    qualify row_number() over (
+-        partition by f.league_code, f.fixture_id, f.team_id order by f.raw_ingested_at desc
+-    ) = 1
++),
++
++lender as (
++    select
++        f.league_code,
++        f.fixture_id,
++        f.team_id,
++        f.formation,
++        f.start_xi_json
++    from lender_candidates as f
++    qualify f.raw_ingested_at = max(f.raw_ingested_at) over (partition by f.league_code, f.fixture_id, f.team_id)
++        and min(content_hash) over (partition by f.league_code, f.fixture_id, f.team_id, f.raw_ingested_at)
++        = max(content_hash) over (partition by f.league_code, f.fixture_id, f.team_id, f.raw_ingested_at)
++        and row_number() over (partition by f.league_code, f.fixture_id, f.team_id order by f.raw_ingested_at desc) = 1
+ ),
+ 
+ lent_places as (
+diff --git a/dbt_project/tests/assert_lineup_fetches_never_tie.sql b/dbt_project/tests/assert_lineup_fetches_never_tie.sql
+index ed55cfc9..266be9b2 100644
+--- a/dbt_project/tests/assert_lineup_fetches_never_tie.sql
++++ b/dbt_project/tests/assert_lineup_fetches_never_tie.sql
+@@ -1,16 +1,59 @@
+ {#
+-  base_apif__lineup_sheets reads each team's latest fetch, and an earlier fetch may lend it grid
+-  places; both are picked by ingest time. Returns every team whose sheet was stored twice at one
+-  ingest time in a match, where nothing says which fetch is newer.
++  The provider can store a team's line-up twice at one ingest time, also under two provider ids of
++  one team. Sheets that are identical collapse to one, and a team whose sheets differ has none: no
++  sheet of it reaches base. The differing teams are found here from base_apif__lineup_fetches, which
++  holds the team after fixture_team_id_overrides, with the sheets compared as JSON. The macro and
++  base_apif__lineup_fetch_ties are not used. Returns each model that holds a row of such a team.
+ #}
++{{ config(store_failures = true, severity = 'error') }}
+ 
++with newest_sheets as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        to_json_string(sheet) as sheet_json
++    from (
++        select
++            * except (raw_ingested_at, provider_team_id),
++            raw_ingested_at = max(raw_ingested_at) over (partition by league_code, fixture_id, team_id)
++                as in_newest_fetch
++        from {{ ref('base_apif__lineup_fetches') }}
++    ) as sheet
++    where in_newest_fetch
++),
++
++differing_teams as (
++    select
++        league_code,
++        fixture_id,
++        team_id
++    from newest_sheets
++    group by league_code, fixture_id, team_id
++    having count(distinct sheet_json) > 1
++)
++
++select
++    'base_apif__lineup_sheets' as model_name,
++    sheets.fixture_id,
++    sheets.team_id
++from {{ ref('base_apif__lineup_sheets') }} as sheets
++inner join differing_teams
++    on
++        sheets.league_code = differing_teams.league_code
++        and sheets.fixture_id = differing_teams.fixture_id
++        and sheets.team_id = differing_teams.team_id
++group by sheets.fixture_id, sheets.team_id
++union all
+ select
+-    league_code,
+-    fixture_id,
+-    team_id,
+-    raw_ingested_at,
+-    count(*) as fetches
+-from {{ ref('stg_apif__lineups') }}
+-where fixture_id is not null and team_id is not null
+-group by league_code, fixture_id, team_id, raw_ingested_at
+-having count(*) > 1
++    'base_apif__lineups' as model_name,
++    lineups.fixture_id,
++    lineups.team_id
++from {{ ref('base_apif__lineups') }} as lineups
++inner join differing_teams
++    on
++        lineups.league_code = differing_teams.league_code
++        and lineups.fixture_id = differing_teams.fixture_id
++        and lineups.team_id = differing_teams.team_id
++where lineups.lineup_state != 'researched'
++group by lineups.fixture_id, lineups.team_id
+diff --git a/dbt_project/tests/assert_newest_fetch_ties_answer_key.sql b/dbt_project/tests/assert_newest_fetch_ties_answer_key.sql
+new file mode 100644
+index 00000000..2564484c
+--- /dev/null
++++ b/dbt_project/tests/assert_newest_fetch_ties_answer_key.sql
+@@ -0,0 +1,88 @@
++{#
++  Hand-written rows run through newest_fetch_ties, the rule that finds a tie and says whether it
++  differs. Returns each key whose answer differs from the hand-worked one: a differing tie reported
++  as identical lets one of two different rows stand for the key, and an identical tie reported as
++  differing withholds a value nothing is wrong with. Only the newest ingest time of a key counts. A
++  column we add to a row (load_offset) and the id the provider filed a team under (provider_team_id)
++  never make identical content differ.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with sheet_rows as (
++    select *
++    from unnest([
++        struct(
++            1 as fixture_id, 10 as team_id, 2 as raw_ingested_at, 'a' as sheet, 1 as load_offset,
++            10 as provider_team_id
++        ),
++        struct(1, 10, 2, 'a', 1, 10),
++        struct(2, 10, 2, 'a', 1, 10),
++        struct(2, 10, 2, 'b', 1, 10),
++        struct(3, 10, 2, 'a', 1, 10),
++        struct(4, 10, 1, 'a', 1, 10),
++        struct(4, 10, 1, 'b', 1, 10),
++        struct(4, 10, 2, 'a', 1, 10),
++        struct(5, 10, 1, 'a', 1, 10),
++        struct(5, 10, 2, 'a', 1, 10),
++        struct(5, 10, 2, 'b', 1, 10),
++        struct(6, 10, 2, 'a', 1, 10),
++        struct(6, 10, 2, 'a', 1, 10),
++        struct(6, 11, 2, 'a', 1, 11),
++        struct(6, 11, 2, 'b', 1, 11),
++        struct(7, 10, 2, 'a', 1, 10),
++        struct(7, 10, 2, 'a', 1, 10),
++        struct(7, 10, 2, 'a', 1, 10),
++        struct(8, 10, 3, 'a', 1, 10),
++        struct(8, 11, 2, 'a', 1, 11),
++        struct(8, 11, 2, 'b', 1, 11),
++        struct(9, 10, 2, 'a', 1, 10),
++        struct(9, 10, 2, 'a', 2, 10),
++        struct(10, 10, 2, 'a', 1, 10),
++        struct(10, 10, 2, 'b', 2, 10),
++        struct(11, 10, 2, 'a', 1, 100),
++        struct(11, 10, 2, 'a', 1, 101),
++        struct(12, 10, 2, 'a', 1, 100),
++        struct(12, 10, 2, 'b', 1, 101)
++    ])
++),
++
++actual as (
++    {{ newest_fetch_ties('sheet_rows', ['fixture_id', 'team_id'], ['load_offset', 'provider_team_id']) }}
++),
++
++expected as (
++    select *
++    from unnest([
++        struct(1 as fixture_id, 10 as team_id, 2 as tied_rows, false as rows_differ),
++        struct(2, 10, 2, true),
++        struct(3, 10, 1, false),
++        struct(4, 10, 1, false),
++        struct(5, 10, 2, true),
++        struct(6, 10, 2, false),
++        struct(6, 11, 2, true),
++        struct(7, 10, 3, false),
++        struct(8, 10, 1, false),
++        struct(8, 11, 2, true),
++        struct(9, 10, 2, false),
++        struct(10, 10, 2, true),
++        struct(11, 10, 2, false),
++        struct(12, 10, 2, true)
++    ])
++)
++
++select
++    'wrong_answer' as problem,
++    coalesce(e.fixture_id, a.fixture_id) as fixture_id,
++    coalesce(e.team_id, a.team_id) as team_id,
++    e.tied_rows as expected_tied_rows,
++    a.tied_rows as actual_tied_rows,
++    e.rows_differ as expected_rows_differ,
++    a.rows_differ as actual_rows_differ
++from expected as e
++full outer join actual as a
++    on e.fixture_id = a.fixture_id and e.team_id = a.team_id
++where
++    e.fixture_id is null
++    or a.fixture_id is null
++    or e.tied_rows != a.tied_rows
++    or e.rows_differ != a.rows_differ
+diff --git a/tests/test_lineup_ties_wiring.py b/tests/test_lineup_ties_wiring.py
+new file mode 100644
+index 00000000..2e082308
+--- /dev/null
++++ b/tests/test_lineup_ties_wiring.py
+@@ -0,0 +1,259 @@
++"""A line-up the provider stored twice at one ingest time: identical collapses, differing is withheld.
++
++The macro newest_fetch_ties finds the tied sheets of a team and says whether they differ. The team is
++the team after fixture_team_id_overrides, which base_apif__lineup_fetches holds. The model
++base_apif__lineup_fetch_ties holds the answer, base_apif__lineup_sheets and base_apif__fixture_players
++leave a team with differing sheets out, the research list carries its match as
++lineup_duplicate_withheld, and tests at error check the rule: a proof derived from the fetches model
++and a hand-written answer key. Each pin fails when its wiring is undone.
++"""
++
++import pathlib
++import re
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++DBT = ROOT / "dbt_project"
++BASE = DBT / "models" / "2_base" / "api_football"
++MART = DBT / "models" / "5_marts" / "shared"
++
++
++def _sql(path):
++    text = path.read_text(encoding="utf-8")
++    text = re.sub(r"\{#.*?#\}", " ", text, flags=re.DOTALL)
++    text = re.sub(r"--[^\n]*", " ", text)
++    return re.sub(r"\s+", " ", text)
++
++
++def _macro():
++    text = _sql(DBT / "macros" / "newest_fetch_ties.sql")
++    return text.split("macro newest_fetch_ties", 1)[1].split("endmacro", 1)[0]
++
++
++KEYS = "{{ key_columns | join(', ') }}"
++TIES_JOIN = (
++    "left join {{ ref('base_apif__lineup_fetch_ties') }} as ties on sheet.league_code = ties.league_code "
++    "and sheet.fixture_id = ties.fixture_id and sheet.team_id = ties.team_id"
++)
++NOT_DIFFERING = "where not coalesce(ties.rows_differ, false)"
++
++
++def test_the_macro_counts_the_newest_rows_of_each_key_and_compares_their_fingerprints():
++    body = _macro()
++    assert body.lstrip().startswith("(relation, key_columns, ignore_columns=[]) -%}")
++    assert f"select {KEYS}, raw_ingested_at, count(*) as tied_rows, min(row_hash) != max(row_hash) as rows_differ" in body
++    assert (
++        "farm_fingerprint(to_json_string( {%- if ignore_columns %} (select as struct source_row.* except "
++        "({{ ignore_columns | join(', ') }})) {%- else %} source_row {%- endif %} )) as row_hash"
++    ) in body
++    assert f"raw_ingested_at = max(raw_ingested_at) over (partition by {KEYS}) as in_newest_fetch" in body
++    assert "from {{ relation }} as source_row ) where in_newest_fetch" in body
++    assert f"group by {KEYS}, raw_ingested_at" in body
++    assert "order by" not in body
++
++
++def test_the_fetches_model_holds_every_sheet_under_the_team_after_the_correction():
++    text = _sql(BASE / "base_apif__lineup_fetches.sql")
++    assert (
++        "with src as ( select league_code, fixture_id, team_id as provider_team_id, formation, start_xi_json, "
++        "substitutes_json, raw_ingested_at from {{ ref('stg_apif__lineups') }} where fixture_id is not null "
++        "and team_id is not null )"
++    ) in text
++    assert (
++        "coalesce( fixture_override.correct_team_api_id, alias_override.correct_team_api_id, "
++        "reattribute_override.correct_team_api_id, src.provider_team_id ) as team_id"
++    ) in text
++    assert (
++        "src.provider_team_id = fixture_override.wrong_team_api_id and src.fixture_id = fixture_override.fixture_id "
++        "and fixture_override.mode = 'reattribute_in_fixture'"
++    ) in text
++    assert "src.provider_team_id = alias_override.wrong_team_api_id and alias_override.mode = 'alias'" in text
++    assert (
++        "src.provider_team_id = reattribute_override.wrong_team_api_id "
++        "and reattribute_override.mode = 'reattribute_if_cohabiting' "
++        "and reattribute_override.correct_team_api_id in ( fixture_participants.home_team_id, "
++        "fixture_participants.away_team_id ) and reattribute_override.wrong_team_api_id not in ( "
++        "fixture_participants.home_team_id, fixture_participants.away_team_id )"
++    ) in text
++    assert "from {{ ref('fixture_team_id_overrides') }}" in text
++    assert "from {{ ref('base_apif__fixtures_next') }} where home_team_id is not null and away_team_id is not null" in text
++
++
++def test_the_ties_model_compares_the_sheets_of_a_team_after_the_correction_and_ignores_our_own_columns():
++    text = _sql(BASE / "base_apif__lineup_fetch_ties.sql")
++    assert (
++        "{{ newest_fetch_ties( ref('base_apif__lineup_fetches'), ['league_code', 'fixture_id', 'team_id'], "
++        "['raw_ingested_at', 'provider_team_id'] ) }}"
++    ) in text
++    for column in ("league_code", "fixture_id", "team_id", "raw_ingested_at", "tied_rows", "rows_differ"):
++        assert column in text.split("from (")[0], column
++
++
++def test_a_team_with_differing_sheets_has_no_sheet_and_identical_sheets_collapse():
++    text = _sql(BASE / "base_apif__lineup_sheets.sql")
++    src = text.split("with src as (", 1)[1].split("), fetches as (", 1)[0]
++    assert "from {{ ref('base_apif__lineup_fetches') }} as sheet " + TIES_JOIN in src
++    assert NOT_DIFFERING in src
++    assert "stg_apif__lineups" not in text
++    assert "overrides" not in text.split("), fetches as (", 1)[0]
++    latest = text.split("latest as (", 1)[1].split("), named", 1)[0]
++    assert (
++        "qualify row_number() over ( partition by league_code, fixture_id, team_id order by raw_ingested_at desc ) = 1"
++    ) in latest
++
++
++def test_the_grid_lender_lends_only_when_the_candidates_of_its_ingest_time_agree():
++    latest = _sql(BASE / "base_apif__lineup_sheets.sql").split("latest as (", 1)[1].split("), named", 1)[0]
++    assert (
++        "farm_fingerprint(to_json_string(struct(h.fetch_formation, h.fetch_start_xi_json))) as content_hash"
++    ) in latest
++    assert (
++        "qualify candidate.fetched_at = max(candidate.fetched_at) over () "
++        "and min(candidate.content_hash) over (partition by candidate.fetched_at) "
++        "= max(candidate.content_hash) over (partition by candidate.fetched_at) "
++        "order by candidate.fetched_at desc limit 1"
++    ) in latest
++    assert "order by h.fetched_at desc" not in latest
++
++
++def test_the_player_lines_read_from_line_ups_leave_a_differing_team_out():
++    text = _sql(BASE / "base_apif__fixture_players.sql")
++    sheets = text.split("latest_sheets as (", 1)[1].split("), sheet_players", 1)[0]
++    assert (
++        "select sheet.fixture_id, sheet.provider_team_id as team_id, sheet.start_xi_json, sheet.substitutes_json "
++        "from {{ ref('base_apif__lineup_fetches') }} as sheet " + TIES_JOIN
++    ) in sheets
++    assert NOT_DIFFERING in sheets
++    assert (
++        "qualify row_number() over ( partition by sheet.fixture_id, sheet.provider_team_id "
++        "order by sheet.raw_ingested_at desc ) = 1"
++    ) in sheets
++    assert "stg_apif__lineups" not in text
++
++
++def test_the_research_list_carries_a_differing_line_up_as_its_own_row_kind():
++    text = _sql(MART / "mart_competition_research_list.sql")
++    assert (
++        "select distinct 'lineup_duplicate_withheld' as check_name, 'none' as seed, fixture_id as fixture_sk, "
++        "cast(null as int64) as team_sk, cast(null as string) as correction "
++        "from {{ ref('base_apif__lineup_fetch_ties') }} where rows_differ )"
++    ) in text
++    shared = (MART / "shared.yml").read_text(encoding="utf-8")
++    assert shared.count('"lineup_duplicate_withheld", "correction_no_longer_needed"]') == 1
++    assert shared.count('"fixture_lineup_corrections", "none"]') == 1
++
++
++def test_the_staging_test_is_gone_and_the_base_proof_stays_at_error():
++    staging = (DBT / "models" / "1_staging" / "api_football" / "stg_apif__generic.yml").read_text(encoding="utf-8")
++    assert "stg_apif__lineups_order_keys_unique" not in staging
++    block = staging.split("- name: stg_apif__lineups", 1)[1].split("\n  - name: ", 1)[0]
++    assert "\n    tests:" not in block
++    assert "\n    data_tests:" not in block
++    base = (BASE / "base.yml").read_text(encoding="utf-8")
++    sheets = base.split("- name: base_apif__lineup_sheets", 1)[1].split("\n  - name: ", 1)[0]
++    assert "combination_of_columns: [league_code, fixture_id, team_id, is_starter, sheet_index]" in sheets
++    assert "severity" not in sheets
++    assert "where:" not in sheets
++    ties = base.split("- name: base_apif__lineup_fetch_ties", 1)[1].split("\n  - name: ", 1)[0]
++    assert "combination_of_columns: [league_code, fixture_id, team_id]" in ties
++    assert "severity" not in ties
++    assert "where:" not in ties
++
++
++def test_the_proof_derives_the_differing_teams_from_the_fetches_and_stays_at_error():
++    text = _sql(DBT / "tests" / "assert_lineup_fetches_never_tie.sql")
++    assert "severity = 'error'" in text
++    assert "from {{ ref('base_apif__lineup_fetches') }} ) as sheet" in text
++    assert "base_apif__lineup_fetch_ties" not in text
++    assert "newest_fetch_ties(" not in text
++    assert (
++        "* except (raw_ingested_at, provider_team_id), raw_ingested_at = max(raw_ingested_at) "
++        "over (partition by league_code, fixture_id, team_id)"
++    ) in text
++    assert "group by league_code, fixture_id, team_id having count(distinct sheet_json) > 1" in text
++    for model, alias in (("base_apif__lineup_sheets", "sheets"), ("base_apif__lineups", "lineups")):
++        assert (
++            f"from {{{{ ref('{model}') }}}} as {alias} inner join differing_teams on "
++            f"{alias}.league_code = differing_teams.league_code and {alias}.fixture_id = differing_teams.fixture_id "
++            f"and {alias}.team_id = differing_teams.team_id"
++        ) in text, model
++    assert "where lineups.lineup_state != 'researched'" in text
++
++
++def test_the_grid_test_picks_the_lender_the_way_base_does():
++    text = _sql(DBT / "tests" / "assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql")
++    candidates = text.split("lender_candidates as (", 1)[1].split("), lender as (", 1)[0]
++    assert "farm_fingerprint(to_json_string(struct(f.formation, f.start_xi_json))) as content_hash" in candidates
++    assert "where not n.has_grid and f.has_grid and f.starting_eleven = n.starting_eleven" in candidates
++    lender = text.split("), lender as (", 1)[1].split("), lent_places", 1)[0]
++    assert "from lender_candidates as f" in lender
++    assert (
++        "qualify f.raw_ingested_at = max(f.raw_ingested_at) over (partition by f.league_code, f.fixture_id, f.team_id) "
++        "and min(content_hash) over (partition by f.league_code, f.fixture_id, f.team_id, f.raw_ingested_at) "
++        "= max(content_hash) over (partition by f.league_code, f.fixture_id, f.team_id, f.raw_ingested_at) "
++        "and row_number() over (partition by f.league_code, f.fixture_id, f.team_id order by f.raw_ingested_at desc) = 1"
++    ) in lender
++
++
++def test_the_answer_key_runs_the_macro_on_its_own_rows():
++    text = _sql(DBT / "tests" / "assert_newest_fetch_ties_answer_key.sql")
++    assert "severity = 'error'" in text
++    assert (
++        "{{ newest_fetch_ties('sheet_rows', ['fixture_id', 'team_id'], ['load_offset', 'provider_team_id']) }}"
++    ) in text
++    assert (
++        "struct( 1 as fixture_id, 10 as team_id, 2 as raw_ingested_at, 'a' as sheet, 1 as load_offset, "
++        "10 as provider_team_id ),"
++    ) in text
++    for row in (
++        "struct(2, 10, 2, 'b', 1, 10),",
++        "struct(3, 10, 2, 'a', 1, 10),",
++        "struct(4, 10, 1, 'a', 1, 10),",
++        "struct(4, 10, 1, 'b', 1, 10),",
++        "struct(4, 10, 2, 'a', 1, 10),",
++        "struct(5, 10, 1, 'a', 1, 10),",
++        "struct(5, 10, 2, 'b', 1, 10),",
++        "struct(6, 11, 2, 'a', 1, 11),",
++        "struct(6, 11, 2, 'b', 1, 11),",
++        "struct(8, 10, 3, 'a', 1, 10),",
++        "struct(8, 11, 2, 'a', 1, 11),",
++        "struct(8, 11, 2, 'b', 1, 11),",
++        "struct(9, 10, 2, 'a', 1, 10),",
++        "struct(9, 10, 2, 'a', 2, 10),",
++        "struct(10, 10, 2, 'a', 1, 10),",
++        "struct(10, 10, 2, 'b', 2, 10),",
++        "struct(11, 10, 2, 'a', 1, 100),",
++        "struct(11, 10, 2, 'a', 1, 101),",
++        "struct(12, 10, 2, 'a', 1, 100),",
++        "struct(12, 10, 2, 'b', 1, 101) ])",
++    ):
++        assert text.count(row) == 1, row
++    assert text.count("struct(7, 10, 2, 'a', 1, 10)") == 3
++    assert text.count("struct(1, 10, 2, 'a', 1, 10),") == 1
++    assert text.count("struct(2, 10, 2, 'a', 1, 10),") == 1
++    assert text.count("struct(6, 10, 2, 'a', 1, 10),") == 2
++    assert (
++        "struct(1 as fixture_id, 10 as team_id, 2 as tied_rows, false as rows_differ), "
++        "struct(2, 10, 2, true), struct(3, 10, 1, false), struct(4, 10, 1, false), "
++        "struct(5, 10, 2, true), struct(6, 10, 2, false), struct(6, 11, 2, true), "
++        "struct(7, 10, 3, false), struct(8, 10, 1, false), struct(8, 11, 2, true), "
++        "struct(9, 10, 2, false), struct(10, 10, 2, true), struct(11, 10, 2, false), "
++        "struct(12, 10, 2, true) ])"
++    ) in text
++    assert (
++        "from expected as e full outer join actual as a on e.fixture_id = a.fixture_id and e.team_id = a.team_id "
++        "where e.fixture_id is null or a.fixture_id is null or e.tied_rows != a.tied_rows "
++        "or e.rows_differ != a.rows_differ"
++    ) in text
++
++
++def test_the_cleaning_rule_names_the_withheld_line_up():
++    text = (DBT / "models" / "docs" / "cleaning_rules.md").read_text(encoding="utf-8")
++    assert (
++        "  - A team whose line-up the provider stored twice at the newest ingest time with different content "
++        "has no sheet, and the match is listed; identical copies count once."
++    ) in text
++
++
++def test_the_research_skill_does_not_research_the_row_kind():
++    text = (ROOT / ".claude" / "skills" / "research-provider-errors" / "SKILL.md").read_text(encoding="utf-8")
++    assert "`lineup_duplicate_withheld` row is not researched" in text
+diff --git a/tests/test_player_team_conflict_wiring.py b/tests/test_player_team_conflict_wiring.py
+index 2c8cd1ea..9f2bda6d 100644
+--- a/tests/test_player_team_conflict_wiring.py
++++ b/tests/test_player_team_conflict_wiring.py
+@@ -120,8 +120,9 @@ def test_a_fact_leaves_out_the_lines_of_a_disputed_player(fact):
+ 
+ def test_the_research_list_holds_the_match_of_a_disputed_player():
+     items = _cte(render_model("mart_competition_research_list"), "items")
+-    assert items.endswith(
++    assert (
+         "select distinct 'player_team_withheld' as check_name, 'fixture_lineup_corrections' as seed, "
+         "cast(fixture_id as int64) as fixture_sk, cast(null as int64) as team_sk, cast(null as string) as correction "
+-        "from `base_apif__fixture_events_checked` where player_team_needs_research"
+-    )
++        "from `base_apif__fixture_events_checked` where player_team_needs_research "
++        "union all select distinct '"
++    ) in items
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../262-lineup-ties-withheld/review_input.patch    | 1158 ++++++++++++++++++++
+#    1 file changed, 1158 insertions(+)
+# ============================================================================
