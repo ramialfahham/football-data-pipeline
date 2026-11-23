@@ -1379,7 +1379,7 @@ seeds:
       Hand-worked values of the Player page for real players and squads in seasons that are over, so
       a nightly refresh cannot change an answer: the header (full name, season label, featured
       league, current club, position, the two tabs), the position player counts, the filter order,
-      the Club tab's cards with last season's minutes, and one Squad's count, median and ranks. Each
+      the Club tab's cards with last season's minutes, and a Squad's count, median and ranks. Each
       answer was worked out from the cleaned player-match lines (int_legs__player_match), the team
       matches (int_legs__team_match) and the fixtures, never from a Player page mart.
       assert_player_page_answer_key fails when the marts return anything else.
