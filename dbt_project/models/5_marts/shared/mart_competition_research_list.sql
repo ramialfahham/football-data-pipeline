@@ -18,6 +18,10 @@
   - player_team_withheld: a player's stat line and his events name different teams of the match, and
     nothing decides which is right (player_team_needs_research). His line and his events are left
     out of the facts; the repair is a row in fixture_lineup_corrections;
+  - lineup_duplicate_withheld: the provider stored a team's line-up twice at the newest ingest time
+    with different content (base_apif__lineup_fetch_ties), so that team has no sheet and the match
+    line-up is not_available. No seed fixes the row (seed none); a newer fetch without the tie
+    removes it;
   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
     (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
   seed names the correction seed that fixes the row. research_tier is the research order of the
@@ -123,6 +127,15 @@ items as (
         cast(null as string) as correction
     from {{ ref('base_apif__fixture_events_checked') }}
     where player_team_needs_research
+    union all
+    select distinct
+        'lineup_duplicate_withheld' as check_name,
+        'none' as seed,
+        fixture_id as fixture_sk,
+        cast(null as int64) as team_sk,
+        cast(null as string) as correction
+    from {{ ref('base_apif__lineup_fetch_ties') }}
+    where rows_differ
 ),
 
 misfiled_lines as (

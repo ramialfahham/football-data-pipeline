@@ -4052,17 +4052,17 @@ models:
         description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
         tests: [unique, not_null]
       - name: check_name
-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
         tests:
           - not_null
           - accepted_values:
-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "correction_no_longer_needed"]
+              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "correction_no_longer_needed"]
       - name: seed
-        description: "The correction seed that fixes the row, or that holds the correction no longer needed."
+        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld: no seed fixes it, a newer fetch removes it."
         tests:
           - not_null
           - accepted_values:
-              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections", "fixture_team_id_overrides", "fixture_lineup_corrections"]
+              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections", "fixture_team_id_overrides", "fixture_lineup_corrections", "none"]
       - name: correction
         description: "On a correction no longer needed, the seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name. NULL on every other row."
       - name: fixture_sk

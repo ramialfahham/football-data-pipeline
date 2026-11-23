@@ -181,13 +181,20 @@ team_stat_cards as (
 
 latest_sheets as (
     select
-        fixture_id,
-        team_id,
-        start_xi_json,
-        substitutes_json
-    from {{ ref('stg_apif__lineups') }}
-    where fixture_id is not null and team_id is not null
-    qualify row_number() over (partition by fixture_id, team_id order by raw_ingested_at desc) = 1
+        sheet.fixture_id,
+        sheet.provider_team_id as team_id,
+        sheet.start_xi_json,
+        sheet.substitutes_json
+    from {{ ref('base_apif__lineup_fetches') }} as sheet
+    left join {{ ref('base_apif__lineup_fetch_ties') }} as ties
+        on
+            sheet.league_code = ties.league_code
+            and sheet.fixture_id = ties.fixture_id
+            and sheet.team_id = ties.team_id
+    where not coalesce(ties.rows_differ, false)
+    qualify row_number() over (
+        partition by sheet.fixture_id, sheet.provider_team_id order by sheet.raw_ingested_at desc
+    ) = 1
 ),
 
 sheet_players as (

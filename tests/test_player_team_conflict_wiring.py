@@ -120,8 +120,9 @@ def test_a_fact_leaves_out_the_lines_of_a_disputed_player(fact):
 
 def test_the_research_list_holds_the_match_of_a_disputed_player():
     items = _cte(render_model("mart_competition_research_list"), "items")
-    assert items.endswith(
+    assert (
         "select distinct 'player_team_withheld' as check_name, 'fixture_lineup_corrections' as seed, "
         "cast(fixture_id as int64) as fixture_sk, cast(null as int64) as team_sk, cast(null as string) as correction "
-        "from `base_apif__fixture_events_checked` where player_team_needs_research"
-    )
+        "from `base_apif__fixture_events_checked` where player_team_needs_research "
+        "union all select distinct '"
+    ) in items
