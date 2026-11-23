@@ -61,6 +61,17 @@ def test_the_played_match_mock_lists_its_stats_in_the_catalogue_order():
     assert groups == ["Shooting", "Passing", "One-on-one", "Defending", "Goalkeeping", "Set pieces", "Discipline"]
 
 
+def test_the_match_leaders_boards_follow_the_catalogue_order_and_keep_their_set():
+    for state_fx in (match_page.PLAYED, match_page.PLAYED_PEN):
+        names = [name for _group, boards in state_fx["leaders"] for name, _rows in boards]
+        assert set(names) <= set(match_page.LEADER_METRIC), "a board without a catalogue metric"
+        shuffled = dict(state_fx, leaders=[(g, list(reversed(b))) for g, b in reversed(state_fx["leaders"])])
+        drawn = [re.sub(r"<[^>]*>", "", n) for n in re.findall(
+            r'class="bt"><span class="nm">([^<]+)</span>', match_page.leaders_block(shuffled))]
+        expected = sorted(names, key=lambda n: place(match_page.LEADER_METRIC[n], "player"))
+        assert drawn == expected, "the Match leaders boards must read the catalogue's order"
+
+
 def test_the_rankings_mock_shows_the_boards_the_rankings_tab_shows():
     team = {m for _label, ids in rankings.GROUPS for m in ids}
     player = {m for _label, ids in rankings.PLAYER_GROUPS for m in ids}

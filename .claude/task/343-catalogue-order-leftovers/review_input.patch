@@ -1,0 +1,233 @@
+diff --git a/.claude/task/343-catalogue-order-leftovers/contract.md b/.claude/task/343-catalogue-order-leftovers/contract.md
+new file mode 100644
+index 00000000..f264dab4
+--- /dev/null
++++ b/.claude/task/343-catalogue-order-leftovers/contract.md
+@@ -0,0 +1,57 @@
++# Task contract — #343 leftovers: stale order wording, old metric ids, the match mock's leaders order
++
++objective: >
++  Three leftovers of #343 (the catalogue sets the metric order on every surface). The
++  _shape_team_benchmarks docstring in scripts/export_site_data.py no longer says the frontend
++  re-orders per the metrics_display block order. The player table in metrics_display.md and the
++  bundle table in 03_player_profile.md name the catalogue's ids for shots on target and shots on
++  target faced. The Match leaders boards of design-mocks/gen_match_page.py take their order from
++  design-mocks/catalogue_order.py and keep their metric set.
++
++refs: >
++  #343; the coordinating session's brief for the follow-up after !522.
++
++scope_paths:
++  - scripts/export_site_data.py
++  - docs/wireframes/metrics_display.md
++  - docs/wireframes/03_player_profile.md
++  - docs/wireframes/99_gaps_register.md
++  - design-mocks/gen_match_page.py
++  - tests/test_design_mocks_read_catalogue_order.py
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_sentence_length_in_docs.py
++  - .claude/task/343-catalogue-order-leftovers/contract.md
++  - .claude/task/343-catalogue-order-leftovers/review.md
++  - .claude/task/343-catalogue-order-leftovers/review_input.patch
++
++impact_map: >
++  Leaf change. The export edit is one docstring: `git diff gitlab/main -- scripts/export_site_data.py`
++  changes comment text only, no code line, so no payload, mart or number changes. The mock edit
++  reads an existing seed through design-mocks/catalogue_order.py. `grep -rn "gen_match_page"
++  scripts dbt_project site_v2/src` returns nothing outside design-mocks and tests, so no consumer
++  reads the mock's output. The wireframe edits are documents. dbt lineage: no model, seed or
++  macro file changes, so `dbt ls` has nothing to select.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: !522 is merged into main; no open MR touches these files
++shared_files:
++  - none: no design baseline, component registry, font coverage or chart screenshot file changes
++
++decisions_taken: >
++  The coordinating session scoped these three leftovers as #343 work and said the leaders lists
++  keep their metric set and only take their order from the catalogue. The ids follow the catalogue:
++  shots_on_goal_player for the shots on target atomic and shots_on_goal_against_player for shots
++  on target faced. The team display id `shots_on_target_per_match` in metrics_display.md stays,
++  because that document explains it as the display id.
++
++decisions_reserved:
++  - none: every rule applied is named in decisions_taken
++
++done_when:
++  - python -m pytest tests/test_design_mocks_read_catalogue_order.py tests/test_no_decision_history_in_docs.py tests/test_sentence_length_in_docs.py -q passes
++  - python scripts/ci_local.py --mr passes
++
++amendments: (none)
+diff --git a/design-mocks/gen_match_page.py b/design-mocks/gen_match_page.py
+index 847fec09..218058b5 100644
+--- a/design-mocks/gen_match_page.py
++++ b/design-mocks/gen_match_page.py
+@@ -1224,6 +1224,12 @@ PLAYED_METRIC = {
+     "fouls": "fouls_per_match", "offsides": "offsides_per_match",
+     "yellow_cards": "cards_yellow", "red_cards": "cards_red",
+ }
++# The catalogue player metric each Match leaders board ranks; the catalogue's place orders the boards.
++LEADER_METRIC = {
++    "Shots": "shots_player", "Passes": "passes_player", "Key passes": "passes_key_player",
++    "Ball actions": "ball_actions_player", "Dribbles attempted": "dribbles_attempts_player",
++    "Duels won": "duels_won_player", "Defensive actions": "defensive_actions_player", "Fouls": "fouls_player",
++}
+ APPROVED_RENDER = HERE / "renders" / "match-page_2026-09-27_56.html"
+ 
+ PLAYED_CSS = """
+@@ -1620,7 +1626,10 @@ def leaders_block(fx):
+     players = {p[1]: p for p in fx["players"]}
+     teams = {fx["home"]["team_id"]: fx["home"], fx["away"]["team_id"]: fx["away"]}
+     groups = []
+-    for group, boards in fx["leaders"]:
++    ordered = sorted(((group, sorted(boards, key=lambda b: place(LEADER_METRIC[b[0]], "player")))
++                      for group, boards in fx["leaders"]),
++                     key=lambda g: place(LEADER_METRIC[g[1][0][0]], "player"))
++    for group, boards in ordered:
+         drawn = []
+         for name, rows in boards:
+             body = []
+diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
+index 0e6fab66..8b76210d 100644
+--- a/docs/wireframes/03_player_profile.md
++++ b/docs/wireframes/03_player_profile.md
+@@ -95,13 +95,13 @@ Each bundle's name is its rank metric's entry in `site_v2/src/i18n/strings.ts`.
+ | Bundle (contract) | JSON keys (selected season row) |
+ |---|---|
+ | Scorer points | `goals_player`, `assists_player` |
+-| `shots_on_goal_player` | `shots_on_target` |
++| `shots_on_goal_player` | `shots_on_goal_player` |
+ | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
+ | Key passes | `passes_key_player` |
+ | Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
+ | Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
+ | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
+-| `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
++| `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_goal_against_player`) — until they ship the row renders `{pct}%` only |
+ | Cards | `cards_yellow_player`, `cards_red_player` |
+ 
+ Rendering rules per contract: group subheads optional (design call), order is the catalogue's,
+diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
+index 645c665f..171a8bb2 100644
+--- a/docs/wireframes/99_gaps_register.md
++++ b/docs/wireframes/99_gaps_register.md
+@@ -13,14 +13,14 @@
+ | GAP-02 | 10 home | feed | Cross-competition upcoming-fixtures feed (the home hero) does not exist; only per-competition lists | Build as part of `landing.json` (#367), shape decided at 10_home review | **shipped** in #367: the hero takes the next 12 fixtures by kickoff, grouped by competition. Shape decided by MEASUREMENT (upcoming fixtures per day against `core.fct_fixture`, 2026-08-03) rather than preference, because a calendar-day window is empty most days in August — reasoning in `10_home.md` §5(1). ⚠ **The COUNT is SUPERSEDED (CPO 2026-08-18): the window is now THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date, no fixed number.** Twelve did not scale (as competitions are onboarded, twelve slots hold fewer of them) and bled across days — the sample committed before the change held 12 fixtures spanning two dates. The gap itself stays SHIPPED; only its window rule changed. The measurement that killed a plain calendar window still stands and still applies: the new rule takes the earliest date PRESENT, not today's, so it is never empty | — |
+ | GAP-03 | 01 fixture, SEO (~~10 home~~) | generator | Data-to-text narrative generator (storylines, anti-thin-page text) not built | Export-layer generator, own issue; until then screens use templated factual sentences or omit the slot | pending. **10 home dropped as a claimant 2026-08-08**: the trending rows were its only slot there and the block is cut; neither shipped home module renders generated prose | — |
+ | GAP-04 | ~~10 home~~ | feed | ~~Trending/storylines feed: which `mart_team_profile` signals surface (YoY swings, streaks, deserved-vs-actual gap) and how they rank~~ | ~~CPO selects signals + ranking at 10_home review; feed ships with `landing.json`~~ | **withdrawn** (CPO 2026-08-08): ~~the home composition is next matches → Top players → Top teams → browse~~ (browse itself is dropped — composition is next matches → Top players → Top teams today), with no trending block, so the feed has no consumer. Not "resolved" — the signal-selection question is unanswered and returns with any future storylines surface. Measurements taken for it are kept in `10_home.md` §5(3) | — |
+-| GAP-05 | 05 leaderboards | export | Only goals / assists / shots_on_target boards are exported; `/stats/{metric-slug}/` implies more | CPO picks the metric set at 05 review; each added board is a one-line export change | pending | — |
++| GAP-05 | 05 leaderboards | export | Only goals / assists / shots_on_goal_player boards are exported; `/stats/{metric-slug}/` implies more | CPO picks the metric set at 05 review; each added board is a one-line export change | pending | — |
+ | GAP-06 | 01 fixture, 06 h2h | export | `/h2h/{pair}/` is in the URL scheme and `mart_head_to_head` exists, but there is no standalone h2h export target (`ENTITY_TYPES` has none; fixture payloads embed only the summary) | Add an `h2h` export target (canonical pair = lower team id first) | pending | — |
+ | GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_team_fixture_stats`/`mart_player_fixture_stats`), then extend the export | **shipped**: every played match has a payload (`fetch_played_fixture_payloads`) and its page | — |
+ | GAP-08 | 01 fixture, 04 hub | content | `round_name` (e.g. "Regular Season - 14", "Group Stage - 1") is a raw provider string rendered as-is — no localization strategy ("Spieltag 14") | i18n strategy decision in #370 (pattern-based round-label translation vs raw); blueprint renders the raw string until then | pending | — |
+ | GAP-09 | all metric screens | catalogue | Metric display needs grouping and key metrics as data | `metric_group`, `metric_group_order` and `is_key_metric` columns in `metric_catalogue`, values from [`metrics_display.md`](metrics_display.md) | **SHIPPED** | — |
+ | GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_team_season_record` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
+ | GAP-11 | 01 fixture, 02 team | catalogue + mart | Locked team display table needs four metrics that don't exist: `clean_sheets` (both window marts; approved as `x/y`, then ruled a bare count on #129 and shipped as `integer` by #151), `shots_on_target_per_match`, `duels_per_match`, `defensive_actions_per_match` (T+I+B aggregate). Plus: finishing relabel ("% Conversion rate" → "% Goals per shot on target", formula unchanged), description tightenings (coverage denominators, blocked-shots note, >100% finishing caveat) | One catalogue+marts PR: new rows/columns per [`metrics_display.md`](metrics_display.md); `shots_on_goal_pct` stays defined but unrendered | **approved** (CPO 2026-06-11). **SHIPPED**, with one change of shape: `clean_sheets` displays as a bare count, not `x/y` — ruled on #129 (2026-09-16) and landed by #151 (catalogue format `integer`; `metrics_display.md` row 3) | #151 |
+-| GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves_player`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
++| GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves_player`, `shots_on_goal_against_player` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
+ | GAP-13 | 02 team | mart | Five locked metric rows have no full-season variant: Ø shots on target, Ø duels, % duels won, Ø defensive actions, Ø key passes — `int_team_season__full_season_metrics` predates the player-stat-derived team metrics (W1/W2 have them; those are fixture-anchored and can't serve season pages) | Extend the full-season intermediate + `mart_team_profile` + team export with the five season columns | **approved** (CPO 2026-06-11) | — |
+ | GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11); **shipped** 2026-06-30 (#391 Phase B) | — |
+ | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index ef1b1949..843207a0 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -193,13 +193,13 @@ mixes groups; (2) ratio displays standardized to the full triple
+ | # | Row | Display string | Atomics | Group |
+ |---|---|---|---|---|
+ | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
+-| 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
++| 2 | Shots on target | `{shots_on}` | shots_on_goal_player | Shooting |
+ | 3 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
+ | 4 | Key passes | `{count}` | passes_key_player | Passing |
+ | 5 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
+ | 6 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
+ | 7 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
+-| 8 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
++| 8 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_goal_against_player (new)**, saves_player_pct | Goalkeeping |
+ | 9 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
+ 
+ - Row 8 renders only for `position_code = 'G'`; whether a GK profile pulls the
+@@ -220,10 +220,10 @@ mixes groups; (2) ratio displays standardized to the full triple
+   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),
+   the finishing relabel, catalogue description tightenings (coverage denominators,
+   blocked-shots note, >100% finishing caveat).
+-- **GAP-12** — player additions: `saves_player` + `shots_on_target_faced` atomics (data
+-  exists as `goals_saves`/`goals_conceded`), display strings standardized to the
+-  full triple (duels, pass accuracy, saves_player), the legacy player display table
+-  superseded by this document.
++- **GAP-12** — player additions: `saves_player` + `shots_on_goal_against_player` atomics (data
++  exists as `goals_saves`/`goals_conceded`). Display strings standardized to the
++  full triple (duels, pass accuracy, saves_player). This document supersedes the legacy player
++  display table.
+ - **GAP-13** — full-season variants of the five player-stat-derived team rows
+   (shots on target, duels pair, defensive actions, key passes) in the season
+   rollup + `mart_team_profile` (the team profile renders the same locked table).
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 29bd295c..97e9c08d 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -579,7 +579,8 @@ def _shape_team_benchmark_member(row: dict) -> dict:
+ def _shape_team_benchmarks(rows: list[dict]) -> list[dict]:
+     """A season's mart_team_competition_benchmarks rows -> a flat metrics[] list (GAP-23). No position
+     grouping (teams have no positional peers, unlike the player Stats screen); ordered byte-stable by
+-    metric_key (the frontend re-orders per the metrics_display block order). No derivation."""
++    metric_key (the frontend orders by the catalogue's metric_group_order and metric_order). No
++    derivation."""
+     return [
+         _shape_team_benchmark_member(r)
+         for r in sorted(rows, key=lambda r: r.get("metric_key") or "")
+diff --git a/tests/test_design_mocks_read_catalogue_order.py b/tests/test_design_mocks_read_catalogue_order.py
+index 8ecabd9f..43fa18d5 100644
+--- a/tests/test_design_mocks_read_catalogue_order.py
++++ b/tests/test_design_mocks_read_catalogue_order.py
+@@ -61,6 +61,17 @@ def test_the_played_match_mock_lists_its_stats_in_the_catalogue_order():
+     assert groups == ["Shooting", "Passing", "One-on-one", "Defending", "Goalkeeping", "Set pieces", "Discipline"]
+ 
+ 
++def test_the_match_leaders_boards_follow_the_catalogue_order_and_keep_their_set():
++    for state_fx in (match_page.PLAYED, match_page.PLAYED_PEN):
++        names = [name for _group, boards in state_fx["leaders"] for name, _rows in boards]
++        assert set(names) <= set(match_page.LEADER_METRIC), "a board without a catalogue metric"
++        shuffled = dict(state_fx, leaders=[(g, list(reversed(b))) for g, b in reversed(state_fx["leaders"])])
++        drawn = [re.sub(r"<[^>]*>", "", n) for n in re.findall(
++            r'class="bt"><span class="nm">([^<]+)</span>', match_page.leaders_block(shuffled))]
++        expected = sorted(names, key=lambda n: place(match_page.LEADER_METRIC[n], "player"))
++        assert drawn == expected, "the Match leaders boards must read the catalogue's order"
++
++
+ def test_the_rankings_mock_shows_the_boards_the_rankings_tab_shows():
+     team = {m for _label, ids in rankings.GROUPS for m in ids}
+     player = {m for _label, ids in rankings.PLAYER_GROUPS for m in ids}
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 2b138b62..553a75ff 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -68,7 +68,7 @@ PINNED = {
+     "docs/wireframes/14_team_stats.md": 18,
+     "docs/wireframes/99_gaps_register.md": 65,
+     "docs/wireframes/block_standard.md": 9,
+-    "docs/wireframes/metrics_display.md": 23,
++    "docs/wireframes/metrics_display.md": 22,
+     "site_v2/src/data/README.md": 9,
+ }
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../review_input.patch                             | 167 +++++++++++++++++++++
+#    1 file changed, 167 insertions(+)
+# ============================================================================

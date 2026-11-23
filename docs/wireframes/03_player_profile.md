@@ -95,13 +95,13 @@ Each bundle's name is its rank metric's entry in `site_v2/src/i18n/strings.ts`.
 | Bundle (contract) | JSON keys (selected season row) |
 |---|---|
 | Scorer points | `goals_player`, `assists_player` |
-| `shots_on_goal_player` | `shots_on_target` |
+| `shots_on_goal_player` | `shots_on_goal_player` |
 | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
 | Key passes | `passes_key_player` |
 | Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
 | Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
 | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
-| `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
+| `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_goal_against_player`) — until they ship the row renders `{pct}%` only |
 | Cards | `cards_yellow_player`, `cards_red_player` |
 
 Rendering rules per contract: group subheads optional (design call), order is the catalogue's,
