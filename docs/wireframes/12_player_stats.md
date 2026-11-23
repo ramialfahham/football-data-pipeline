@@ -52,14 +52,15 @@ floor carries no block (§6).
 │  [ Bundesliga 2025/26 ▾ ] [ Forward ▾ ]           │  (3) season + position selector
 │  vs 41 forwards · 2,470 min · 29 apps             │      sample line
 ├───────────────────────────────────────────────────┤
-│  GOALS                                            │  (4) group subhead (metrics_display order)
+│  GOALS                                            │  (4) group subhead (catalogue order)
 │  Goals            0.82            ▐███████▌ top 5%│      per-90 value · bar (dashed median) · label
 │  Assists          0.31            ▐█████▌ top 28% │
 │  SHOOTING                                         │
 │  shots_on_goal_…  1.9             ▐██████▌ top 12%│
 │  Finishing        18 of 74 · 24%  ▐████▌ median   │      ratio → volume triple in the value slot
 ├────────────────── fold (~700px) ──────────────────┤
-│  DUELS                                            │
+│  …Passing…                                        │
+│  ONE-ON-ONE                                       │
 │  Duels won        3.1             ▐███▌ bottom 40%│      per-90, higher_better → below the median peer
 │  Duels won %      96 of 178 · 54% ▐████▌ top 30%  │      ratio → volume triple
 │  …the rest of the position's eligible metrics…    │
@@ -68,9 +69,8 @@ floor carries no block (§6).
 └───────────────────────────────────────────────────┘
 ```
 
-Rows are grouped and ordered by the shared block order in
-[`metrics_display.md`](metrics_display.md) (Goals → Shooting → Duels → Defending → Passing → Set pieces →
-Goalkeeping). Each row: metric label + the player's value (a per-90 rate, or the **volume triple** for a
+Rows are grouped and ordered by the catalogue's `metric_group_order` and `metric_order`, as in
+[`metrics_display.md`](metrics_display.md). Each row: metric label + the player's value (a per-90 rate, or the **volume triple** for a
 ratio metric) + a **single-fill rank bar on a track** with a **dashed median line** + the plain-language
 label. The bar column is schematic here — a ratio triple is wider than a per-90 rate. **Desktop (≥ ~900px)**:
 two columns of rows; header + selectors full-width.

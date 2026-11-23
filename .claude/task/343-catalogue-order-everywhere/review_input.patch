@@ -1,0 +1,1125 @@
+diff --git a/.claude/task/343-catalogue-order-everywhere/contract.md b/.claude/task/343-catalogue-order-everywhere/contract.md
+new file mode 100644
+index 00000000..22da0cc6
+--- /dev/null
++++ b/.claude/task/343-catalogue-order-everywhere/contract.md
+@@ -0,0 +1,103 @@
++# Task contract — The catalogue sets the metric order on every surface
++
++objective: >
++  Issue #343: `metric_order` in dbt_project/seeds/metric_catalogue.csv is the one place that orders
++  metrics. Two corrections to it (Team Shooting; the combined player Cards metric leaves the order),
++  tests that pin the order per group, that make players and teams read the same, and that fail when
++  a surface shows another order; every surface and mock generator that orders metrics by anything
++  else reads the catalogue; the team table in docs/wireframes/metrics_display.md follows it.
++
++refs: >
++  #343; #139 "Catalogue changes" (merged order, !431); the coordinating session's brief.
++
++scope_paths:
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/metric_map.csv
++  - tests/test_catalogue_order.py
++  - tests/test_metric_rows.py
++  - tests/test_form_comparison_metric_set.py
++  - tests/test_export_site_data.py
++  - tests/test_export_landing.py
++  - tests/test_leaderboard_board_sets.py
++  - tests/test_design_mocks_read_catalogue_order.py
++  - scripts/export_site_data.py
++  - design-mocks/gen_*.py
++  - design-mocks/check_*.py
++  - design-mocks/catalogue_order.py
++  - docs/wireframes/metrics_display.md
++  - docs/metric_layer.md
++  - docs/wireframes/14_team_stats.md
++  - docs/wireframes/12_player_stats.md
++  - docs/wireframes/03_player_profile.md
++  - tests/test_no_decision_history_in_code.py
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_sentence_length_in_docs.py
++  - site_v2/src/data/metric_rows.json
++  - site_v2/src/data/player_metric_rows.json
++  - .claude/task/343-catalogue-order-everywhere/contract.md
++  - .claude/task/343-catalogue-order-everywhere/review.md
++  - .claude/task/343-catalogue-order-everywhere/review_input.patch
++  - .claude/task/343-catalogue-order-everywhere/acceptance_evidence.md
++
++impact_map: >
++  writers: none. metric_catalogue is a seed; its only writer is the seed file. The only column
++  changed is metric_order, which no dbt model reads (`grep -rn metric_order dbt_project/models
++  dbt_project/macros dbt_project/tests scripts/generate_metric_sql.py` finds one prose line in
++  dbt_project/models/docs/metric_rules.md).
++  downstream: `dbt ls --select metric_catalogue+ --resource-type model --resource-type seed
++  --output name` returns exactly: mart_leaderboards, mart_player_competition_benchmarks,
++  mart_team_competition_benchmarks, mart_team_leaderboards, metric_catalogue (5 nodes; 165 with
++  their tests). `grep -rln metric_order dbt_project scripts/generate_metric_sql.py` returns
++  dbt_project/models/docs/metric_rules.md, dbt_project/seeds/metric_catalogue.csv and
++  dbt_project/seeds/schema.yml, so no model selects or sorts by metric_order and no mart value, row
++  or column changes. The consumers of metric_order are scripts/export_site_data.py
++  (`_in_catalogue_order`, `fetch_metric_rows`, `fetch_player_metric_rows`) and the design-mocks
++  generators.
++  layer_rules: check_layer_contract.py is unaffected (no model file changes); the seed's unique
++  test on (entity, metric_group, metric_order) where metric_order is not null still holds, since
++  the new Team Shooting values 1-12 are each used once and cards_player's value is cleared.
++  deploy_order: independent of the nightly; the seed rebuilds in the next dbt run and nothing reads
++  the changed column in the warehouse.
++  blast_radius: the committed site_v2/src/data/metric_rows.json reorders in Shooting (shots on
++  target against moves from last to third); player_metric_rows.json holds neither cards_player nor
++  a team Shooting metric, so it does not change. Rankings and Home already read the catalogue and
++  keep their order. cards_player stays a mart column and a Leaderboards payload field; it only
++  leaves the order.
++
++approved_design:
++  - match: #132
++  - team: #134
++
++acceptance_criteria:
++  - site_v2/src/data/metric_rows.json lists the same 34 metrics as on main; in Shooting, shots on target against sits after shots on target and before shots inside box per match.
++  - site_v2/src/data/player_metric_rows.json is unchanged.
++  - No other file under site_v2/src changes.
++
++depends_on:
++  - none: the catalogue's order is on main; no open MR changes metric_catalogue.csv or the surfaces (!256 is on hold and makes no order change)
++shared_files:
++  - none: no design baseline, component registry, font coverage or chart screenshot file changes; the chart screenshot check reports 0 differences over 18 screenshots
++
++decisions_taken: >
++  The order is the one on main (the Statistics review's catalogue changes, #139, merged in !431),
++  with the two corrections #343 lists in its first checkbox (the issue is the request; the CPO
++  said the order is never asked again). The Team Shooting order is the one #343 lists. cards_player
++  gets no metric_order, so players and teams both show yellow cards and red cards. The remaining
++  metric_order values stay as they are, including the gaps that team Discipline and player
++  Discipline already carry. Each surface that held an order of its own now reads the catalogue's; no
++  surface gains or loses a metric. Shots off target and blocked shots take places 11 and 12 as
++  #343 lists them. A place never decides whether a page shows a metric: the export's Form comparison
++  and player comparison rows come from the named sets `_FORM_COMPARISON_METRICS` and
++  `_PLAYER_COMPARISON_METRICS`, which the pin tests hold, so the two new places add no row to the
++  approved match and team pages. The played-match mock (gen_match_page) draws its stat rows in the
++  catalogue's order.
++
++decisions_reserved:
++  - none: every rule applied is named in decisions_taken and is the one #343 states
++
++done_when:
++  - python -m pytest tests/test_catalogue_order.py tests/test_metric_rows.py tests/test_form_comparison_metric_set.py tests/test_design_mocks_read_catalogue_order.py -q passes
++  - python scripts/ci_local.py --mr passes
++  - full pytest passes
++
++amendments: (none)
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 26daef1f..2163e4e1 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -8,10 +8,10 @@ goals_penalty,team,metrics.goals_penalty.label,"Goals the team scored from penal
+ goals_own,team,metrics.goals_own.label,"Own goals by the team's opponents, which count for the team.",int_legs__team_match,sum(goals_own),,expression,integer,goals,false,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced,1,9
+ goals_open_play,team,metrics.goals_open_play.label,"Goals the team scored, not counting penalties and opponents' own goals.",int_legs__team_match,sum(goals - goals_penalty - goals_own),,expression,integer,goals,false,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output,1,7
+ shots_per_match,team,metrics.shots_per_match.label,Average number of shots the team took per match.,int_legs__team_match,sum(shots),count(*),expression,decimal_1,shooting,true,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality),2,1
+-shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,The team's shots on target as a share of all its shots.,int_legs__team_match,sum(shots_on_target),sum(shots),expression,percent,shooting,false,higher_better,Striking precision - share of shots on goal,2,6
+-shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,The team's shots from inside the penalty area as a share of all its shots.,int_legs__team_match,sum(shots_inside_box),sum(shots),expression,percent,shooting,false,higher_better,Chance quality - share of shots from inside the box; high = better positions,2,5
++shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,The team's shots on target as a share of all its shots.,int_legs__team_match,sum(shots_on_target),sum(shots),expression,percent,shooting,false,higher_better,Striking precision - share of shots on goal,2,8
++shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,The team's shots from inside the penalty area as a share of all its shots.,int_legs__team_match,sum(shots_inside_box),sum(shots),expression,percent,shooting,false,higher_better,Chance quality - share of shots from inside the box; high = better positions,2,7
+ shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average number of shots on target the team had per match.,int_legs__team_match,sum(shots_on_target),count(*),expression,decimal_1,shooting,true,higher_better,On-target threat - efforts testing the keeper; high = sustained threat,2,2
+-finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,"Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots on target.",int_legs__team_match,sum(goals - goals_penalty - goals_own),sum(shots_on_target),expression,percent,shooting,false,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless,2,7
++finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,"Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots on target.",int_legs__team_match,sum(goals - goals_penalty - goals_own),sum(shots_on_target),expression,percent,shooting,false,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless,2,9
+ finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,"Goals the player scored, not counting penalties, as a share of the player's shots on target.",int_legs__player_match,sum(goals - goals_penalty),sum(shots_on_target),expression,percent,shooting,,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher,2,6
+ duels_per_match,team,metrics.duels_per_match.label,"Average number of one-on-one challenges for the ball, on the ground or in the air, that the team's players contested per match.",int_legs__team_from_players,sum(duels),count(*),expression,decimal_0,one_on_one,true,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure),4,4
+ duels_won_pct,team,metrics.duels_won_pct.label,"One-on-one challenges for the ball, on the ground or in the air, that the team's players won, as a share of those they contested.",int_legs__team_from_players,sum(duels_won),sum(duels),expression,percent,one_on_one,true,higher_better,Duel success - share of duels won; high = wins the physical battle,4,6
+@@ -55,11 +55,11 @@ shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target
+ saves_player_pct,player,playerMetrics.savePct.label,The player's saves as a share of the player's saves plus the goals conceded while the player was in goal. Own goals are not counted.,int_legs__player_match,sum(saves),sum(saves + goals_against - goals_own_against),expression,percent,goalkeeping,,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,6,3
+ shots_player,player,playerMetrics.shots.label,Shots the player took.,int_legs__player_match,sum(shots),,expression,integer,shooting,,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2,1
+ goals_against_player,player,playerMetrics.goalsConceded.label,Goals the team conceded while the player was in goal.,int_legs__player_match,sum(goals_against),,expression,integer,goalkeeping,,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual),6,4
+-shots_share_pct,team,metrics.shots_share_pct.label,The team's shots as a share of all shots in its matches.,int_legs__team_match,sum(shots),sum(shots + shots_against),expression,percent,shooting,false,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2,8
++shots_share_pct,team,metrics.shots_share_pct.label,The team's shots as a share of all shots in its matches.,int_legs__team_match,sum(shots),sum(shots + shots_against),expression,percent,shooting,false,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2,10
+ points_capture_pct,team,metrics.points_capture_pct.label,Points the team won as a share of the 3 points per match it could have won.,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end) + countif(is_table_shootout_win),3 * count(*),expression,percent,outcomes,false,higher_better,Results efficiency - share of available points won (deserved-vs-actual input),9,
+ scorer_points_player,player,playerMetrics.scorerPoints.label,The player's goals plus assists.,int_legs__player_match,sum(goals + assists),,expression,integer,goals,,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played),1,5
+ defensive_actions_player,player,playerMetrics.defensiveActions.label,"Tackles, interceptions and blocks the player made.",int_legs__player_match,sum(tackles + interceptions + blocks),,expression,integer,defending,,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend),5,1
+-cards_player,player,playerMetrics.cards.label,Yellow and red cards the player received.,int_legs__player_match,sum(cards_yellow + cards_red),,expression,integer,discipline,,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red),8,3
++cards_player,player,playerMetrics.cards.label,Yellow and red cards the player received.,int_legs__player_match,sum(cards_yellow + cards_red),,expression,integer,discipline,,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red),8,
+ goals_per90,player,playerMetrics.goalsPer90.label,"Goals the player scored, penalties included and own goals not, per 90 minutes played.",int_legs__player_match,sum(goals) * 90,sum(minutes),expression,decimal_1,goals,,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.,1,2
+ assists_per90,player,playerMetrics.assistsPer90.label,Goals the player set up for a teammate per 90 minutes played.,int_legs__player_match,sum(assists) * 90,sum(minutes),expression,decimal_1,goals,,higher_better,How often the player creates goals for others; high = a frequent creator.,1,4
+ scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,The player's goals plus assists per 90 minutes played.,int_legs__player_match,sum(goals + assists) * 90,sum(minutes),expression,decimal_1,goals,true,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.,1,6
+@@ -73,8 +73,8 @@ blocks_per90,player,playerMetrics.blocksPer90.label,Shots the player blocked per
+ defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,"Tackles, interceptions and blocks the player made per 90 minutes played.",int_legs__player_match,sum(tackles + interceptions + blocks) * 90,sum(minutes),expression,decimal_1,defending,true,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press,5,2
+ duels_won_per90,player,playerMetrics.duelsWonPer90.label,"One-on-one challenges for the ball, on the ground or in the air, that the player won, per 90 minutes played.",int_legs__player_match,sum(duels_won) * 90,sum(minutes),expression,decimal_1,one_on_one,true,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency,4,9
+ saves_per90,player,playerMetrics.savesPer90.label,Shots on target the player saved in goal per 90 minutes played.,int_legs__player_match,sum(saves) * 90,sum(minutes),expression,decimal_1,goalkeeping,,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that,6,2
+-shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Average per match of the team's shots on target minus its opponents' shots on target.,int_legs__team_match,sum(shots_on_target - shots_on_target_against),count(*),expression,decimal_1,shooting,false,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input),2,10
+-shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average number of shots on target the team's opponents had per match.,int_legs__team_match,sum(shots_on_target_against),count(*),expression,decimal_1,shooting,true,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input),2,9
++shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Average per match of the team's shots on target minus its opponents' shots on target.,int_legs__team_match,sum(shots_on_target - shots_on_target_against),count(*),expression,decimal_1,shooting,false,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input),2,4
++shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average number of shots on target the team's opponents had per match.,int_legs__team_match,sum(shots_on_target_against),count(*),expression,decimal_1,shooting,true,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input),2,3
+ deserved_rank,team,metrics.deserved_rank.label,"The team's position in its league when the teams are ordered by deserved points, most first.",,,,model,integer,outcomes,false,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit,9,
+ deserved_points,team,metrics.deserved_points.label,"Points the team would have won if its points per match followed its shots-on-target difference per match, as the two relate across its league season.",,,,model,integer,outcomes,false,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total,9,
+ deserved_points_gap,team,metrics.deserved_points_gap.label,The points the team won in its played matches minus its deserved points.,,,,model,integer,outcomes,false,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9,
+@@ -86,13 +86,13 @@ goals,team,metrics.goals.label,Goals the team scored.,int_legs__team_match,sum(g
+ goals_against,team,metrics.goals_against.label,Goals the team conceded.,int_legs__team_match,sum(goals_against),,expression,integer,goals,false,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)",1,3
+ corners,team,metrics.corners.label,Corner kicks the team won.,int_legs__team_match,sum(corners),,expression,integer,set_pieces,false,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)",7,1
+ saves,team,metrics.saves.label,Shots on target the team's goalkeepers saved.,int_legs__team_match,sum(saves),,expression,integer,goalkeeping,false,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",6,1
+-shots_inside_box,team,metrics.shots_inside_box.label,Shots the team took from inside the penalty area.,int_legs__team_match,sum(shots_inside_box),,expression,integer,shooting,false,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - shots_inside_box_pct is what measures that; a raw count, so it rises with matches played)",2,3
++shots_inside_box,team,metrics.shots_inside_box.label,Shots the team took from inside the penalty area.,int_legs__team_match,sum(shots_inside_box),,expression,integer,shooting,false,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - shots_inside_box_pct is what measures that; a raw count, so it rises with matches played)",2,5
+ clean_sheets,team,metrics.clean_sheets.label,Matches in which the team conceded no goal.,int_legs__team_match,countif(goals_against = 0),,expression,integer,goals,false,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)",1,5
+ cards_yellow,team,metrics.cards_yellow.label,Yellow cards the team's players received.,int_legs__team_match,sum(cards_yellow),,expression,integer,discipline,true,lower_better,"Cautions - yellow cards the team's players received: the referee's warning for unsporting or unfair play, such as a tactical foul, dissent or time-wasting; a player who gets a second one in the same match is sent off",8,1
+ cards_red,team,metrics.cards_red.label,Red cards the team's players received.,int_legs__team_match,sum(cards_red),,expression,integer,discipline,true,lower_better,"Dismissals - red cards the team's players received: a player sent off for the rest of the match, who cannot be replaced, so the team plays on a man down",8,3
+-shots_off_target_per_match,team,metrics.shots_off_target_per_match.label,Average number of shots the team sent wide or over per match.,int_legs__team_match,sum(shots_off_target),count(*),expression,decimal_1,shooting,false,higher_better,Shots missing the target - attempts wide or over per game; high = gets shots away (volume; shooting accuracy says how many of them were on target),2,
+-shots_blocked_per_match,team,metrics.shots_blocked_per_match.label,Average number of the team's shots an opponent blocked per match.,int_legs__team_match,sum(shots_blocked),count(*),expression,decimal_1,shooting,false,higher_better,Shots blocked - attempts stopped by a defender before reaching goal; high = gets shots away into crowded areas (volume),2,
+-shots_inside_box_per_match,team,metrics.shots_inside_box_per_match.label,Average number of shots the team took from inside the penalty area per match.,int_legs__team_match,sum(shots_inside_box),count(*),expression,decimal_1,shooting,false,higher_better,Box shot volume - attempts from inside the area per game; high = gets into good positions often (volume; shots_inside_box_pct is the share),2,4
++shots_off_target_per_match,team,metrics.shots_off_target_per_match.label,Average number of shots the team sent wide or over per match.,int_legs__team_match,sum(shots_off_target),count(*),expression,decimal_1,shooting,false,higher_better,Shots missing the target - attempts wide or over per game; high = gets shots away (volume; shooting accuracy says how many of them were on target),2,11
++shots_blocked_per_match,team,metrics.shots_blocked_per_match.label,Average number of the team's shots an opponent blocked per match.,int_legs__team_match,sum(shots_blocked),count(*),expression,decimal_1,shooting,false,higher_better,Shots blocked - attempts stopped by a defender before reaching goal; high = gets shots away into crowded areas (volume),2,12
++shots_inside_box_per_match,team,metrics.shots_inside_box_per_match.label,Average number of shots the team took from inside the penalty area per match.,int_legs__team_match,sum(shots_inside_box),count(*),expression,decimal_1,shooting,false,higher_better,Box shot volume - attempts from inside the area per game; high = gets into good positions often (volume; shots_inside_box_pct is the share),2,6
+ passes_accurate_per_match,team,metrics.passes_accurate_per_match.label,Average number of the team's passes that reached a teammate per match.,int_legs__team_match,sum(passes_accurate),count(*),expression,decimal_0,passing,false,higher_better,Completed passing volume - passes that found a teammate per game; high = keeps and moves the ball (volume; pass accuracy is the share),3,2
+ passes_share_pct,team,metrics.passes_share_pct.label,"The team's passes as a share of all passes both teams played.",int_legs__team_match,sum(passes),sum(passes + passes_against),expression,percent,passing,true,higher_better,Ball possession - share of the match's passes; high = controls the ball (control is not the same as chances),3,5
+ dribbles_attempts_per_match,team,metrics.dribbles_attempts_per_match.label,Average number of times the team's players tried to dribble past an opponent per match.,int_legs__team_from_players,sum(dribbles),count(*),expression,decimal_1,one_on_one,false,higher_better,Take-ons attempted - dribbles tried per game; high = attacks players directly (volume; the completion share says how often it works),4,1
+diff --git a/design-mocks/catalogue_order.py b/design-mocks/catalogue_order.py
+new file mode 100644
+index 00000000..282ecf34
+--- /dev/null
++++ b/design-mocks/catalogue_order.py
+@@ -0,0 +1,34 @@
++"""The catalogue's metric order for the mock generators: group order, then the metric's order in its group.
++
++A generator names WHICH metrics its page shows; this module says in what order. A metric without a
++`metric_order` fails the generator, never gets a position of its own.
++"""
++import csv
++from pathlib import Path
++
++CATALOGUE = Path(__file__).resolve().parent.parent / "dbt_project/seeds/metric_catalogue.csv"
++_BY_KEY = {(r["metric_id"], r["entity"]): r for r in csv.DictReader(CATALOGUE.open(encoding="utf-8"))}
++
++
++def place(metric_id, entity):
++    row = _BY_KEY.get((metric_id, entity))
++    if row is None or not row["metric_order"]:
++        raise SystemExit("FATAL: no %s metric_order in %s for '%s'. A page's order is the catalogue's; "
++                         "it is never invented here." % (entity, CATALOGUE.name, metric_id))
++    return int(row["metric_group_order"]), int(row["metric_order"])
++
++
++def in_catalogue_order(metric_ids, entity):
++    return sorted(metric_ids, key=lambda m: place(m, entity))
++
++
++def groups_in_catalogue_order(metric_ids, entity):
++    """[("metricGroups.<group>.label", [metric ids in order])] in the catalogue's group order."""
++    groups = []
++    for metric_id in in_catalogue_order(metric_ids, entity):
++        label = "metricGroups.%s.label" % _BY_KEY[(metric_id, entity)]["metric_group"]
++        if groups and groups[-1][0] == label:
++            groups[-1][1].append(metric_id)
++        else:
++            groups.append((label, [metric_id]))
++    return groups
+diff --git a/design-mocks/gen_competition_teams.py b/design-mocks/gen_competition_teams.py
+index e175d750..0b1d6936 100644
+--- a/design-mocks/gen_competition_teams.py
++++ b/design-mocks/gen_competition_teams.py
+@@ -7,6 +7,7 @@ HERE = Path(__file__).resolve().parent
+ REPO = HERE.parent
+ sys.path.insert(0, str(HERE))
+ 
++from catalogue_order import groups_in_catalogue_order  # noqa: E402
+ from gen_competition_hub import COPY, E, MOCK_CSS, SYSTEM_CSS, loc, slugify, team_cell  # noqa: E402
+ from gen_top_teams import FI, board_title, label  # noqa: E402
+ from interaction import CHEVRON  # noqa: E402
+@@ -37,15 +38,12 @@ COPY.update({
+ METRICS_FILE = HERE / "bl1_team_metrics.json"
+ # The mock ranks from mart_team_profile the way mart_team_leaderboards does: dense rank by the
+ # catalogue's direction, ties ordered by value then name.
+-GROUPS = [
+-    ("metricGroups.goals.label",      ["goals_per_match", "goals_against_per_match"]),
+-    ("metricGroups.shooting.label",   ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
+-                                       "shots_on_goal_difference_per_match"]),
+-    ("metricGroups.passing.label",    ["passes_per_match", "passes_accuracy_pct"]),
+-    ("metricGroups.one_on_one.label", ["duels_per_match", "duels_won_pct"]),
+-    ("metricGroups.defending.label",  ["defensive_actions_per_match"]),
+-    ("metricGroups.discipline.label", ["cards_yellow", "cards_red"]),
+-]
++GROUPS = groups_in_catalogue_order((
++    "goals_per_match", "goals_against_per_match",
++    "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match",
++    "passes_per_match", "passes_accuracy_pct", "duels_per_match", "duels_won_pct",
++    "defensive_actions_per_match", "cards_yellow", "cards_red",
++), "team")
+ TOP = 5
+ 
+ # The card boards rank most first whatever direction the catalogue gives the metric.
+@@ -156,15 +154,12 @@ def boards_html(boards):
+ 
+ 
+ # ---- the player half ----
+-PLAYER_GROUPS = [
+-    ("metricGroups.goals.label",       ["goals_player", "assists_player"]),
+-    ("metricGroups.shooting.label",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
+-    ("metricGroups.passing.label",     ["passes_player", "passes_key_player", "passes_accuracy_player_pct"]),
+-    ("metricGroups.one_on_one.label",  ["dribbles_attempts_player", "duels_player"]),
+-    ("metricGroups.defending.label",   ["defensive_actions_player"]),
+-    ("metricGroups.discipline.label",  ["cards_yellow_player", "cards_red_player"]),
+-    ("metricGroups.goalkeeping.label", ["saves_player"]),
+-]
++PLAYER_GROUPS = groups_in_catalogue_order((
++    "goals_player", "assists_player", "shots_on_goal_player", "finishing_efficiency_player_pct",
++    "passes_player", "passes_key_player", "passes_accuracy_player_pct",
++    "dribbles_attempts_player", "duels_player", "defensive_actions_player",
++    "cards_yellow_player", "cards_red_player", "saves_player",
++), "player")
+ PLAYERS_FILE = HERE / "bl1_player_metrics.json"
+ # The leaderboard mart's rate rules: minutes >= 270, plus a shots-on-goal floor for finishing.
+ RATE_MIN_MINUTES = 270
+diff --git a/design-mocks/gen_match_page.py b/design-mocks/gen_match_page.py
+index 7a84391b..847fec09 100644
+--- a/design-mocks/gen_match_page.py
++++ b/design-mocks/gen_match_page.py
+@@ -18,6 +18,9 @@ from datetime import date
+ from pathlib import Path
+ 
+ HERE = Path(__file__).resolve().parent
++sys.path.insert(0, str(HERE))
++from catalogue_order import place  # noqa: E402
++
+ REPO = HERE.parent
+ DIST = REPO / "site_v2" / "dist"
+ DATA = REPO / "site_v2" / "src" / "data"
+@@ -1201,6 +1204,26 @@ PLAYED_STATS = (("Shooting", (("Shots", "shots", 1, ""), ("Shots on target", "sh
+                                 ("Free kicks", "free_kicks", 1, ""))),
+                 ("Discipline", (("Fouls", "fouls", -1, ""), ("Offsides", "offsides", -1, ""),
+                                 ("Yellow cards", "yellow_cards", -1, ""), ("Red cards", "red_cards", -1, ""))))
++# The catalogue team metric each played-match stat shows; the catalogue's place orders the rows.
++PLAYED_METRIC = {
++    "shots": "shots_per_match", "shots_on_goal": "shots_on_goal_per_match",
++    "shots_on_goal_against": "shots_on_goal_against_per_match", "shots_off_goal": "shots_off_target_per_match",
++    "shots_blocked": "shots_blocked_per_match", "shots_inside_box": "shots_inside_box",
++    "shots_inside_box_pct": "shots_inside_box_pct", "shots_on_goal_pct": "shots_on_goal_pct",
++    "finishing_pct": "finishing_efficiency_pct",
++    "passes": "passes_per_match", "passes_accurate": "passes_accurate_per_match",
++    "passes_accuracy_pct": "passes_accuracy_pct", "possession_pct": "passes_share_pct",
++    "key_passes": "passes_key_per_match",
++    "dribbles": "dribbles_attempts_per_match", "dribbles_completed": "dribbles_success_per_match",
++    "dribbles_pct": "dribbles_success_pct", "duels": "duels_per_match", "duels_won": "duels_won_per_match",
++    "duels_won_pct": "duels_won_pct",
++    "defensive_actions": "defensive_actions_per_match", "tackles": "tackles_per_match",
++    "interceptions": "interceptions_per_match", "blocks": "blocks_per_match",
++    "saves": "saves", "saves_pct": "saves_pct",
++    "corners": "corners", "corners_against": "corners_against_per_match", "free_kicks": "free_kicks_per_match",
++    "fouls": "fouls_per_match", "offsides": "offsides_per_match",
++    "yellow_cards": "cards_yellow", "red_cards": "cards_red",
++}
+ APPROVED_RENDER = HERE / "renders" / "match-page_2026-09-27_56.html"
+ 
+ PLAYED_CSS = """
+@@ -1543,9 +1566,10 @@ def stats_block(fx):
+     head = ('<div class="mk-formhead"><div class="mk-fh home"><div class="h">%s</div></div><div class="mk-fh away">'
+             '<div class="h">%s</div></div></div>' % (E(fx["home"]["name"]), E(fx["away"]["name"])))
+     groups = []
+-    for group, rows in PLAYED_STATS:
++    for group, rows in sorted(PLAYED_STATS, key=lambda g: place(PLAYED_METRIC[g[1][0][1]], "team")[0]):
+         drawn = [stat_row(label, *fx["team"].get(col, (None, None)), direction, unit)
+-                 for label, col, direction, unit in rows if fx["team"].get(col, (None, None)) != (None, None)]
++                 for label, col, direction, unit in sorted(rows, key=lambda r: place(PLAYED_METRIC[r[1]], "team"))
++                 if fx["team"].get(col, (None, None)) != (None, None)]
+         if drawn:
+             groups.append('<div class="mgroup">%s</div>%s' % (group, "".join(drawn)))
+     intro = ('<p class="bsub">Each team&rsquo;s numbers in this match. <a class="mk-chevlink" href="%s">Metric Glossary%s</a></p>'
+diff --git a/design-mocks/gen_top_players.py b/design-mocks/gen_top_players.py
+index 1dfd0551..6d96eeb6 100644
+--- a/design-mocks/gen_top_players.py
++++ b/design-mocks/gen_top_players.py
+@@ -8,6 +8,9 @@ import re
+ import sys
+ from pathlib import Path
+ 
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from catalogue_order import place  # noqa: E402
++
+ REPO = Path(__file__).resolve().parent.parent
+ CATALOGUE = REPO / "dbt_project/seeds/metric_catalogue.csv"
+ SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
+@@ -105,6 +108,7 @@ BOARDS = [
+         ],
+     },
+ ]
++BOARDS.sort(key=lambda b: place(b["rank_metric"], "player"))
+ 
+ # --------------------------------------------------------------------- build
+ 
+diff --git a/design-mocks/gen_top_teams.py b/design-mocks/gen_top_teams.py
+index d9090e05..39307cc9 100644
+--- a/design-mocks/gen_top_teams.py
++++ b/design-mocks/gen_top_teams.py
+@@ -8,6 +8,9 @@ import re
+ import sys
+ from pathlib import Path
+ 
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from catalogue_order import place  # noqa: E402
++
+ REPO = Path(__file__).resolve().parent.parent
+ CATALOGUE = REPO / "dbt_project/seeds/metric_catalogue.csv"
+ SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
+@@ -116,6 +119,7 @@ BOARDS = [
+         ],
+     },
+ ]
++BOARDS.sort(key=lambda b: place(b["rank_metric"], "team"))
+ 
+ # --------------------------------------------------------------------- build
+ 
+diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+index cc08b346..0ce0277d 100644
+--- a/docs/metric_layer.md
++++ b/docs/metric_layer.md
+@@ -19,7 +19,7 @@
+ | which model computes a metric on which surface | the surface list in `scripts/generate_metric_sql.py` |
+ | which mart column holds a metric, and which part of it | the `metric_map` table, generated by `scripts/sync_metric_docs_blocks.py` as `dbt_project/seeds/metric_map.csv` |
+ | how a metric is shown: key metrics, row patterns | `docs/wireframes/metrics_display.md` |
+-| the order of the rows inside a group | the catalogue's `metric_order`: on the match page's Form comparison, published as `metric_rows.json`, and on the Rankings and Home boards, ordered by the export; the team table in `docs/wireframes/metrics_display.md` on the team page |
++| the order of the rows inside a group | the catalogue's `metric_order`. The match page's Form comparison reads it from `metric_rows.json`. The export orders the Rankings and Home boards by it. The team page follows it too. |
+ | what a metric is called on screen, in every language | `METRIC_TERMS` in `site_v2/src/i18n/strings.ts`, keyed by the catalogue's `label_i18n_key`, names the term; the term's word in each language is the metric's name |
+ | what a test fails on | the test's own header in `dbt_project/tests/` |
+ 
+diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
+index eb5db141..0e6fab66 100644
+--- a/docs/wireframes/03_player_profile.md
++++ b/docs/wireframes/03_player_profile.md
+@@ -49,13 +49,13 @@ atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest
+ │  Scorer points        9 G · 6 A            │
+ │  shots_on_goal_player 21                   │
+ ├──────────────— fold (~700px) —─────────────┤
+-│  Duels won            96 of 178 · 54%      │
+-│  Successful dribbles  38 of 61 · 62%       │
+-│  Tackles+Int.+Blocks  18 T · 11 I · 2 B    │
+ │  Pass accuracy        581 of 654 · 89%     │
+ │  Key passes           31                   │
+-│  Cards                2 Y · 0 R            │
++│  Successful dribbles  38 of 61 · 62%       │
++│  Duels won            96 of 178 · 54%      │
++│  Tackles+Int.+Blocks  18 T · 11 I · 2 B    │
+ │  (GK only) Saves      41 of 50 · 82%       │
++│  Cards                2 Y · 0 R            │
+ ├────────────────────────────────────────────┤
+ │  MATCH LOG                                 │  (6) latest first
+ │  6 Dec  BL1  Gladbach [crest] H            │
+@@ -96,15 +96,15 @@ Each bundle's name is its rank metric's entry in `site_v2/src/i18n/strings.ts`.
+ |---|---|
+ | Scorer points | `goals_player`, `assists_player` |
+ | `shots_on_goal_player` | `shots_on_target` |
+-| Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
+-| Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
+-| Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
+ | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
+ | Key passes | `passes_key_player` |
+-| Cards | `cards_yellow_player`, `cards_red_player` |
++| Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
++| Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
++| Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
+ | `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
++| Cards | `cards_yellow_player`, `cards_red_player` |
+ 
+-Rendering rules per contract: group subheads optional (design call), order fixed,
++Rendering rules per contract: group subheads optional (design call), order is the catalogue's,
+ zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the
+ GK block on keeper profiles = design call #366). Unbundled atomics
+ (`dribbles_past_player`, `offsides_player`, `penalty_won_player`, `penalty_committed_player`) stay unrendered.
+diff --git a/docs/wireframes/12_player_stats.md b/docs/wireframes/12_player_stats.md
+index 9ec1c066..418583f9 100644
+--- a/docs/wireframes/12_player_stats.md
++++ b/docs/wireframes/12_player_stats.md
+@@ -52,14 +52,15 @@ floor carries no block (§6).
+ │  [ Bundesliga 2025/26 ▾ ] [ Forward ▾ ]           │  (3) season + position selector
+ │  vs 41 forwards · 2,470 min · 29 apps             │      sample line
+ ├───────────────────────────────────────────────────┤
+-│  GOALS                                            │  (4) group subhead (metrics_display order)
++│  GOALS                                            │  (4) group subhead (catalogue order)
+ │  Goals            0.82            ▐███████▌ top 5%│      per-90 value · bar (dashed median) · label
+ │  Assists          0.31            ▐█████▌ top 28% │
+ │  SHOOTING                                         │
+ │  shots_on_goal_…  1.9             ▐██████▌ top 12%│
+ │  Finishing        18 of 74 · 24%  ▐████▌ median   │      ratio → volume triple in the value slot
+ ├────────────────── fold (~700px) ──────────────────┤
+-│  DUELS                                            │
++│  …Passing…                                        │
++│  ONE-ON-ONE                                       │
+ │  Duels won        3.1             ▐███▌ bottom 40%│      per-90, higher_better → below the median peer
+ │  Duels won %      96 of 178 · 54% ▐████▌ top 30%  │      ratio → volume triple
+ │  …the rest of the position's eligible metrics…    │
+@@ -68,9 +69,8 @@ floor carries no block (§6).
+ └───────────────────────────────────────────────────┘
+ ```
+ 
+-Rows are grouped and ordered by the shared block order in
+-[`metrics_display.md`](metrics_display.md) (Goals → Shooting → Duels → Defending → Passing → Set pieces →
+-Goalkeeping). Each row: metric label + the player's value (a per-90 rate, or the **volume triple** for a
++Rows are grouped and ordered by the catalogue's `metric_group_order` and `metric_order`, as in
++[`metrics_display.md`](metrics_display.md). Each row: metric label + the player's value (a per-90 rate, or the **volume triple** for a
+ ratio metric) + a **single-fill rank bar on a track** with a **dashed median line** + the plain-language
+ label. The bar column is schematic here — a ratio triple is wider than a per-90 rate. **Desktop (≥ ~900px)**:
+ two columns of rows; header + selectors full-width.
+diff --git a/docs/wireframes/14_team_stats.md b/docs/wireframes/14_team_stats.md
+index b5548544..c1849dd4 100644
+--- a/docs/wireframes/14_team_stats.md
++++ b/docs/wireframes/14_team_stats.md
+@@ -57,27 +57,28 @@ next to the %), both being separate metrics already in the set.
+ │  [ Bundesliga 2025/26 ▾ ]                         │  (3) season selector
+ │  ranked within Bundesliga 2025/26                 │      each row shows its own "of N" (§5)
+ ├───────────────────────────────────────────────────┤
+-│  GOALS                                            │  (4) group subhead (metrics_display order)
++│  GOALS                                            │  (4) group subhead (catalogue order)
+ │  goals_per_match  2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
+ │  goals_against_…  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
+ │  clean_sheets_pct 43%   2nd of 18   +6pp  ▐███▌   │      the fixture windows show the count
+-│  SHOOTING                                         │      order = the LOCKED shooting funnel
+-│  shots_per_match 14.1   2nd of 18   +2.1  ▐███▌   │      volume →
+-│  shots_inside_…   38%   6th of 18   +2pp  ▐██▌    │      location (the share; the volume is above) →
+-│  shots_on_goal_…   5.3  3rd of 18   +0.8  ▐███▌   │      on-target volume →
+-│  finishing_…      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
++│  SHOOTING                                         │      order = the catalogue's
++│  shots_per_match 14.1   2nd of 18   +2.1  ▐███▌   │
++│  shots_on_goal_…   5.3  3rd of 18   +0.8  ▐███▌   │
++│  shots_inside_…   38%   6th of 18   +2pp  ▐██▌    │      the share; the volume is above
++│  finishing_…      28%   5th of 18   +3pp  ▐██▌    │      shots_on_goal_pct mart-ranked but UNRENDERED — contract
+ ├────────────────── fold (~700px) ──────────────────┤
+-│  DUELS                                            │
++│  …Passing…                                        │
++│  ONE-ON-ONE                                       │
+ │  duels_per_match  51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
+ │  duels_won_pct    54%   3rd of 18   +4pp  ▐████▌  │
+-│  …Defending → Passing → Set pieces → Goalkeeping…  │
++│  …the other groups in the catalogue's order…      │
+ ├───────────────────────────────────────────────────┤
+ │  ▸Overview ▸Table ▸Glossary                       │  (5) internal links
+ └───────────────────────────────────────────────────┘
+ ```
+ 
+-Rows are grouped and ordered by the shared block order in [`metrics_display.md`](metrics_display.md):
+-**Goals → Shooting → Duels → Defending → Passing → Set pieces → Goalkeeping**. Each row: metric label +
++Rows are grouped and ordered by the catalogue's `metric_group_order` and `metric_order`, as in
++[`metrics_display.md`](metrics_display.md). Each row: metric label +
+ the team's value + **"{rank} of {team_count}"** + the signed **vs-median delta** + a schematic
+ **spread bar** (the value on a p25–median–p75 track with a dashed median line). The bar column is
+ schematic here. **Desktop (≥ ~900px)**: two columns of rows; header + selector full-width.
+@@ -141,17 +142,17 @@ locked "defined but not displayed" list: `shots_on_goal_pct` (superseded by the
+ target rows side by side) and `tackles_per_match` / `interceptions_per_match` / `blocks_per_match` (the
+ **T · I · B sub-display of the single `defensive_actions_per_match` row**, not separate ranked rows).
+ Each row's name is its key's entry in `site_v2/src/i18n/strings.ts`. `02_team_profile.md` §8
+-renders the same 16. Grouped and ordered per the metrics_display block order:
++renders the same 16. Grouped and in the catalogue's order:
+ 
+ | Block | Rendered metrics (metric_key) |
+ |---|---|
+ | Goals | `goals_per_match` · `goals_against_per_match` (lower_better) · `clean_sheets_pct` |
+-| Shooting | `shots_per_match` · `shots_inside_box_pct` (%) · `shots_on_goal_per_match` · `finishing_efficiency_pct` (%) — the LOCKED shooting funnel: volume → location → on-target volume → finishing |
+-| Duels | `duels_per_match` · `duels_won_pct` (%) |
+-| Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
++| Shooting | `shots_per_match` · `shots_on_goal_per_match` · `shots_inside_box_pct` (%) · `finishing_efficiency_pct` (%) |
+ | Passing | `passes_per_match` · `passes_accuracy_pct` (%) · `passes_key_per_match` |
+-| Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
++| One-on-one | `duels_per_match` · `duels_won_pct` (%) |
++| Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 13) |
+ | Goalkeeping | `saves_pct` (%) |
++| Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
+ 
+ The six `percent` ratios sit next to their volume count in the same block (`shots_per_match` →
+ `shots_inside_box_pct`; `duels_per_match` → `duels_won_pct`; `passes_per_match` →
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index 513d4d14..ef1b1949 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -1,11 +1,10 @@
+-# Metric display contract — groups, order
++# Metric display contract — groups
+ 
+ > The CPO-ruled display contract for metric lists everywhere they render (fixture
+ > comparison, team profile, player profile, leaderboards). The
+-> `metric_catalogue.csv` seed stays the single source of metric definitions (the
+-> SSoT); this document records the **display**
+-> rulings (grouping, order) until they are codified as catalogue
+-> columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
++> `metric_catalogue.csv` seed stays the single source of metric definitions and of their order
++> (`metric_group_order`, `metric_order`). This document records the **display**
++> rulings (grouping). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
+ > (CPO, 2026-06-11).**
+ 
+ ## Key metrics (ruled)
+@@ -89,12 +88,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
+ 
+ ## Team metrics — LOCKED (CPO, 2026-06-11)
+ 
+-Display order top to bottom. MVP rows keep their relative order; new blocks slot
+-into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
+-`docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
+-Defending → Goalkeeping → Set pieces → Discipline → Results → Playing time, on every surface. The
+-group this table calls Duels is One-on-one. Row order WITHIN a block on the team page is what this
+-table locks.
++The order of the blocks and of the rows inside a block is the catalogue's `metric_group_order` and
++`metric_order`, on every surface (`docs/metric_layer.md`, "A group is defined once"). This table
++locks the rows below, in that order. The group this table calls Duels is One-on-one.
+ 
+ | # | metric_id | Group | Status |
+ |---|---|---|---|
+@@ -102,18 +98,18 @@ table locks.
+ | 2 | `goals_against_per_match` | Goals | live |
+ | 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | live |
+ | 4 | `shots_per_match` | Shooting | live |
+-| 5 | `shots_inside_box_pct` | Shooting | live |
+-| 6 | `shots_on_target_per_match` | Shooting | **new** (GAP-11) |
++| 5 | `shots_on_target_per_match` | Shooting | **new** (GAP-11) |
++| 6 | `shots_inside_box_pct` | Shooting | live |
+ | 7 | `finishing_efficiency_pct` | Shooting | live |
+-| 8 | `duels_per_match` | One-on-one | **new** (GAP-11) |
+-| 9 | `duels_won_pct` | One-on-one | live |
+-| 10 | `defensive_actions_per_match` | Defending | **new aggregate** (GAP-11) |
+-| 11 | `passes_per_match` | Passing | live |
+-| 12 | `passes_accuracy_pct` | Passing | live |
+-| 13 | `passes_key_per_match` | Passing | live |
+-| 14 | `corners_per_match` | Set pieces | live |
+-| 15 | `corners_against_per_match` | Set pieces | live |
+-| 16 | `saves_pct` | Goalkeeping | live |
++| 8 | `passes_per_match` | Passing | live |
++| 9 | `passes_accuracy_pct` | Passing | live |
++| 10 | `passes_key_per_match` | Passing | live |
++| 11 | `duels_per_match` | One-on-one | **new** (GAP-11) |
++| 12 | `duels_won_pct` | One-on-one | live |
++| 13 | `defensive_actions_per_match` | Defending | **new aggregate** (GAP-11) |
++| 14 | `saves_pct` | Goalkeeping | live |
++| 15 | `corners_per_match` | Set pieces | live |
++| 16 | `corners_against_per_match` | Set pieces | live |
+ 
+ ### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
+ 
+@@ -123,7 +119,7 @@ A value averaged over several matches shows "per match" on a small second line,
+ value shows none. A share without a football word of its own shows "percentage" there.
+ 
+ ⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
+-id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
++id. For row 5 it reads `shots_on_target_per_match`. The catalogue calls that metric
+ `shots_on_goal_per_match`. The catalogue reconciles them in its `label_i18n_key` column, which for
+ that row is `metrics.shots_on_target_per_match.label`. This mismatch caused a real defect during
+ #370: the key was read as a metric id, judged dangling, and replaced with one the catalogue declares
+@@ -168,17 +164,15 @@ the display contract.** The hero tile label box is 71px and the Performance row'
+ 
+ Any locale that compounds (Dutch is next) inherits all of this.
+ 
+-**Defined but not displayed** (stay in catalogue/marts, render nowhere in the
+-comparison): `shots_on_goal_pct` (superseded by the shots and shots on target rows side by
+-side), `tackles_per_match` / `interceptions_per_match` /
+-`blocks_per_match` (sub-display of row 10 only), `dribbles_success_player_pct`
+-(dropped team-side; stays a player metric), `points_won` + `league_rank`
+-(window header / standing chip, not metric rows).
++**Defined but not displayed.** These stay in the catalogue and the marts and render nowhere in the
++comparison:
+ 
+-### The shooting funnel (rationale, ruled with fix "a")
++- `shots_on_goal_pct`: superseded by the shots and shots on target rows side by side.
++- `tackles_per_match`, `interceptions_per_match`, `blocks_per_match`: sub-display of row 13 only.
++- `dribbles_success_player_pct`: dropped team-side; stays a player metric.
++- `points_won`, `league_rank`: window header and standing chip, not metric rows.
+ 
+-Volume (shots) → location quality (shots inside box percentage) → on-target volume (shots on
+-target) → finishing (goals per shot on target).
++### The finishing metric
+ 
+ What the finishing metric counts is its catalogue row; how it is computed and when it
+ is blank are the catalogue table's rules.
+@@ -188,29 +182,27 @@ is blank are the catalogue table's rules.
+ The player display unit is the **bundled row** (1–3 related atomics per row with a
+ defined display string) — NOT one metric per row. That part stands.
+ 
+-Per-surface rules still apply where a surface needs an ordering of its own (e.g. the
+-fixture top-players strip ranks goals → assists → key passes, GK variant saves_player + save %).
++The order of the rows is the catalogue's, as for the team table.
+ 
+ Changes vs the legacy player rows (definitions / formulas now live in the
+-`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows
+-resequenced into the shared block order; (2) every
++`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) every
+ bundle carries the `metric_group` it inherits from its atomics — a bundle never
+-mixes groups; (3) ratio displays standardized to the full triple
+-`{num} of {den} · {pct}%`; (4) the GK row gains the triple (two new atomics).
++mixes groups; (2) ratio displays standardized to the full triple
++`{num} of {den} · {pct}%`; (3) the GK row gains the triple (two new atomics).
+ 
+ | # | Row | Display string | Atomics | Group |
+ |---|---|---|---|---|
+ | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
+ | 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
+-| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
+-| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
+-| 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
+-| 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
+-| 7 | Key passes | `{count}` | passes_key_player | Passing |
+-| 8 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
+-| 9 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
+-
+-- Row 9 renders only for `position_code = 'G'`; whether a GK profile pulls the
++| 3 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
++| 4 | Key passes | `{count}` | passes_key_player | Passing |
++| 5 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
++| 6 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
++| 7 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
++| 8 | Save percentage | `{saves_player} of {faced} · {pct}%` | **saves_player (new)**, **shots_on_target_faced (new)**, saves_player_pct | Goalkeeping |
++| 9 | Cards | `{Y} Y · {R} R` | cards_yellow_player, cards_red_player | Discipline |
++
++- Row 8 renders only for `position_code = 'G'`; whether a GK profile pulls the
+   Goalkeeping block forward is a design call (#366).
+ - The **zero-denominator rule** is unchanged and now self-explanatory:
+   `0 of 0 · —`.
+@@ -240,10 +232,8 @@ mixes groups; (3) ratio displays standardized to the full triple
+ 
+ | Date | Ruling |
+ |---|---|
+-| 2026-06-11 | Groups = MVP blocks; MVP row order untouched; new metrics slot into blocks. |
+-| 2026-06-11 | Duels + Defending blocks placed before Passing. |
+ | 2026-06-11 | Clean sheets added (new metric); team dribbles dropped; T·I·B aggregated. |
+-| 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
++| 2026-06-11 | Shooting block reshaped: shots on target (new) added; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
+ | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
+ | 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
+ | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 7ef60d42..29bd295c 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -87,6 +87,31 @@ _COMPETITION_PLAYER_BOARDS = (
+     "cards_yellow_player", "cards_red_player",
+     "saves_player",
+ )
++# The metrics of the match page's Form comparison and of the player page's comparisons. Each set is a
++# filter: a metric's place in the catalogue orders the rows and never decides whether a page shows it.
++# `tests/test_form_comparison_metric_set.py` pins each set.
++_FORM_COMPARISON_METRICS = frozenset({
++    "goals_per_match", "goals_against_per_match", "clean_sheets",
++    "shots_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match",
++    "shots_inside_box_per_match", "shots_inside_box_pct", "shots_on_goal_pct", "finishing_efficiency_pct",
++    "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_key_per_match",
++    "passes_share_pct",
++    "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct",
++    "duels_per_match", "duels_won_per_match", "duels_won_pct",
++    "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match",
++    "saves_per_match", "saves_pct",
++    "corners_per_match", "corners_against_per_match", "free_kicks_per_match",
++    "fouls_per_match", "offsides_per_match", "cards_yellow", "cards_red",
++})
++_PLAYER_COMPARISON_METRICS = frozenset({
++    "goals_per90", "assists_per90", "scorer_points_per90",
++    "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "finishing_efficiency_player_pct",
++    "passes_per90", "passes_accuracy_player_pct", "passes_key_per90", "ball_actions_per90",
++    "dribbles_success_per90", "dribbles_success_player_pct", "duels_won_per90", "duels_won_player_pct",
++    "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90",
++    "saves_per90", "saves_player_pct", "goals_against_per90",
++    "fouls_per90", "offsides_per90",
++})
+ # The played match page's Match leaders: mart_leaderboards' match boards, a filter like the tuples
+ # above, carried in the catalogue's order. The warehouse cuts each board at three.
+ _MATCH_PLAYER_BOARDS = (
+@@ -99,7 +124,7 @@ _COMPETITION_BOARD_ROWS = 5
+ # Player leaderboards (the per-league `leaderboards/` payload): every board mart_leaderboards
+ # ranks, in the catalogue's order — the same thirteen the Rankings tab shows.
+ _LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
+-# The HOME page's Top players boards (#40): four boards, one metric each, in display order.
++# The HOME page's Top players boards: four boards, one metric each, carried in the catalogue's order.
+ # ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
+ # different consumer with a different board set. Sharing one list would couple two surfaces that
+ # have changed independently (the home set was cut from nine boards to four while the leaderboards
+@@ -107,8 +132,8 @@ _LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
+ # ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
+ # the mart suffixes them `_player`. The board's NAME is its catalogue `label_i18n_key`'s entry in strings.ts.
+ _HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
+-# The HOME page's Top teams boards (#41), four boards in display order, locked alongside the player
+-# set. These are `mart_team_leaderboards`' own `metric_key` values and the catalogue's team
++# The HOME page's Top teams boards: four boards carried in the catalogue's order, locked alongside
++# the player set. These are `mart_team_leaderboards`' own `metric_key` values and the catalogue's team
+ # `metric_id`s — the same string, unlike the player boards where the mart suffixes `_player`.
+ # ⚠ They do NOT share a number format: goals and shots on goal are `decimal_1`, passes and duels are
+ # `decimal_0`. The format travels with each board from the catalogue for that reason.
+@@ -133,8 +158,8 @@ _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
+ _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
+ _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
+ _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
+-# Players to watch: its boards in the block's order, and the mart rank that places a side's players
+-# on each.
++# Players to watch: its boards, carried in the catalogue's order, and the mart rank that places a
++# side's players on each.
+ _MATCH_WATCH_BOARDS = ("scorer_points_player", "ball_actions_per90")
+ _PLAYERS_TO_WATCH_RANKS = {
+     "scorer_points_player": "scorer_points_rank",
+@@ -1427,7 +1452,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+             _drop(r, _FW_DROP)
+         )
+     season_players: dict = {}
+-    watch_boards = _board_catalogue(_MATCH_WATCH_BOARDS)
++    watch_boards = _board_catalogue(_in_catalogue_order(_MATCH_WATCH_BOARDS, "player"))
+     for r in _query(client, f"""
+         select upcoming_fixture_sk, team_sk, player_sk, player_name, player_photo_url, position_code,
+                window_type, {", ".join(_PLAYERS_TO_WATCH_RANKS)}, {", ".join(_PLAYERS_TO_WATCH_RANKS.values())}
+@@ -2632,9 +2657,10 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
+ 
+ 
+ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
+-    """metric_rows.json — the rows of the match page's Form comparison: every team metric
+-    mart_team_window_metrics serves outside the Results group that has a place (`metric_order`), in
+-    group order and then that place, each with its key flag. A selection from the seeds, no BigQuery."""
++    """metric_rows.json — the rows of the match page's Form comparison: the approved set
++    (`_FORM_COMPARISON_METRICS`) of the team metrics mart_team_window_metrics serves, in group order
++    and then the catalogue's place (`metric_order`), each with its key flag. A selection from the
++    seeds, no BigQuery."""
+     import csv
+ 
+     with open(map_path, encoding="utf-8") as f:
+@@ -2642,7 +2668,7 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
+     with open(seed_path, encoding="utf-8") as f:
+         rows = [r for r in csv.DictReader(f)
+                 if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"
+-                and r["metric_order"]]
++                and r["metric_id"] in _FORM_COMPARISON_METRICS and r["metric_order"]]
+     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
+     return {"type": "metric_rows", "rows": [
+         {"metric_id": r["metric_id"],
+@@ -2657,9 +2683,10 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
+ 
+ 
+ def fetch_player_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
+-    """player_metric_rows.json — the rows of the Player page's comparisons: every metric
+-    mart_player_competition_benchmarks serves, in group order and then its place, each with its key
+-    flag. A selection from the seeds, no BigQuery."""
++    """player_metric_rows.json — the rows of the Player page's comparisons: the approved set
++    (`_PLAYER_COMPARISON_METRICS`) of the metrics mart_player_competition_benchmarks serves, in group
++    order and then the catalogue's place, each with its key flag. A selection from the seeds, no
++    BigQuery."""
+     import csv
+ 
+     with open(map_path, encoding="utf-8") as f:
+@@ -2667,7 +2694,8 @@ def fetch_player_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str
+                   if r["table_name"] == "mart_player_competition_benchmarks"}
+     with open(seed_path, encoding="utf-8") as f:
+         rows = [r for r in csv.DictReader(f)
+-                if r["entity"] == "player" and r["metric_id"] in served and r["metric_order"]]
++                if r["entity"] == "player" and r["metric_id"] in served
++                and r["metric_id"] in _PLAYER_COMPARISON_METRICS and r["metric_order"]]
+     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
+     return {"type": "player_metric_rows", "rows": [
+         {"metric_id": r["metric_id"],
+diff --git a/tests/test_catalogue_order.py b/tests/test_catalogue_order.py
+index c31424b1..40b1223c 100644
+--- a/tests/test_catalogue_order.py
++++ b/tests/test_catalogue_order.py
+@@ -17,6 +17,8 @@ SURFACES = {
+     "Rankings player": (export._COMPETITION_PLAYER_BOARDS, "player"),
+     "Home team": (export._HOME_TEAM_BOARDS, "team"),
+     "Home player": (export._HOME_PLAYER_BOARDS, "player"),
++    "Match leaders": (export._MATCH_PLAYER_BOARDS, "player"),
++    "Players to watch": (export._MATCH_WATCH_BOARDS, "player"),
+ }
+ 
+ 
+@@ -107,3 +109,88 @@ def test_a_board_without_a_place_fails_the_export():
+         assert "goals_open_play_player" in str(e)
+     else:
+         raise AssertionError("a shown board without a catalogue order must fail")
++
++
++PINNED_ORDER = {
++    "player": {
++        "goals": ["goals_player", "goals_per90", "assists_player", "assists_per90",
++                  "scorer_points_player", "scorer_points_per90"],
++        "shooting": ["shots_player", "shots_per90", "shots_on_goal_player", "shots_on_goal_per90",
++                     "shots_on_goal_player_pct", "finishing_efficiency_player_pct"],
++        "passing": ["passes_player", "passes_per90", "passes_accurate_player", "passes_accurate_per90",
++                    "passes_accuracy_player_pct", "passes_key_player", "passes_key_per90",
++                    "ball_actions_player", "ball_actions_per90"],
++        "one_on_one": ["dribbles_attempts_player", "dribbles_attempts_per90", "dribbles_success_player",
++                       "dribbles_success_per90", "dribbles_success_player_pct", "duels_player", "duels_per90",
++                       "duels_won_player", "duels_won_per90", "duels_won_player_pct"],
++        "defending": ["defensive_actions_player", "defensive_actions_per90", "tackles_player", "tackles_per90",
++                      "interceptions_player", "interceptions_per90", "blocks_player", "blocks_per90",
++                      "dribbles_past_player", "dribbles_past_per90"],
++        "goalkeeping": ["saves_player", "saves_per90", "saves_player_pct", "goals_against_player",
++                        "goals_against_per90", "shots_on_goal_against_player"],
++        "discipline": ["cards_yellow_player", "cards_red_player", "fouls_player", "fouls_per90",
++                       "penalty_committed_player", "offsides_player", "offsides_per90"],
++        "playing_time": ["appearances", "minutes_per_appearance"],
++    },
++    "team": {
++        "goals": ["goals", "goals_per_match", "goals_against", "goals_against_per_match", "clean_sheets",
++                  "clean_sheets_pct", "goals_open_play", "goals_penalty", "goals_own"],
++        "shooting": ["shots_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match",
++                     "shots_on_goal_difference_per_match", "shots_inside_box", "shots_inside_box_per_match",
++                     "shots_inside_box_pct", "shots_on_goal_pct", "finishing_efficiency_pct", "shots_share_pct",
++                     "shots_off_target_per_match", "shots_blocked_per_match"],
++        "passing": ["passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct",
++                    "passes_key_per_match", "passes_share_pct"],
++        "one_on_one": ["dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct",
++                       "duels_per_match", "duels_won_per_match", "duels_won_pct"],
++        "defending": ["defensive_actions_per_match", "tackles_per_match", "interceptions_per_match",
++                      "blocks_per_match"],
++        "goalkeeping": ["saves", "saves_per_match", "saves_pct"],
++        "set_pieces": ["corners", "corners_per_match", "corners_against_per_match", "free_kicks_per_match"],
++        "discipline": ["cards_yellow", "cards_red", "fouls_per_match", "offsides_per_match"],
++    },
++}
++PINNED_GROUP_ORDER = {
++    "player": ["goals", "shooting", "passing", "one_on_one", "defending", "goalkeeping", "discipline",
++               "playing_time"],
++    "team": ["goals", "shooting", "passing", "one_on_one", "defending", "goalkeeping", "set_pieces",
++             "discipline"],
++}
++
++
++def _ordered(entity: str) -> dict[str, list[str]]:
++    placed = [r for r in _catalogue(entity).values() if r["metric_order"]]
++    placed.sort(key=_place)
++    groups: dict[str, list[str]] = {}
++    for r in placed:
++        groups.setdefault(r["metric_group"], []).append(r["metric_id"])
++    return groups
++
++
++def test_the_catalogue_order_is_pinned_per_group_for_players_and_teams():
++    for entity in ("player", "team"):
++        groups = _ordered(entity)
++        assert list(groups) == PINNED_GROUP_ORDER[entity], f"{entity}: the group order changed"
++        assert groups == PINNED_ORDER[entity], f"{entity}: a metric_order changed; update the pin with the catalogue"
++
++
++def test_the_combined_player_cards_metric_has_no_place_so_players_and_teams_show_yellow_and_red():
++    assert not _catalogue("player")["cards_player"]["metric_order"]
++    assert _ordered("player")["discipline"][:2] == ["cards_yellow_player", "cards_red_player"]
++    assert _ordered("team")["discipline"][:2] == ["cards_yellow", "cards_red"]
++
++
++def _stem(metric_id: str) -> str:
++    return metric_id.replace("_player", "").replace("_per90", "_per").replace("_per_match", "_per")
++
++
++def test_a_metric_that_exists_for_players_and_teams_sits_in_the_same_relative_order():
++    player, team = _ordered("player"), _ordered("team")
++    for group in sorted(set(player) & set(team)):
++        p = [_stem(m) for m in player[group]]
++        t = [_stem(m) for m in team[group]]
++        shared = [s for s in p if s in t]
++        assert shared == [s for s in t if s in p], f"{group}: players read {shared}, teams read {[s for s in t if s in p]}"
++        assert len(shared) == len(set(shared)), f"{group}: two metrics share a stem"
++    shared_groups = [g for g in PINNED_GROUP_ORDER["player"] if g in PINNED_GROUP_ORDER["team"]]
++    assert shared_groups == [g for g in PINNED_GROUP_ORDER["team"] if g in PINNED_GROUP_ORDER["player"]]
+diff --git a/tests/test_design_mocks_read_catalogue_order.py b/tests/test_design_mocks_read_catalogue_order.py
+new file mode 100644
+index 00000000..8ecabd9f
+--- /dev/null
++++ b/tests/test_design_mocks_read_catalogue_order.py
+@@ -0,0 +1,84 @@
++"""The mock generators and the committed site data show metrics in the catalogue's order."""
++from __future__ import annotations
++
++import csv
++import os
++import re
++import sys
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++sys.path.insert(0, str(REPO / "design-mocks"))
++import export_site_data as export  # noqa: E402
++import gen_competition_teams as rankings  # noqa: E402
++import gen_match_page as match_page  # noqa: E402
++import gen_top_players as top_players  # noqa: E402
++import gen_top_teams as top_teams  # noqa: E402
++from catalogue_order import place  # noqa: E402
++
++
++def _catalogue(entity: str) -> dict[str, dict[str, str]]:
++    path = REPO / "dbt_project" / "seeds" / "metric_catalogue.csv"
++    with path.open(newline="", encoding="utf-8") as f:
++        return {r["metric_id"]: r for r in csv.DictReader(f) if r["entity"] == entity}
++
++
++def _is_in_catalogue_order(metric_ids: list[str], entity: str) -> bool:
++    return [place(m, entity) for m in metric_ids] == sorted(place(m, entity) for m in metric_ids)
++
++
++def test_the_home_mocks_list_their_boards_in_the_catalogue_order():
++    assert _is_in_catalogue_order([b["rank_metric"] for b in top_teams.BOARDS], "team")
++    assert _is_in_catalogue_order([b["rank_metric"] for b in top_players.BOARDS], "player")
++
++
++def test_the_rankings_mock_groups_and_lists_its_boards_in_the_catalogue_order():
++    for groups, entity in ((rankings.GROUPS, "team"), (rankings.PLAYER_GROUPS, "player")):
++        flat = [m for _label, ids in groups for m in ids]
++        assert _is_in_catalogue_order(flat, entity), entity
++        cat = _catalogue(entity)
++        assert [label for label, _ids in groups] == [
++            f"metricGroups.{g}.label" for g in dict.fromkeys(cat[m]["metric_group"] for m in flat)
++        ], f"{entity}: the group sequence is not the catalogue's"
++
++
++def test_the_played_match_mock_lists_its_stats_in_the_catalogue_order():
++    stats = [(label, col) for _group, rows in match_page.PLAYED_STATS for label, col, _d, _u in rows]
++    assert {col for _label, col in stats} == set(match_page.PLAYED_METRIC), "a stat without a catalogue metric"
++    fx = {"home": {"name": "H"}, "away": {"name": "A"},
++          "team": {col: (1, 2) for _label, col in stats}}
++    drawn: list[str] = []
++    real = match_page.stat_row
++    match_page.stat_row = lambda label, *rest: drawn.append(label) or ""
++    try:
++        html_out = match_page.stats_block(fx)
++    finally:
++        match_page.stat_row = real
++    expected = [label for label, col in sorted(stats, key=lambda s: place(match_page.PLAYED_METRIC[s[1]], "team"))]
++    assert drawn == expected
++    groups = re.findall(r'class="mgroup">([^<]+)<', html_out)
++    assert groups == ["Shooting", "Passing", "One-on-one", "Defending", "Goalkeeping", "Set pieces", "Discipline"]
++
++
++def test_the_rankings_mock_shows_the_boards_the_rankings_tab_shows():
++    team = {m for _label, ids in rankings.GROUPS for m in ids}
++    player = {m for _label, ids in rankings.PLAYER_GROUPS for m in ids}
++    assert team == set(export._COMPETITION_TEAM_BOARDS)
++    assert player == set(export._COMPETITION_PLAYER_BOARDS)
++
++
++def test_the_committed_player_metric_rows_are_a_fresh_regeneration_from_the_seed():
++    committed = (REPO / "site_v2" / "src" / "data" / "player_metric_rows.json").read_text(encoding="utf-8")
++    assert committed == export._payload_bytes(export.fetch_player_metric_rows()).decode("utf-8"), (
++        "site_v2/src/data/player_metric_rows.json differs from the seed; regenerate it with the export"
++    )
++
++
++def test_a_metric_without_a_place_fails_a_mock():
++    try:
++        place("cards_player", "player")
++    except SystemExit as e:
++        assert "cards_player" in str(e)
++    else:
++        raise AssertionError("a metric without a catalogue order must fail the generator")
+diff --git a/tests/test_form_comparison_metric_set.py b/tests/test_form_comparison_metric_set.py
+index 99dcc1df..4c153b6c 100644
+--- a/tests/test_form_comparison_metric_set.py
++++ b/tests/test_form_comparison_metric_set.py
+@@ -1,8 +1,7 @@
+ """The rows of two approved comparisons are pinned as sets.
+ 
+-The match page's Form comparison and the Player page's comparisons show every metric their mart
+-serves that has a `metric_order` in the catalogue. A place given to a metric for another page would
+-therefore add a row to these approved pages without anyone deciding it. The order of the rows
++The match page's Form comparison and the Player page's comparisons show the metrics of a named set
++in the export. A place in the catalogue orders the rows and never adds one. The order of the rows
+ follows the catalogue; the set changes only with its page's design.
+ """
+ 
+@@ -39,6 +38,11 @@ PLAYER_COMPARISON = {
+ }
+ 
+ 
++def test_the_export_filters_hold_the_approved_sets():
++    assert export._FORM_COMPARISON_METRICS == FORM_COMPARISON
++    assert export._PLAYER_COMPARISON_METRICS == PLAYER_COMPARISON
++
++
+ def test_the_form_comparison_shows_its_approved_metrics():
+     served = {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
+     assert served == FORM_COMPARISON, (
+diff --git a/tests/test_metric_rows.py b/tests/test_metric_rows.py
+index 65aa18be..4bc0fcca 100644
+--- a/tests/test_metric_rows.py
++++ b/tests/test_metric_rows.py
+@@ -32,13 +32,22 @@ def test_the_committed_file_is_a_fresh_regeneration_from_the_seed():
+ def test_the_rows_are_the_form_window_metrics_outside_results():
+     team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
+     served = {r["metric_id"] for r in _read(METRIC_MAP) if r["table_name"] == "mart_team_window_metrics"}
+-    expected = {m for m in served if team[m]["metric_group"] != "outcomes" and team[m]["metric_order"]}
++    expected = {m for m in served if team[m]["metric_group"] != "outcomes"
++                and m in export._FORM_COMPARISON_METRICS and team[m]["metric_order"]}
+     rows = {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
+     assert len(expected) >= 30
+     assert rows == expected, (
+-        f"metric_order set but not in the form window: {sorted(rows - expected)}; "
+-        f"in the form window without a metric_order: {sorted(expected - rows)}"
++        f"shown but not in the form window: {sorted(rows - expected)}; "
++        f"approved and in the form window without a metric_order: {sorted(expected - rows)}"
+     )
++    assert expected == export._FORM_COMPARISON_METRICS, "an approved Form comparison metric has no place or no mart column"
++
++
++def test_a_place_in_the_catalogue_never_adds_a_row():
++    team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
++    for metric_id in ("shots_off_target_per_match", "shots_blocked_per_match"):
++        assert team[metric_id]["metric_order"], f"{metric_id} has a place"
++        assert metric_id not in {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
+ 
+ 
+ def test_each_group_rises_in_the_catalogue_order():
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 606f1a0b..9f1c49ab 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,7 +20,7 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 265
++PINNED_LINES = 263
+ PINNED_FILES = 89
+ 
+ HASH = chr(35)
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 182dfa94..7ea233d6 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -54,7 +54,7 @@ PINNED = {
+     "docs/wireframes/14_team_stats.md": 9,
+     "docs/wireframes/99_gaps_register.md": 29,
+     "docs/wireframes/block_standard.md": 46,
+-    "docs/wireframes/metrics_display.md": 30,
++    "docs/wireframes/metrics_display.md": 27,
+     "site_v2/src/data/README.md": 5,
+ }
+ 
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 6cc618b0..2b138b62 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -63,12 +63,12 @@ PINNED = {
+     "docs/wireframes/09_chrome.md": 7,
+     "docs/wireframes/10_home.md": 127,
+     "docs/wireframes/11_team_squad.md": 7,
+-    "docs/wireframes/12_player_stats.md": 13,
++    "docs/wireframes/12_player_stats.md": 12,
+     "docs/wireframes/13_player_career.md": 7,
+-    "docs/wireframes/14_team_stats.md": 19,
++    "docs/wireframes/14_team_stats.md": 18,
+     "docs/wireframes/99_gaps_register.md": 65,
+     "docs/wireframes/block_standard.md": 9,
+-    "docs/wireframes/metrics_display.md": 25,
++    "docs/wireframes/metrics_display.md": 23,
+     "site_v2/src/data/README.md": 9,
+ }
+ 
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/metric_rows.json | 28 ++++++++++++++--------------
+#    1 file changed, 14 insertions(+), 14 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../acceptance_evidence.md                         |   12 +
+#    .../review_input.patch                             | 1076 ++++++++++++++++++++
+#    2 files changed, 1088 insertions(+)
+# ============================================================================

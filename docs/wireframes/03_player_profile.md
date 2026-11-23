@@ -49,13 +49,13 @@ atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest
 │  Scorer points        9 G · 6 A            │
 │  shots_on_goal_player 21                   │
 ├──────────────— fold (~700px) —─────────────┤
-│  Duels won            96 of 178 · 54%      │
-│  Successful dribbles  38 of 61 · 62%       │
-│  Tackles+Int.+Blocks  18 T · 11 I · 2 B    │
 │  Pass accuracy        581 of 654 · 89%     │
 │  Key passes           31                   │
-│  Cards                2 Y · 0 R            │
+│  Successful dribbles  38 of 61 · 62%       │
+│  Duels won            96 of 178 · 54%      │
+│  Tackles+Int.+Blocks  18 T · 11 I · 2 B    │
 │  (GK only) Saves      41 of 50 · 82%       │
+│  Cards                2 Y · 0 R            │
 ├────────────────────────────────────────────┤
 │  MATCH LOG                                 │  (6) latest first
 │  6 Dec  BL1  Gladbach [crest] H            │
@@ -96,15 +96,15 @@ Each bundle's name is its rank metric's entry in `site_v2/src/i18n/strings.ts`.
 |---|---|
 | Scorer points | `goals_player`, `assists_player` |
 | `shots_on_goal_player` | `shots_on_target` |
-| Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
-| Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
-| Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
 | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
 | Key passes | `passes_key_player` |
-| Cards | `cards_yellow_player`, `cards_red_player` |
+| Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
+| Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
+| Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
 | `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
+| Cards | `cards_yellow_player`, `cards_red_player` |
 
-Rendering rules per contract: group subheads optional (design call), order fixed,
+Rendering rules per contract: group subheads optional (design call), order is the catalogue's,
 zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the
 GK block on keeper profiles = design call #366). Unbundled atomics
 (`dribbles_past_player`, `offsides_player`, `penalty_won_player`, `penalty_committed_player`) stay unrendered.

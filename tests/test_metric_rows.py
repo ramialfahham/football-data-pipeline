@@ -32,13 +32,22 @@ def test_the_committed_file_is_a_fresh_regeneration_from_the_seed():
 def test_the_rows_are_the_form_window_metrics_outside_results():
     team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
     served = {r["metric_id"] for r in _read(METRIC_MAP) if r["table_name"] == "mart_team_window_metrics"}
-    expected = {m for m in served if team[m]["metric_group"] != "outcomes" and team[m]["metric_order"]}
+    expected = {m for m in served if team[m]["metric_group"] != "outcomes"
+                and m in export._FORM_COMPARISON_METRICS and team[m]["metric_order"]}
     rows = {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
     assert len(expected) >= 30
     assert rows == expected, (
-        f"metric_order set but not in the form window: {sorted(rows - expected)}; "
-        f"in the form window without a metric_order: {sorted(expected - rows)}"
+        f"shown but not in the form window: {sorted(rows - expected)}; "
+        f"approved and in the form window without a metric_order: {sorted(expected - rows)}"
     )
+    assert expected == export._FORM_COMPARISON_METRICS, "an approved Form comparison metric has no place or no mart column"
+
+
+def test_a_place_in_the_catalogue_never_adds_a_row():
+    team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
+    for metric_id in ("shots_off_target_per_match", "shots_blocked_per_match"):
+        assert team[metric_id]["metric_order"], f"{metric_id} has a place"
+        assert metric_id not in {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
 
 
 def test_each_group_rises_in_the_catalogue_order():

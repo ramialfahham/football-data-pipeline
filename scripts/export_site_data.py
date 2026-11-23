@@ -87,6 +87,31 @@ _COMPETITION_PLAYER_BOARDS = (
     "cards_yellow_player", "cards_red_player",
     "saves_player",
 )
+# The metrics of the match page's Form comparison and of the player page's comparisons. Each set is a
+# filter: a metric's place in the catalogue orders the rows and never decides whether a page shows it.
+# `tests/test_form_comparison_metric_set.py` pins each set.
+_FORM_COMPARISON_METRICS = frozenset({
+    "goals_per_match", "goals_against_per_match", "clean_sheets",
+    "shots_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match",
+    "shots_inside_box_per_match", "shots_inside_box_pct", "shots_on_goal_pct", "finishing_efficiency_pct",
+    "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_key_per_match",
+    "passes_share_pct",
+    "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct",
+    "duels_per_match", "duels_won_per_match", "duels_won_pct",
+    "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match",
+    "saves_per_match", "saves_pct",
+    "corners_per_match", "corners_against_per_match", "free_kicks_per_match",
+    "fouls_per_match", "offsides_per_match", "cards_yellow", "cards_red",
+})
+_PLAYER_COMPARISON_METRICS = frozenset({
+    "goals_per90", "assists_per90", "scorer_points_per90",
+    "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "finishing_efficiency_player_pct",
+    "passes_per90", "passes_accuracy_player_pct", "passes_key_per90", "ball_actions_per90",
+    "dribbles_success_per90", "dribbles_success_player_pct", "duels_won_per90", "duels_won_player_pct",
+    "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90",
+    "saves_per90", "saves_player_pct", "goals_against_per90",
+    "fouls_per90", "offsides_per90",
+})
 # The played match page's Match leaders: mart_leaderboards' match boards, a filter like the tuples
 # above, carried in the catalogue's order. The warehouse cuts each board at three.
 _MATCH_PLAYER_BOARDS = (
@@ -99,7 +124,7 @@ _COMPETITION_BOARD_ROWS = 5
 # Player leaderboards (the per-league `leaderboards/` payload): every board mart_leaderboards
 # ranks, in the catalogue's order — the same thirteen the Rankings tab shows.
 _LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
-# The HOME page's Top players boards (#40): four boards, one metric each, in display order.
+# The HOME page's Top players boards: four boards, one metric each, carried in the catalogue's order.
 # ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
 # different consumer with a different board set. Sharing one list would couple two surfaces that
 # have changed independently (the home set was cut from nine boards to four while the leaderboards
@@ -107,8 +132,8 @@ _LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
 # ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
 # the mart suffixes them `_player`. The board's NAME is its catalogue `label_i18n_key`'s entry in strings.ts.
 _HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
-# The HOME page's Top teams boards (#41), four boards in display order, locked alongside the player
-# set. These are `mart_team_leaderboards`' own `metric_key` values and the catalogue's team
+# The HOME page's Top teams boards: four boards carried in the catalogue's order, locked alongside
+# the player set. These are `mart_team_leaderboards`' own `metric_key` values and the catalogue's team
 # `metric_id`s — the same string, unlike the player boards where the mart suffixes `_player`.
 # ⚠ They do NOT share a number format: goals and shots on goal are `decimal_1`, passes and duels are
 # `decimal_0`. The format travels with each board from the catalogue for that reason.
@@ -133,8 +158,8 @@ _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
 _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
 _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
-# Players to watch: its boards in the block's order, and the mart rank that places a side's players
-# on each.
+# Players to watch: its boards, carried in the catalogue's order, and the mart rank that places a
+# side's players on each.
 _MATCH_WATCH_BOARDS = ("scorer_points_player", "ball_actions_per90")
 _PLAYERS_TO_WATCH_RANKS = {
     "scorer_points_player": "scorer_points_rank",
@@ -1427,7 +1452,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
             _drop(r, _FW_DROP)
         )
     season_players: dict = {}
-    watch_boards = _board_catalogue(_MATCH_WATCH_BOARDS)
+    watch_boards = _board_catalogue(_in_catalogue_order(_MATCH_WATCH_BOARDS, "player"))
     for r in _query(client, f"""
         select upcoming_fixture_sk, team_sk, player_sk, player_name, player_photo_url, position_code,
                window_type, {", ".join(_PLAYERS_TO_WATCH_RANKS)}, {", ".join(_PLAYERS_TO_WATCH_RANKS.values())}
@@ -2632,9 +2657,10 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
 
 
 def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
-    """metric_rows.json — the rows of the match page's Form comparison: every team metric
-    mart_team_window_metrics serves outside the Results group that has a place (`metric_order`), in
-    group order and then that place, each with its key flag. A selection from the seeds, no BigQuery."""
+    """metric_rows.json — the rows of the match page's Form comparison: the approved set
+    (`_FORM_COMPARISON_METRICS`) of the team metrics mart_team_window_metrics serves, in group order
+    and then the catalogue's place (`metric_order`), each with its key flag. A selection from the
+    seeds, no BigQuery."""
     import csv
 
     with open(map_path, encoding="utf-8") as f:
@@ -2642,7 +2668,7 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
     with open(seed_path, encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f)
                 if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"
-                and r["metric_order"]]
+                and r["metric_id"] in _FORM_COMPARISON_METRICS and r["metric_order"]]
     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
     return {"type": "metric_rows", "rows": [
         {"metric_id": r["metric_id"],
@@ -2657,9 +2683,10 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
 
 
 def fetch_player_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
-    """player_metric_rows.json — the rows of the Player page's comparisons: every metric
-    mart_player_competition_benchmarks serves, in group order and then its place, each with its key
-    flag. A selection from the seeds, no BigQuery."""
+    """player_metric_rows.json — the rows of the Player page's comparisons: the approved set
+    (`_PLAYER_COMPARISON_METRICS`) of the metrics mart_player_competition_benchmarks serves, in group
+    order and then the catalogue's place, each with its key flag. A selection from the seeds, no
+    BigQuery."""
     import csv
 
     with open(map_path, encoding="utf-8") as f:
@@ -2667,7 +2694,8 @@ def fetch_player_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str
                   if r["table_name"] == "mart_player_competition_benchmarks"}
     with open(seed_path, encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f)
-                if r["entity"] == "player" and r["metric_id"] in served and r["metric_order"]]
+                if r["entity"] == "player" and r["metric_id"] in served
+                and r["metric_id"] in _PLAYER_COMPARISON_METRICS and r["metric_order"]]
     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
     return {"type": "player_metric_rows", "rows": [
         {"metric_id": r["metric_id"],

@@ -17,6 +17,8 @@ SURFACES = {
     "Rankings player": (export._COMPETITION_PLAYER_BOARDS, "player"),
     "Home team": (export._HOME_TEAM_BOARDS, "team"),
     "Home player": (export._HOME_PLAYER_BOARDS, "player"),
+    "Match leaders": (export._MATCH_PLAYER_BOARDS, "player"),
+    "Players to watch": (export._MATCH_WATCH_BOARDS, "player"),
 }
 
 
@@ -107,3 +109,88 @@ def test_a_board_without_a_place_fails_the_export():
         assert "goals_open_play_player" in str(e)
     else:
         raise AssertionError("a shown board without a catalogue order must fail")
+
+
+PINNED_ORDER = {
+    "player": {
+        "goals": ["goals_player", "goals_per90", "assists_player", "assists_per90",
+                  "scorer_points_player", "scorer_points_per90"],
+        "shooting": ["shots_player", "shots_per90", "shots_on_goal_player", "shots_on_goal_per90",
+                     "shots_on_goal_player_pct", "finishing_efficiency_player_pct"],
+        "passing": ["passes_player", "passes_per90", "passes_accurate_player", "passes_accurate_per90",
+                    "passes_accuracy_player_pct", "passes_key_player", "passes_key_per90",
+                    "ball_actions_player", "ball_actions_per90"],
+        "one_on_one": ["dribbles_attempts_player", "dribbles_attempts_per90", "dribbles_success_player",
+                       "dribbles_success_per90", "dribbles_success_player_pct", "duels_player", "duels_per90",
+                       "duels_won_player", "duels_won_per90", "duels_won_player_pct"],
+        "defending": ["defensive_actions_player", "defensive_actions_per90", "tackles_player", "tackles_per90",
+                      "interceptions_player", "interceptions_per90", "blocks_player", "blocks_per90",
+                      "dribbles_past_player", "dribbles_past_per90"],
+        "goalkeeping": ["saves_player", "saves_per90", "saves_player_pct", "goals_against_player",
+                        "goals_against_per90", "shots_on_goal_against_player"],
+        "discipline": ["cards_yellow_player", "cards_red_player", "fouls_player", "fouls_per90",
+                       "penalty_committed_player", "offsides_player", "offsides_per90"],
+        "playing_time": ["appearances", "minutes_per_appearance"],
+    },
+    "team": {
+        "goals": ["goals", "goals_per_match", "goals_against", "goals_against_per_match", "clean_sheets",
+                  "clean_sheets_pct", "goals_open_play", "goals_penalty", "goals_own"],
+        "shooting": ["shots_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match",
+                     "shots_on_goal_difference_per_match", "shots_inside_box", "shots_inside_box_per_match",
+                     "shots_inside_box_pct", "shots_on_goal_pct", "finishing_efficiency_pct", "shots_share_pct",
+                     "shots_off_target_per_match", "shots_blocked_per_match"],
+        "passing": ["passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct",
+                    "passes_key_per_match", "passes_share_pct"],
+        "one_on_one": ["dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct",
+                       "duels_per_match", "duels_won_per_match", "duels_won_pct"],
+        "defending": ["defensive_actions_per_match", "tackles_per_match", "interceptions_per_match",
+                      "blocks_per_match"],
+        "goalkeeping": ["saves", "saves_per_match", "saves_pct"],
+        "set_pieces": ["corners", "corners_per_match", "corners_against_per_match", "free_kicks_per_match"],
+        "discipline": ["cards_yellow", "cards_red", "fouls_per_match", "offsides_per_match"],
+    },
+}
+PINNED_GROUP_ORDER = {
+    "player": ["goals", "shooting", "passing", "one_on_one", "defending", "goalkeeping", "discipline",
+               "playing_time"],
+    "team": ["goals", "shooting", "passing", "one_on_one", "defending", "goalkeeping", "set_pieces",
+             "discipline"],
+}
+
+
+def _ordered(entity: str) -> dict[str, list[str]]:
+    placed = [r for r in _catalogue(entity).values() if r["metric_order"]]
+    placed.sort(key=_place)
+    groups: dict[str, list[str]] = {}
+    for r in placed:
+        groups.setdefault(r["metric_group"], []).append(r["metric_id"])
+    return groups
+
+
+def test_the_catalogue_order_is_pinned_per_group_for_players_and_teams():
+    for entity in ("player", "team"):
+        groups = _ordered(entity)
+        assert list(groups) == PINNED_GROUP_ORDER[entity], f"{entity}: the group order changed"
+        assert groups == PINNED_ORDER[entity], f"{entity}: a metric_order changed; update the pin with the catalogue"
+
+
+def test_the_combined_player_cards_metric_has_no_place_so_players_and_teams_show_yellow_and_red():
+    assert not _catalogue("player")["cards_player"]["metric_order"]
+    assert _ordered("player")["discipline"][:2] == ["cards_yellow_player", "cards_red_player"]
+    assert _ordered("team")["discipline"][:2] == ["cards_yellow", "cards_red"]
+
+
+def _stem(metric_id: str) -> str:
+    return metric_id.replace("_player", "").replace("_per90", "_per").replace("_per_match", "_per")
+
+
+def test_a_metric_that_exists_for_players_and_teams_sits_in_the_same_relative_order():
+    player, team = _ordered("player"), _ordered("team")
+    for group in sorted(set(player) & set(team)):
+        p = [_stem(m) for m in player[group]]
+        t = [_stem(m) for m in team[group]]
+        shared = [s for s in p if s in t]
+        assert shared == [s for s in t if s in p], f"{group}: players read {shared}, teams read {[s for s in t if s in p]}"
+        assert len(shared) == len(set(shared)), f"{group}: two metrics share a stem"
+    shared_groups = [g for g in PINNED_GROUP_ORDER["player"] if g in PINNED_GROUP_ORDER["team"]]
+    assert shared_groups == [g for g in PINNED_GROUP_ORDER["team"] if g in PINNED_GROUP_ORDER["player"]]

@@ -52,10 +52,20 @@
       "is_key_metric": true
     },
     {
+      "metric_id": "shots_on_goal_against_per_match",
+      "label_i18n_key": "metrics.shots_on_goal_against_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 3,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true,
+      "is_key_metric": true
+    },
+    {
       "metric_id": "shots_inside_box_per_match",
       "label_i18n_key": "metrics.shots_inside_box_per_match.label",
       "metric_group": "shooting",
-      "metric_order": 4,
+      "metric_order": 6,
       "direction": "higher_better",
       "format": "decimal_1",
       "per_match": true,
@@ -65,7 +75,7 @@
       "metric_id": "shots_inside_box_pct",
       "label_i18n_key": "metrics.shots_inside_box_pct.label",
       "metric_group": "shooting",
-      "metric_order": 5,
+      "metric_order": 7,
       "direction": "higher_better",
       "format": "percent",
       "per_match": false,
@@ -75,7 +85,7 @@
       "metric_id": "shots_on_goal_pct",
       "label_i18n_key": "metrics.shots_on_goal_pct.label",
       "metric_group": "shooting",
-      "metric_order": 6,
+      "metric_order": 8,
       "direction": "higher_better",
       "format": "percent",
       "per_match": false,
@@ -85,21 +95,11 @@
       "metric_id": "finishing_efficiency_pct",
       "label_i18n_key": "metrics.finishing_efficiency_pct.label",
       "metric_group": "shooting",
-      "metric_order": 7,
+      "metric_order": 9,
       "direction": "higher_better",
       "format": "percent",
       "per_match": false,
       "is_key_metric": false
-    },
-    {
-      "metric_id": "shots_on_goal_against_per_match",
-      "label_i18n_key": "metrics.shots_on_goal_against_per_match.label",
-      "metric_group": "shooting",
-      "metric_order": 9,
-      "direction": "lower_better",
-      "format": "decimal_1",
-      "per_match": true,
-      "is_key_metric": true
     },
     {
       "metric_id": "passes_per_match",

@@ -1,8 +1,7 @@
 """The rows of two approved comparisons are pinned as sets.
 
-The match page's Form comparison and the Player page's comparisons show every metric their mart
-serves that has a `metric_order` in the catalogue. A place given to a metric for another page would
-therefore add a row to these approved pages without anyone deciding it. The order of the rows
+The match page's Form comparison and the Player page's comparisons show the metrics of a named set
+in the export. A place in the catalogue orders the rows and never adds one. The order of the rows
 follows the catalogue; the set changes only with its page's design.
 """
 
@@ -37,6 +36,11 @@ PLAYER_COMPARISON = {
     "saves_per90", "saves_player_pct", "goals_against_per90",
     "fouls_per90", "offsides_per90",
 }
+
+
+def test_the_export_filters_hold_the_approved_sets():
+    assert export._FORM_COMPARISON_METRICS == FORM_COMPARISON
+    assert export._PLAYER_COMPARISON_METRICS == PLAYER_COMPARISON
 
 
 def test_the_form_comparison_shows_its_approved_metrics():

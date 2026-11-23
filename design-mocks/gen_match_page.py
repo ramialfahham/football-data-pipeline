@@ -18,6 +18,9 @@ from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from catalogue_order import place  # noqa: E402
+
 REPO = HERE.parent
 DIST = REPO / "site_v2" / "dist"
 DATA = REPO / "site_v2" / "src" / "data"
@@ -1201,6 +1204,26 @@ PLAYED_STATS = (("Shooting", (("Shots", "shots", 1, ""), ("Shots on target", "sh
                                 ("Free kicks", "free_kicks", 1, ""))),
                 ("Discipline", (("Fouls", "fouls", -1, ""), ("Offsides", "offsides", -1, ""),
                                 ("Yellow cards", "yellow_cards", -1, ""), ("Red cards", "red_cards", -1, ""))))
+# The catalogue team metric each played-match stat shows; the catalogue's place orders the rows.
+PLAYED_METRIC = {
+    "shots": "shots_per_match", "shots_on_goal": "shots_on_goal_per_match",
+    "shots_on_goal_against": "shots_on_goal_against_per_match", "shots_off_goal": "shots_off_target_per_match",
+    "shots_blocked": "shots_blocked_per_match", "shots_inside_box": "shots_inside_box",
+    "shots_inside_box_pct": "shots_inside_box_pct", "shots_on_goal_pct": "shots_on_goal_pct",
+    "finishing_pct": "finishing_efficiency_pct",
+    "passes": "passes_per_match", "passes_accurate": "passes_accurate_per_match",
+    "passes_accuracy_pct": "passes_accuracy_pct", "possession_pct": "passes_share_pct",
+    "key_passes": "passes_key_per_match",
+    "dribbles": "dribbles_attempts_per_match", "dribbles_completed": "dribbles_success_per_match",
+    "dribbles_pct": "dribbles_success_pct", "duels": "duels_per_match", "duels_won": "duels_won_per_match",
+    "duels_won_pct": "duels_won_pct",
+    "defensive_actions": "defensive_actions_per_match", "tackles": "tackles_per_match",
+    "interceptions": "interceptions_per_match", "blocks": "blocks_per_match",
+    "saves": "saves", "saves_pct": "saves_pct",
+    "corners": "corners", "corners_against": "corners_against_per_match", "free_kicks": "free_kicks_per_match",
+    "fouls": "fouls_per_match", "offsides": "offsides_per_match",
+    "yellow_cards": "cards_yellow", "red_cards": "cards_red",
+}
 APPROVED_RENDER = HERE / "renders" / "match-page_2026-09-27_56.html"
 
 PLAYED_CSS = """
@@ -1543,9 +1566,10 @@ def stats_block(fx):
     head = ('<div class="mk-formhead"><div class="mk-fh home"><div class="h">%s</div></div><div class="mk-fh away">'
             '<div class="h">%s</div></div></div>' % (E(fx["home"]["name"]), E(fx["away"]["name"])))
     groups = []
-    for group, rows in PLAYED_STATS:
+    for group, rows in sorted(PLAYED_STATS, key=lambda g: place(PLAYED_METRIC[g[1][0][1]], "team")[0]):
         drawn = [stat_row(label, *fx["team"].get(col, (None, None)), direction, unit)
-                 for label, col, direction, unit in rows if fx["team"].get(col, (None, None)) != (None, None)]
+                 for label, col, direction, unit in sorted(rows, key=lambda r: place(PLAYED_METRIC[r[1]], "team"))
+                 if fx["team"].get(col, (None, None)) != (None, None)]
         if drawn:
             groups.append('<div class="mgroup">%s</div>%s' % (group, "".join(drawn)))
     intro = ('<p class="bsub">Each team&rsquo;s numbers in this match. <a class="mk-chevlink" href="%s">Metric Glossary%s</a></p>'
