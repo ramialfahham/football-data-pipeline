@@ -10,7 +10,7 @@
       "league_code": "AFCCL",
       "name": "AFC Champions League Elite",
       "slug": "afc-champions-league",
-      "crest": "https://media.api-sports.io/football/leagues/17.png",
+      "crest": "/crests/leagues/17-104.webp",
       "entity_type": "club",
       "confederation": "AFC",
       "region_rank": 5,
@@ -19,6 +19,8 @@
           "fixture_id": 1629989,
           "slug": "2026-11-25-gamba-osaka-vs-port-fc",
           "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
           "round": "League Phase - 5",
           "round_label_i18n_key": "roundLeagueStageMatchday",
           "round_number": 5,
@@ -35,13 +37,13 @@
             "team_id": 293,
             "name": "Gamba Osaka",
             "slug": "gamba-osaka",
-            "crest": "https://media.api-sports.io/football/teams/293.png"
+            "crest": "/crests/teams/293-104.webp"
           },
           "away": {
             "team_id": 2789,
             "name": "Port FC",
             "slug": "port-fc",
-            "crest": "https://media.api-sports.io/football/teams/2789.png"
+            "crest": "/crests/teams/2789-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -50,6 +52,8 @@
           "fixture_id": 1629990,
           "slug": "2026-11-25-kashima-vs-jeonbuk-motors",
           "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
           "round": "League Phase - 5",
           "round_label_i18n_key": "roundLeagueStageMatchday",
           "round_number": 5,
@@ -66,13 +70,343 @@
             "team_id": 290,
             "name": "Kashima",
             "slug": "kashima",
-            "crest": "https://media.api-sports.io/football/teams/290.png"
+            "crest": "/crests/teams/290-104.webp"
           },
           "away": {
             "team_id": 2762,
             "name": "Jeonbuk Motors",
             "slug": "jeonbuk-motors",
-            "crest": "https://media.api-sports.io/football/teams/2762.png"
+            "crest": "/crests/teams/2762-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "BSA",
+      "name": "Brasileirão Série A",
+      "slug": "brasileirao",
+      "crest": "/crests/leagues/71-104.webp",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1492461,
+          "slug": "2026-11-25-atletico-mg-vs-corinthians",
+          "kickoff": "2026-11-25 23:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "BRT",
+          "round": "Regular Season - 36",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 36,
+          "round_letter": null,
+          "round_order": 36,
+          "round_sequence": 36,
+          "fixture_order": 360,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1062,
+            "name": "Atletico-MG",
+            "slug": "atletico-mg",
+            "crest": "/crests/teams/1062-104.webp"
+          },
+          "away": {
+            "team_id": 131,
+            "name": "Corinthians",
+            "slug": "corinthians",
+            "crest": "/crests/teams/131-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        }
+      ]
+    },
+    {
+      "league_code": "J1",
+      "name": "J1 League",
+      "slug": "j1-league",
+      "crest": "/crests/leagues/98-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1556151,
+          "slug": "2026-11-25-avispa-fukuoka-vs-yokohama-f-marinos",
+          "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 151,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 316,
+            "name": "Avispa Fukuoka",
+            "slug": "avispa-fukuoka",
+            "crest": "/crests/teams/316-104.webp"
+          },
+          "away": {
+            "team_id": 296,
+            "name": "Yokohama F. Marinos",
+            "slug": "yokohama-f-marinos",
+            "crest": "/crests/teams/296-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1556152,
+          "slug": "2026-11-25-jef-united-chiba-vs-nagoya-grampus",
+          "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 152,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 301,
+            "name": "JEF United Chiba",
+            "slug": "jef-united-chiba",
+            "crest": "/crests/teams/301-104.webp"
+          },
+          "away": {
+            "team_id": 288,
+            "name": "Nagoya Grampus",
+            "slug": "nagoya-grampus",
+            "crest": "/crests/teams/288-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1556153,
+          "slug": "2026-11-25-fc-tokyo-vs-sanfrecce-hiroshima",
+          "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 153,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 292,
+            "name": "FC Tokyo",
+            "slug": "fc-tokyo",
+            "crest": "/crests/teams/292-104.webp"
+          },
+          "away": {
+            "team_id": 282,
+            "name": "Sanfrecce Hiroshima",
+            "slug": "sanfrecce-hiroshima",
+            "crest": "/crests/teams/282-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        },
+        {
+          "fixture_id": 1556154,
+          "slug": "2026-11-25-mito-hollyhock-vs-tokyo-verdy",
+          "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 154,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 305,
+            "name": "Mito Hollyhock",
+            "slug": "mito-hollyhock",
+            "crest": "/crests/teams/305-104.webp"
+          },
+          "away": {
+            "team_id": 306,
+            "name": "Tokyo Verdy",
+            "slug": "tokyo-verdy",
+            "crest": "/crests/teams/306-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1556155,
+          "slug": "2026-11-25-fagiano-okayama-vs-shimizu-s-pulse",
+          "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 155,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 310,
+            "name": "Fagiano Okayama",
+            "slug": "fagiano-okayama",
+            "crest": "/crests/teams/310-104.webp"
+          },
+          "away": {
+            "team_id": 283,
+            "name": "Shimizu S-pulse",
+            "slug": "shimizu-s-pulse",
+            "crest": "/crests/teams/283-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1556157,
+          "slug": "2026-11-25-v-varen-nagasaki-vs-kawasaki-frontale",
+          "kickoff": "2026-11-25 10:00:00+00:00",
+          "kickoff_local": "2026-11-25 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 156,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 285,
+            "name": "V-varen Nagasaki",
+            "slug": "v-varen-nagasaki",
+            "crest": "/crests/teams/285-104.webp"
+          },
+          "away": {
+            "team_id": 294,
+            "name": "Kawasaki Frontale",
+            "slug": "kawasaki-frontale",
+            "crest": "/crests/teams/294-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1556156,
+          "slug": "2026-11-25-urawa-vs-cerezo-osaka",
+          "kickoff": "2026-11-25 10:30:00+00:00",
+          "kickoff_local": "2026-11-25 19:30:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 157,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 287,
+            "name": "Urawa",
+            "slug": "urawa",
+            "crest": "/crests/teams/287-104.webp"
+          },
+          "away": {
+            "team_id": 291,
+            "name": "Cerezo Osaka",
+            "slug": "cerezo-osaka",
+            "crest": "/crests/teams/291-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "MLS",
+      "name": "Major League Soccer",
+      "slug": "mls",
+      "crest": "/crests/leagues/253-104.webp",
+      "entity_type": "club",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1649497,
+          "slug": "2026-11-25-san-jose-earthquakes-vs-houston-dynamo",
+          "kickoff": "2026-11-25 03:00:00+00:00",
+          "kickoff_local": "2026-11-25 03:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 520,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1596,
+            "name": "San Jose Earthquakes",
+            "slug": "san-jose-earthquakes",
+            "crest": "/crests/teams/1596-104.webp"
+          },
+          "away": {
+            "team_id": 1600,
+            "name": "Houston Dynamo",
+            "slug": "houston-dynamo",
+            "crest": "/crests/teams/1600-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -83,7 +417,7 @@
       "league_code": "UCL",
       "name": "UEFA Champions League",
       "slug": "champions-league",
-      "crest": "https://media.api-sports.io/football/leagues/2.png",
+      "crest": "/crests/leagues/2-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -92,6 +426,8 @@
           "fixture_id": 1635718,
           "slug": "2026-11-25-sabah-fa-vs-fc-barcelona",
           "kickoff": "2026-11-25 17:45:00+00:00",
+          "kickoff_local": "2026-11-25 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -108,13 +444,13 @@
             "team_id": 13976,
             "name": "Sabah FA",
             "slug": "sabah-fa",
-            "crest": "https://media.api-sports.io/football/teams/13976.png"
+            "crest": "/crests/teams/13976-104.webp"
           },
           "away": {
             "team_id": 529,
             "name": "FC Barcelona",
             "slug": "fc-barcelona",
-            "crest": "https://media.api-sports.io/football/teams/529.png"
+            "crest": "/crests/teams/529-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -123,6 +459,8 @@
           "fixture_id": 1635728,
           "slug": "2026-11-25-slavia-praha-vs-villarreal-cf",
           "kickoff": "2026-11-25 17:45:00+00:00",
+          "kickoff_local": "2026-11-25 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -139,13 +477,13 @@
             "team_id": 560,
             "name": "Slavia Praha",
             "slug": "slavia-praha",
-            "crest": "https://media.api-sports.io/football/teams/560.png"
+            "crest": "/crests/teams/560-104.webp"
           },
           "away": {
             "team_id": 533,
             "name": "Villarreal CF",
             "slug": "villarreal-cf",
-            "crest": "https://media.api-sports.io/football/teams/533.png"
+            "crest": "/crests/teams/533-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -154,6 +492,8 @@
           "fixture_id": 1635625,
           "slug": "2026-11-25-atletico-madrid-vs-viking",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -170,13 +510,13 @@
             "team_id": 530,
             "name": "Atlético Madrid",
             "slug": "atletico-madrid",
-            "crest": "https://media.api-sports.io/football/teams/530.png"
+            "crest": "/crests/teams/530-104.webp"
           },
           "away": {
             "team_id": 759,
             "name": "Viking",
             "slug": "viking",
-            "crest": "https://media.api-sports.io/football/teams/759.png"
+            "crest": "/crests/teams/759-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -185,6 +525,8 @@
           "fixture_id": 1635642,
           "slug": "2026-11-25-club-brugge-kv-vs-liverpool-fc",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -201,13 +543,13 @@
             "team_id": 569,
             "name": "Club Brugge KV",
             "slug": "club-brugge-kv",
-            "crest": "https://media.api-sports.io/football/teams/569.png"
+            "crest": "/crests/teams/569-104.webp"
           },
           "away": {
             "team_id": 40,
             "name": "Liverpool FC",
             "slug": "liverpool-fc",
-            "crest": "https://media.api-sports.io/football/teams/40.png"
+            "crest": "/crests/teams/40-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -216,6 +558,8 @@
           "fixture_id": 1635673,
           "slug": "2026-11-25-inter-milan-vs-vfb-stuttgart",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -232,13 +576,13 @@
             "team_id": 505,
             "name": "Inter Milan",
             "slug": "inter-milan",
-            "crest": "https://media.api-sports.io/football/teams/505.png"
+            "crest": "/crests/teams/505-104.webp"
           },
           "away": {
             "team_id": 172,
             "name": "VfB Stuttgart",
             "slug": "vfb-stuttgart",
-            "crest": "https://media.api-sports.io/football/teams/172.png"
+            "crest": "/crests/teams/172-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -247,6 +591,8 @@
           "fixture_id": 1635682,
           "slug": "2026-11-25-lille-osc-vs-bayern-munchen",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -263,13 +609,13 @@
             "team_id": 79,
             "name": "Lille OSC",
             "slug": "lille-osc",
-            "crest": "https://media.api-sports.io/football/teams/79.png"
+            "crest": "/crests/teams/79-104.webp"
           },
           "away": {
             "team_id": 157,
             "name": "Bayern München",
             "slug": "bayern-munchen",
-            "crest": "https://media.api-sports.io/football/teams/157.png"
+            "crest": "/crests/teams/157-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -278,6 +624,8 @@
           "fixture_id": 1635703,
           "slug": "2026-11-25-paris-saint-germain-fc-vs-as-roma",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -294,13 +642,13 @@
             "team_id": 85,
             "name": "Paris Saint-Germain FC",
             "slug": "paris-saint-germain-fc",
-            "crest": "https://media.api-sports.io/football/teams/85.png"
+            "crest": "/crests/teams/85-104.webp"
           },
           "away": {
             "team_id": 497,
             "name": "AS Roma",
             "slug": "as-roma",
-            "crest": "https://media.api-sports.io/football/teams/497.png"
+            "crest": "/crests/teams/497-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -309,6 +657,8 @@
           "fixture_id": 1635724,
           "slug": "2026-11-25-shakhtar-donetsk-vs-fenerbahce",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -325,13 +675,13 @@
             "team_id": 550,
             "name": "Shakhtar Donetsk",
             "slug": "shakhtar-donetsk",
-            "crest": "https://media.api-sports.io/football/teams/550.png"
+            "crest": "/crests/teams/550-104.webp"
           },
           "away": {
             "team_id": 611,
             "name": "Fenerbahçe",
             "slug": "fenerbahce",
-            "crest": "https://media.api-sports.io/football/teams/611.png"
+            "crest": "/crests/teams/611-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -340,6 +690,8 @@
           "fixture_id": 1635735,
           "slug": "2026-11-25-sporting-cp-vs-manchester-united-fc",
           "kickoff": "2026-11-25 20:00:00+00:00",
+          "kickoff_local": "2026-11-25 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -356,13 +708,13 @@
             "team_id": 228,
             "name": "Sporting CP",
             "slug": "sporting-cp",
-            "crest": "https://media.api-sports.io/football/teams/228.png"
+            "crest": "/crests/teams/228-104.webp"
           },
           "away": {
             "team_id": 33,
             "name": "Manchester United FC",
             "slug": "manchester-united-fc",
-            "crest": "https://media.api-sports.io/football/teams/33.png"
+            "crest": "/crests/teams/33-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false

@@ -551,7 +551,7 @@ PYTHONPATH=. python -c "from google.cloud import bigquery; from ingestion.api_fo
 
 The table has two columns, `payload` (JSON) and `ingested_at` (TIMESTAMP), partitioned by day on `ingested_at`. The crest phase creates the same table when it runs.
 
-### Create the bucket, once, before the first nightly after the merge
+### Create the bucket, once, after the state table and before the merge
 
 The CPO runs two commands. The nightly service account writes to the bucket. The site job reads from it. One grant serves both.
 

@@ -10,7 +10,7 @@
       "league_code": "CIT",
       "name": "Coppa Italia",
       "slug": "coppa-italia",
-      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "crest": "/crests/leagues/137-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,6 +19,8 @@
           "fixture_id": 1637927,
           "slug": "2027-01-13-ac-milan-vs-monza",
           "kickoff": "2027-01-13 20:00:00+00:00",
+          "kickoff_local": "2027-01-13 21:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 16",
           "round_label_i18n_key": "roundOf16",
           "round_number": null,
@@ -35,13 +37,13 @@
             "team_id": 489,
             "name": "AC Milan",
             "slug": "ac-milan",
-            "crest": "https://media.api-sports.io/football/teams/489.png"
+            "crest": "/crests/teams/489-104.webp"
           },
           "away": {
             "team_id": 1579,
             "name": "Monza",
             "slug": "monza",
-            "crest": "https://media.api-sports.io/football/teams/1579.png"
+            "crest": "/crests/teams/1579-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false

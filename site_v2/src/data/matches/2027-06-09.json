@@ -1,0 +1,87 @@
+{
+  "type": "match_day",
+  "slug": "2027-06-09",
+  "day": "2027-06-09",
+  "is_opening_day": false,
+  "previous_day": "2027-04-14",
+  "next_day": null,
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "/crests/leagues/536-104.webp",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1651049,
+          "slug": "2027-06-09-montserrat-vs-aruba",
+          "kickoff": "2027-06-09 20:00:00+00:00",
+          "kickoff_local": "2027-06-09 20:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Semi-finals",
+          "round_label_i18n_key": "roundSemiFinals",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 12,
+          "fixture_order": 111,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 8170,
+            "name": "Montserrat",
+            "slug": "montserrat",
+            "crest": "/crests/teams/8170-104.webp"
+          },
+          "away": {
+            "team_id": 8167,
+            "name": "Aruba",
+            "slug": "aruba",
+            "crest": "/crests/teams/8167-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1651050,
+          "slug": "2027-06-09-saint-martin-vs-antigua-and-barbuda",
+          "kickoff": "2027-06-09 20:00:00+00:00",
+          "kickoff_local": "2027-06-09 20:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Semi-finals",
+          "round_label_i18n_key": "roundSemiFinals",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 12,
+          "fixture_order": 112,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 10984,
+            "name": "Saint Martin",
+            "slug": "saint-martin",
+            "crest": "/crests/teams/10984-104.webp"
+          },
+          "away": {
+            "team_id": 5526,
+            "name": "Antigua and Barbuda",
+            "slug": "antigua-and-barbuda",
+            "crest": "/crests/teams/5526-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,8 @@
   "fixture_id": 1636426,
   "slug": "2026-11-26-fc-iberia-1999-vs-getafe-cf",
   "kickoff": "2026-11-26 17:45:00+00:00",
+  "kickoff_local": "2026-11-26 17:45:00",
+  "kickoff_zone_label": "UTC",
   "status": "NS",
   "unplayed_state": null,
   "league_code": "UECL",
@@ -16,7 +18,7 @@
     "team_id": 3502,
     "name": "FC Iberia 1999",
     "slug": "fc-iberia-1999",
-    "crest": "https://media.api-sports.io/football/teams/3502.png",
+    "crest": "/crests/teams/3502-104.webp",
     "country": "Georgia",
     "form": {
       "league_code": "UECL",
@@ -94,7 +96,7 @@
         "result": "L",
         "opponent_team_sk": 400,
         "opponent_name": "FC Copenhagen",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/400.png",
+        "opponent_logo_url": "/crests/teams/400-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -112,7 +114,7 @@
         "result": "D",
         "opponent_team_sk": 2240,
         "opponent_name": "Mjallby AIF",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/2240.png",
+        "opponent_logo_url": "/crests/teams/2240-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -130,7 +132,7 @@
         "result": "L",
         "opponent_team_sk": 735,
         "opponent_name": "St. Truiden",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/735.png",
+        "opponent_logo_url": "/crests/teams/735-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -148,7 +150,7 @@
         "result": "L",
         "opponent_team_sk": 336,
         "opponent_name": "Jagiellonia",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/336.png",
+        "opponent_logo_url": "/crests/teams/336-104.webp",
         "is_home": true,
         "has_team_stats": false,
         "has_player_stats": false
@@ -166,7 +168,7 @@
         "result": "L",
         "opponent_team_sk": 336,
         "opponent_name": "Jagiellonia",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/336.png",
+        "opponent_logo_url": "/crests/teams/336-104.webp",
         "is_home": true,
         "has_team_stats": false,
         "has_player_stats": false
@@ -232,7 +234,7 @@
     "team_id": 546,
     "name": "Getafe CF",
     "slug": "getafe-cf",
-    "crest": "https://media.api-sports.io/football/teams/546.png",
+    "crest": "/crests/teams/546-104.webp",
     "country": "Spain",
     "form": {
       "league_code": "UECL",
@@ -251,7 +253,7 @@
       "points_won": 6,
       "clean_sheets": 0,
       "goals_per_match": 1.2,
-      "goals_against_per_match": 2.0,
+      "goals_against_per_match": 1.8,
       "shots_per_match": null,
       "shots_on_goal_pct": null,
       "shots_inside_box_pct": null,
@@ -301,6 +303,24 @@
       {
         "league_code": "UECL",
         "recency_rank": 1,
+        "played_fixture_sk": 1570456,
+        "played_league_code": "PD",
+        "played_kickoff_datetime": "2026-11-22 20:00:00+00:00",
+        "played_round_name": "Regular Season - 13",
+        "home_away": "home",
+        "goals_for": 0,
+        "goals_against": 3,
+        "result": "L",
+        "opponent_team_sk": 530,
+        "opponent_name": "Atlético Madrid",
+        "opponent_logo_url": "/crests/teams/530-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "UECL",
+        "recency_rank": 2,
         "played_fixture_sk": 1570452,
         "played_league_code": "PD",
         "played_kickoff_datetime": "2026-11-08 17:30:00+00:00",
@@ -311,14 +331,14 @@
         "result": "L",
         "opponent_team_sk": 533,
         "opponent_name": "Villarreal CF",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/533.png",
+        "opponent_logo_url": "/crests/teams/533-104.webp",
         "is_home": false,
         "has_team_stats": true,
         "has_player_stats": true
       },
       {
         "league_code": "UECL",
-        "recency_rank": 2,
+        "recency_rank": 3,
         "played_fixture_sk": 1636416,
         "played_league_code": "UECL",
         "played_kickoff_datetime": "2026-11-05 20:00:00+00:00",
@@ -329,14 +349,14 @@
         "result": "L",
         "opponent_team_sk": 51,
         "opponent_name": "Brighton & Hove Albion FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/51.png",
+        "opponent_logo_url": "/crests/teams/51-104.webp",
         "is_home": false,
         "has_team_stats": true,
         "has_player_stats": true
       },
       {
         "league_code": "UECL",
-        "recency_rank": 3,
+        "recency_rank": 4,
         "played_fixture_sk": 1570438,
         "played_league_code": "PD",
         "played_kickoff_datetime": "2026-11-01 13:00:00+00:00",
@@ -347,14 +367,14 @@
         "result": "W",
         "opponent_team_sk": 536,
         "opponent_name": "Sevilla",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/536.png",
+        "opponent_logo_url": "/crests/teams/536-104.webp",
         "is_home": false,
         "has_team_stats": true,
         "has_player_stats": true
       },
       {
         "league_code": "UECL",
-        "recency_rank": 4,
+        "recency_rank": 5,
         "played_fixture_sk": 1644358,
         "played_league_code": "CDR",
         "played_kickoff_datetime": "2026-10-29 18:00:00+00:00",
@@ -365,28 +385,10 @@
         "result": "W",
         "opponent_team_sk": 9761,
         "opponent_name": "Lebrijana",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/9761.png",
+        "opponent_logo_url": "/crests/teams/9761-104.webp",
         "is_home": false,
         "has_team_stats": false,
         "has_player_stats": false
-      },
-      {
-        "league_code": "UECL",
-        "recency_rank": 5,
-        "played_fixture_sk": 1570424,
-        "played_league_code": "PD",
-        "played_kickoff_datetime": "2026-10-25 13:00:00+00:00",
-        "played_round_name": "Regular Season - 10",
-        "home_away": "away",
-        "goals_for": 0,
-        "goals_against": 4,
-        "result": "L",
-        "opponent_team_sk": 531,
-        "opponent_name": "Athletic Club",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/531.png",
-        "is_home": false,
-        "has_team_stats": true,
-        "has_player_stats": true
       }
     ],
     "players_to_watch": {
@@ -450,38 +452,7 @@
         }
       ]
     },
-    "next_match": {
-      "fixture_id": 1570456,
-      "slug": "2026-11-22-getafe-cf-vs-atletico-madrid",
-      "kickoff": "2026-11-22 20:00:00+00:00",
-      "round": "Regular Season - 13",
-      "round_label_i18n_key": "compFactMatchday",
-      "round_number": 13,
-      "round_letter": null,
-      "round_order": 13,
-      "round_sequence": 13,
-      "fixture_order": 129,
-      "status": "NS",
-      "unplayed_state": null,
-      "is_played": false,
-      "goals_home": null,
-      "goals_away": null,
-      "home": {
-        "team_id": 546,
-        "name": "Getafe CF",
-        "slug": "getafe-cf",
-        "crest": "https://media.api-sports.io/football/teams/546.png"
-      },
-      "away": {
-        "team_id": 530,
-        "name": "Atlético Madrid",
-        "slug": "atletico-madrid",
-        "crest": "https://media.api-sports.io/football/teams/530.png"
-      },
-      "is_next_round": true,
-      "is_match_that_matters": false,
-      "league_code": "PD"
-    }
+    "next_match": null
   },
   "head_to_head": null
 }

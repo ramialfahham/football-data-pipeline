@@ -396,7 +396,7 @@ export function checkMatchRowsFound({ matchRows, payloadFiles }) {
 export const OUR_HOSTS = ["matchdaypilot.com", "www.matchdaypilot.com", "football-data-pipeline-gcp.web.app"];
 export const PROVIDER_HOST = "api-sports.io";
 export const PROVIDER_PERSON_PATHS = ["/football/players/", "/football/coachs/"];
-export const IMAGE_PINS = { playerPhoto: 0, providerImage: 59337, foreign: 0 };
+export const IMAGE_PINS = { playerPhoto: 0, providerImage: 0, foreign: 0 };
 export const IMAGE_EXAMPLES = 3;
 
 const IMG_TAG = /<(?:img|source)\b[^>]*>/gi;

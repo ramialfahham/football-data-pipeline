@@ -31,7 +31,7 @@
     "team_id": 432,
     "name": "Tours",
     "slug": "tours",
-    "crest": "https://media.api-sports.io/football/teams/432.png",
+    "crest": "/crests/teams/432-104.webp",
     "formation": null,
     "has_team_stats": false,
     "has_player_stats": false,
@@ -83,7 +83,9 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": null,
-      "cards_red_per_match": null
+      "cards_red_per_match": null,
+      "cards_yellow": null,
+      "cards_red": null
     },
     "lineup": [],
     "next_match": null
@@ -92,7 +94,7 @@
     "team_id": 97,
     "name": "FC Lorient",
     "slug": "fc-lorient",
-    "crest": "https://media.api-sports.io/football/teams/97.png",
+    "crest": "/crests/teams/97-104.webp",
     "formation": null,
     "has_team_stats": false,
     "has_player_stats": false,
@@ -144,32 +146,40 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": null,
-      "cards_red_per_match": null
+      "cards_red_per_match": null,
+      "cards_yellow": null,
+      "cards_red": null
     },
     "lineup": [],
     "next_match": {
-      "fixture_id": 1552787,
-      "slug": "2026-10-18-fc-lorient-vs-as-monaco-fc",
-      "kickoff": "2026-10-18 15:15:00+00:00",
-      "round": "Regular Season - 7",
-      "round_order": 7,
-      "round_sequence": 7,
-      "fixture_order": 61,
+      "fixture_id": 1552835,
+      "slug": "2026-11-28-paris-saint-germain-fc-vs-fc-lorient",
+      "kickoff": "2026-11-28 19:45:00+00:00",
+      "kickoff_local": "2026-11-28 20:45:00",
+      "kickoff_zone_label": "CET",
+      "round": "Regular Season - 12",
+      "round_label_i18n_key": "compFactMatchday",
+      "round_number": 12,
+      "round_letter": null,
+      "round_order": 12,
+      "round_sequence": 12,
+      "fixture_order": 105,
       "status": "NS",
+      "unplayed_state": null,
       "is_played": false,
       "goals_home": null,
       "goals_away": null,
       "home": {
+        "team_id": 85,
+        "name": "Paris Saint-Germain FC",
+        "slug": "paris-saint-germain-fc",
+        "crest": "/crests/teams/85-104.webp"
+      },
+      "away": {
         "team_id": 97,
         "name": "FC Lorient",
         "slug": "fc-lorient",
-        "crest": "https://media.api-sports.io/football/teams/97.png"
-      },
-      "away": {
-        "team_id": 91,
-        "name": "AS Monaco FC",
-        "slug": "as-monaco-fc",
-        "crest": "https://media.api-sports.io/football/teams/91.png"
+        "crest": "/crests/teams/97-104.webp"
       },
       "is_next_round": true,
       "is_match_that_matters": false,

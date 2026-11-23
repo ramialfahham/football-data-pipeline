@@ -4,7 +4,7 @@
   "slug": "frosinone",
   "name": "Frosinone",
   "country": "Italy",
-  "crest": "https://media.api-sports.io/football/teams/512.png",
+  "crest": "/crests/teams/512-104.webp",
   "founded_year": 1928,
   "venue": {
     "name": "Stadio Benito Stirpe",
@@ -14,6 +14,22 @@
   "recent_matches": [
     {
       "recency_rank": 1,
+      "played_fixture_sk": 1550197,
+      "played_league_code": "SA",
+      "played_kickoff_datetime": "2026-11-22 17:00:00+00:00",
+      "played_round_name": "Regular Season - 12",
+      "home_away": "away",
+      "goals_for": 1,
+      "goals_against": 5,
+      "result": "L",
+      "opponent_team_sk": 489,
+      "opponent_name": "AC Milan",
+      "opponent_logo_url": "/crests/teams/489-104.webp",
+      "has_team_stats": true,
+      "has_player_stats": true
+    },
+    {
+      "recency_rank": 2,
       "played_fixture_sk": 1550188,
       "played_league_code": "SA",
       "played_kickoff_datetime": "2026-11-07 14:00:00+00:00",
@@ -24,12 +40,12 @@
       "result": "L",
       "opponent_team_sk": 490,
       "opponent_name": "Cagliari Calcio",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/490.png",
+      "opponent_logo_url": "/crests/teams/490-104.webp",
       "has_team_stats": true,
       "has_player_stats": true
     },
     {
-      "recency_rank": 2,
+      "recency_rank": 3,
       "played_fixture_sk": 1550181,
       "played_league_code": "SA",
       "played_kickoff_datetime": "2026-11-01 14:00:00+00:00",
@@ -40,12 +56,12 @@
       "result": "W",
       "opponent_team_sk": 503,
       "opponent_name": "Torino FC",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/503.png",
+      "opponent_logo_url": "/crests/teams/503-104.webp",
       "has_team_stats": true,
       "has_player_stats": true
     },
     {
-      "recency_rank": 3,
+      "recency_rank": 4,
       "played_fixture_sk": 1550170,
       "played_league_code": "SA",
       "played_kickoff_datetime": "2026-10-29 17:30:00+00:00",
@@ -56,12 +72,12 @@
       "result": "W",
       "opponent_team_sk": 867,
       "opponent_name": "US Lecce",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/867.png",
+      "opponent_logo_url": "/crests/teams/867-104.webp",
       "has_team_stats": true,
       "has_player_stats": true
     },
     {
-      "recency_rank": 4,
+      "recency_rank": 5,
       "played_fixture_sk": 1550157,
       "played_league_code": "SA",
       "played_kickoff_datetime": "2026-10-25 14:00:00+00:00",
@@ -72,23 +88,7 @@
       "result": "D",
       "opponent_team_sk": 499,
       "opponent_name": "Atalanta BC",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/499.png",
-      "has_team_stats": true,
-      "has_player_stats": true
-    },
-    {
-      "recency_rank": 5,
-      "played_fixture_sk": 1550151,
-      "played_league_code": "SA",
-      "played_kickoff_datetime": "2026-10-16 18:45:00+00:00",
-      "played_round_name": "Regular Season - 7",
-      "home_away": "home",
-      "goals_for": 4,
-      "goals_against": 2,
-      "result": "W",
-      "opponent_team_sk": 488,
-      "opponent_name": "US Sassuolo",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
+      "opponent_logo_url": "/crests/teams/499-104.webp",
       "has_team_stats": true,
       "has_player_stats": true
     }
@@ -96,27 +96,15 @@
   "schedule": {
     "upcoming": [
       {
-        "fixture_id": 1550197,
-        "league_code": "SA",
-        "upcoming_rank": 1,
-        "opponent_name": "AC Milan",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/489.png",
-        "is_home": false,
-        "kickoff_datetime": "2026-11-22 17:00:00+00:00",
-        "round_name": "Regular Season - 12",
-        "goals_for": null,
-        "goals_against": null,
-        "result": null,
-        "status_short": "NS"
-      },
-      {
         "fixture_id": 1550210,
         "league_code": "SA",
-        "upcoming_rank": 2,
+        "upcoming_rank": 1,
         "opponent_name": "Parma",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/523.png",
+        "opponent_logo_url": "/crests/teams/523-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-11-28 14:00:00+00:00",
+        "kickoff_local": "2026-11-28 15:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 13",
         "goals_for": null,
         "goals_against": null,
@@ -126,11 +114,13 @@
       {
         "fixture_id": 1550220,
         "league_code": "SA",
-        "upcoming_rank": 3,
+        "upcoming_rank": 2,
         "opponent_name": "Inter Milan",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/505.png",
+        "opponent_logo_url": "/crests/teams/505-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-12-05 17:00:00+00:00",
+        "kickoff_local": "2026-12-05 18:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 14",
         "goals_for": null,
         "goals_against": null,
@@ -140,11 +130,13 @@
       {
         "fixture_id": 1550236,
         "league_code": "SA",
-        "upcoming_rank": 4,
+        "upcoming_rank": 3,
         "opponent_name": "Udinese Calcio",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/494.png",
+        "opponent_logo_url": "/crests/teams/494-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-12-11 19:45:00+00:00",
+        "kickoff_local": "2026-12-11 20:45:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 15",
         "goals_for": null,
         "goals_against": null,
@@ -154,11 +146,13 @@
       {
         "fixture_id": 1550241,
         "league_code": "SA",
-        "upcoming_rank": 5,
+        "upcoming_rank": 4,
         "opponent_name": "SS Lazio",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/487.png",
+        "opponent_logo_url": "/crests/teams/487-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-12-18 17:30:00+00:00",
+        "kickoff_local": "2026-12-18 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 16",
         "goals_for": null,
         "goals_against": null,
@@ -168,11 +162,13 @@
       {
         "fixture_id": 1550247,
         "league_code": "SA",
-        "upcoming_rank": 6,
+        "upcoming_rank": 5,
         "opponent_name": "AS Roma",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/497.png",
+        "opponent_logo_url": "/crests/teams/497-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-01-02 17:00:00+00:00",
+        "kickoff_local": "2027-01-02 18:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 17",
         "goals_for": null,
         "goals_against": null,
@@ -182,11 +178,13 @@
       {
         "fixture_id": 1550259,
         "league_code": "SA",
-        "upcoming_rank": 7,
+        "upcoming_rank": 6,
         "opponent_name": "Bologna FC 1909",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/500.png",
+        "opponent_logo_url": "/crests/teams/500-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-01-06 14:00:00+00:00",
+        "kickoff_local": "2027-01-06 15:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 18",
         "goals_for": null,
         "goals_against": null,
@@ -196,11 +194,13 @@
       {
         "fixture_id": 1550273,
         "league_code": "SA",
-        "upcoming_rank": 8,
+        "upcoming_rank": 7,
         "opponent_name": "Monza",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/1579.png",
+        "opponent_logo_url": "/crests/teams/1579-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-01-09 14:00:00+00:00",
+        "kickoff_local": "2027-01-09 15:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 19",
         "goals_for": null,
         "goals_against": null,
@@ -210,11 +210,13 @@
       {
         "fixture_id": 1550286,
         "league_code": "SA",
-        "upcoming_rank": 9,
+        "upcoming_rank": 8,
         "opponent_name": "Venezia",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/517.png",
+        "opponent_logo_url": "/crests/teams/517-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-01-17 17:30:00+00:00",
+        "kickoff_local": "2027-01-17 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 20",
         "goals_for": null,
         "goals_against": null,
@@ -224,11 +226,13 @@
       {
         "fixture_id": 1550291,
         "league_code": "SA",
-        "upcoming_rank": 10,
+        "upcoming_rank": 9,
         "opponent_name": "AC Milan",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/489.png",
+        "opponent_logo_url": "/crests/teams/489-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-01-24 17:30:00+00:00",
+        "kickoff_local": "2027-01-24 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 21",
         "goals_for": null,
         "goals_against": null,
@@ -238,11 +242,13 @@
       {
         "fixture_id": 1550305,
         "league_code": "SA",
-        "upcoming_rank": 11,
+        "upcoming_rank": 10,
         "opponent_name": "Torino FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/503.png",
+        "opponent_logo_url": "/crests/teams/503-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-01-31 17:30:00+00:00",
+        "kickoff_local": "2027-01-31 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 22",
         "goals_for": null,
         "goals_against": null,
@@ -252,11 +258,13 @@
       {
         "fixture_id": 1550315,
         "league_code": "SA",
-        "upcoming_rank": 12,
+        "upcoming_rank": 11,
         "opponent_name": "Parma",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/523.png",
+        "opponent_logo_url": "/crests/teams/523-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-02-07 17:30:00+00:00",
+        "kickoff_local": "2027-02-07 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 23",
         "goals_for": null,
         "goals_against": null,
@@ -266,11 +274,13 @@
       {
         "fixture_id": 1550320,
         "league_code": "SA",
-        "upcoming_rank": 13,
+        "upcoming_rank": 12,
         "opponent_name": "ACF Fiorentina",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/502.png",
+        "opponent_logo_url": "/crests/teams/502-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-02-14 17:30:00+00:00",
+        "kickoff_local": "2027-02-14 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 24",
         "goals_for": null,
         "goals_against": null,
@@ -280,11 +290,13 @@
       {
         "fixture_id": 1550333,
         "league_code": "SA",
-        "upcoming_rank": 14,
+        "upcoming_rank": 13,
         "opponent_name": "US Lecce",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/867.png",
+        "opponent_logo_url": "/crests/teams/867-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-02-21 17:30:00+00:00",
+        "kickoff_local": "2027-02-21 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 25",
         "goals_for": null,
         "goals_against": null,
@@ -294,11 +306,13 @@
       {
         "fixture_id": 1550341,
         "league_code": "SA",
-        "upcoming_rank": 15,
+        "upcoming_rank": 14,
         "opponent_name": "SSC Napoli",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/492.png",
+        "opponent_logo_url": "/crests/teams/492-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-02-28 17:30:00+00:00",
+        "kickoff_local": "2027-02-28 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 26",
         "goals_for": null,
         "goals_against": null,
@@ -308,11 +322,13 @@
       {
         "fixture_id": 1550351,
         "league_code": "SA",
-        "upcoming_rank": 16,
+        "upcoming_rank": 15,
         "opponent_name": "SS Lazio",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/487.png",
+        "opponent_logo_url": "/crests/teams/487-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-03-07 17:30:00+00:00",
+        "kickoff_local": "2027-03-07 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 27",
         "goals_for": null,
         "goals_against": null,
@@ -322,11 +338,13 @@
       {
         "fixture_id": 1550361,
         "league_code": "SA",
-        "upcoming_rank": 17,
+        "upcoming_rank": 16,
         "opponent_name": "Monza",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/1579.png",
+        "opponent_logo_url": "/crests/teams/1579-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-03-14 17:30:00+00:00",
+        "kickoff_local": "2027-03-14 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 28",
         "goals_for": null,
         "goals_against": null,
@@ -336,11 +354,13 @@
       {
         "fixture_id": 1550370,
         "league_code": "SA",
-        "upcoming_rank": 18,
+        "upcoming_rank": 17,
         "opponent_name": "Inter Milan",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/505.png",
+        "opponent_logo_url": "/crests/teams/505-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-03-21 17:30:00+00:00",
+        "kickoff_local": "2027-03-21 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 29",
         "goals_for": null,
         "goals_against": null,
@@ -350,11 +370,13 @@
       {
         "fixture_id": 1550381,
         "league_code": "SA",
-        "upcoming_rank": 19,
+        "upcoming_rank": 18,
         "opponent_name": "Udinese Calcio",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/494.png",
+        "opponent_logo_url": "/crests/teams/494-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-04-04 16:30:00+00:00",
+        "kickoff_local": "2027-04-04 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 30",
         "goals_for": null,
         "goals_against": null,
@@ -364,11 +386,13 @@
       {
         "fixture_id": 1550390,
         "league_code": "SA",
-        "upcoming_rank": 20,
+        "upcoming_rank": 19,
         "opponent_name": "Genoa CFC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/495.png",
+        "opponent_logo_url": "/crests/teams/495-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-04-11 16:30:00+00:00",
+        "kickoff_local": "2027-04-11 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 31",
         "goals_for": null,
         "goals_against": null,
@@ -378,11 +402,13 @@
       {
         "fixture_id": 1550401,
         "league_code": "SA",
-        "upcoming_rank": 21,
+        "upcoming_rank": 20,
         "opponent_name": "Como 1907",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/895.png",
+        "opponent_logo_url": "/crests/teams/895-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-04-18 16:30:00+00:00",
+        "kickoff_local": "2027-04-18 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 32",
         "goals_for": null,
         "goals_against": null,
@@ -392,11 +418,13 @@
       {
         "fixture_id": 1550408,
         "league_code": "SA",
-        "upcoming_rank": 22,
+        "upcoming_rank": 21,
         "opponent_name": "AS Roma",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/497.png",
+        "opponent_logo_url": "/crests/teams/497-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-04-25 16:30:00+00:00",
+        "kickoff_local": "2027-04-25 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 33",
         "goals_for": null,
         "goals_against": null,
@@ -406,11 +434,13 @@
       {
         "fixture_id": 1550424,
         "league_code": "SA",
-        "upcoming_rank": 23,
+        "upcoming_rank": 22,
         "opponent_name": "US Sassuolo",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
+        "opponent_logo_url": "/crests/teams/488-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-05-02 16:30:00+00:00",
+        "kickoff_local": "2027-05-02 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 34",
         "goals_for": null,
         "goals_against": null,
@@ -420,11 +450,13 @@
       {
         "fixture_id": 1550428,
         "league_code": "SA",
-        "upcoming_rank": 24,
+        "upcoming_rank": 23,
         "opponent_name": "Atalanta BC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/499.png",
+        "opponent_logo_url": "/crests/teams/499-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-05-09 16:30:00+00:00",
+        "kickoff_local": "2027-05-09 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 35",
         "goals_for": null,
         "goals_against": null,
@@ -434,11 +466,13 @@
       {
         "fixture_id": 1550438,
         "league_code": "SA",
-        "upcoming_rank": 25,
+        "upcoming_rank": 24,
         "opponent_name": "Bologna FC 1909",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/500.png",
+        "opponent_logo_url": "/crests/teams/500-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-05-16 16:30:00+00:00",
+        "kickoff_local": "2027-05-16 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 36",
         "goals_for": null,
         "goals_against": null,
@@ -448,11 +482,13 @@
       {
         "fixture_id": 1550450,
         "league_code": "SA",
-        "upcoming_rank": 26,
+        "upcoming_rank": 25,
         "opponent_name": "Cagliari Calcio",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/490.png",
+        "opponent_logo_url": "/crests/teams/490-104.webp",
         "is_home": true,
         "kickoff_datetime": "2027-05-23 16:30:00+00:00",
+        "kickoff_local": "2027-05-23 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 37",
         "goals_for": null,
         "goals_against": null,
@@ -462,11 +498,13 @@
       {
         "fixture_id": 1550461,
         "league_code": "SA",
-        "upcoming_rank": 27,
+        "upcoming_rank": 26,
         "opponent_name": "Juventus FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/496.png",
+        "opponent_logo_url": "/crests/teams/496-104.webp",
         "is_home": false,
         "kickoff_datetime": "2027-05-30 16:30:00+00:00",
+        "kickoff_local": "2027-05-30 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 38",
         "goals_for": null,
         "goals_against": null,
@@ -476,13 +514,31 @@
     ],
     "results": [
       {
+        "fixture_id": 1550197,
+        "league_code": "SA",
+        "upcoming_rank": null,
+        "opponent_name": "AC Milan",
+        "opponent_logo_url": "/crests/teams/489-104.webp",
+        "is_home": false,
+        "kickoff_datetime": "2026-11-22 17:00:00+00:00",
+        "kickoff_local": "2026-11-22 18:00:00",
+        "kickoff_zone_label": "CET",
+        "round_name": "Regular Season - 12",
+        "goals_for": 1,
+        "goals_against": 5,
+        "result": "L",
+        "status_short": "FT"
+      },
+      {
         "fixture_id": 1550188,
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Cagliari Calcio",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/490.png",
+        "opponent_logo_url": "/crests/teams/490-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-11-07 14:00:00+00:00",
+        "kickoff_local": "2026-11-07 15:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 11",
         "goals_for": 0,
         "goals_against": 1,
@@ -494,9 +550,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Torino FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/503.png",
+        "opponent_logo_url": "/crests/teams/503-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-11-01 14:00:00+00:00",
+        "kickoff_local": "2026-11-01 15:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 10",
         "goals_for": 2,
         "goals_against": 0,
@@ -508,9 +566,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "US Lecce",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/867.png",
+        "opponent_logo_url": "/crests/teams/867-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-10-29 17:30:00+00:00",
+        "kickoff_local": "2026-10-29 18:30:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 9",
         "goals_for": 5,
         "goals_against": 1,
@@ -522,9 +582,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Atalanta BC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/499.png",
+        "opponent_logo_url": "/crests/teams/499-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-10-25 14:00:00+00:00",
+        "kickoff_local": "2026-10-25 15:00:00",
+        "kickoff_zone_label": "CET",
         "round_name": "Regular Season - 8",
         "goals_for": 4,
         "goals_against": 4,
@@ -536,9 +598,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "US Sassuolo",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
+        "opponent_logo_url": "/crests/teams/488-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-10-16 18:45:00+00:00",
+        "kickoff_local": "2026-10-16 20:45:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 7",
         "goals_for": 4,
         "goals_against": 2,
@@ -550,9 +614,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "SSC Napoli",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/492.png",
+        "opponent_logo_url": "/crests/teams/492-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-10-10 18:45:00+00:00",
+        "kickoff_local": "2026-10-10 20:45:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 6",
         "goals_for": 0,
         "goals_against": 3,
@@ -564,9 +630,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Como 1907",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/895.png",
+        "opponent_logo_url": "/crests/teams/895-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-09-20 13:00:00+00:00",
+        "kickoff_local": "2026-09-20 15:00:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 5",
         "goals_for": 2,
         "goals_against": 0,
@@ -578,9 +646,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Genoa CFC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/495.png",
+        "opponent_logo_url": "/crests/teams/495-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-09-12 13:00:00+00:00",
+        "kickoff_local": "2026-09-12 15:00:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 4",
         "goals_for": 1,
         "goals_against": 1,
@@ -592,9 +662,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Venezia",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/517.png",
+        "opponent_logo_url": "/crests/teams/517-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-09-06 13:00:00+00:00",
+        "kickoff_local": "2026-09-06 15:00:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 3",
         "goals_for": 3,
         "goals_against": 2,
@@ -606,9 +678,11 @@
         "league_code": "CIT",
         "upcoming_rank": null,
         "opponent_name": "US Sassuolo",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
+        "opponent_logo_url": "/crests/teams/488-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-09-02 13:00:00+00:00",
+        "kickoff_local": "2026-09-02 15:00:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Round of 32",
         "goals_for": 1,
         "goals_against": 1,
@@ -620,9 +694,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "ACF Fiorentina",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/502.png",
+        "opponent_logo_url": "/crests/teams/502-104.webp",
         "is_home": false,
         "kickoff_datetime": "2026-08-29 16:30:00+00:00",
+        "kickoff_local": "2026-08-29 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 2",
         "goals_for": 3,
         "goals_against": 0,
@@ -634,9 +710,11 @@
         "league_code": "SA",
         "upcoming_rank": null,
         "opponent_name": "Juventus FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/496.png",
+        "opponent_logo_url": "/crests/teams/496-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-08-23 16:30:00+00:00",
+        "kickoff_local": "2026-08-23 18:30:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Regular Season - 1",
         "goals_for": 0,
         "goals_against": 1,
@@ -648,9 +726,11 @@
         "league_code": "CIT",
         "upcoming_rank": null,
         "opponent_name": "Juve Stabia",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/863.png",
+        "opponent_logo_url": "/crests/teams/863-104.webp",
         "is_home": true,
         "kickoff_datetime": "2026-08-16 16:00:00+00:00",
+        "kickoff_local": "2026-08-16 18:00:00",
+        "kickoff_zone_label": "CEST",
         "round_name": "Round of 64",
         "goals_for": 4,
         "goals_against": 1,
@@ -660,7 +740,7 @@
     ]
   },
   "this_season": {
-    "matches": 13,
+    "matches": 14,
     "wins": 7,
     "league_codes": [
       "SA",
@@ -668,9 +748,9 @@
     ],
     "cards": {
       "cards_red": 0.0,
-      "cards_yellow": 23.0,
-      "goals": 29.0,
-      "goals_against": 17.0
+      "goals_against": 22.0,
+      "cards_yellow": 27.0,
+      "goals": 30.0
     },
     "comparison_keys": [
       "blocks_per_match",
@@ -709,72 +789,72 @@
     ]
   },
   "last_season": {
-    "matches": 13,
+    "matches": 14,
     "matches_prev": 2,
     "metrics": [
       {
         "metric_key": "blocks_per_match",
-        "value": 6.076923076923077,
+        "value": 6.0,
         "value_prev": 2.5
       },
       {
         "metric_key": "clean_sheets_pct",
-        "value": 0.23076923076923078,
+        "value": 0.21428571428571427,
         "value_prev": 0.5
       },
       {
         "metric_key": "corners_against_per_match",
-        "value": 5.923076923076923,
+        "value": 5.642857142857143,
         "value_prev": 3.5
       },
       {
         "metric_key": "corners_per_match",
-        "value": 6.615384615384615,
+        "value": 6.785714285714286,
         "value_prev": 5.0
       },
       {
         "metric_key": "defensive_actions_per_match",
-        "value": 37.15384615384615,
+        "value": 37.214285714285715,
         "value_prev": 28.0
       },
       {
         "metric_key": "dribbles_attempts_per_match",
-        "value": 14.923076923076923,
+        "value": 15.285714285714286,
         "value_prev": 10.5
       },
       {
         "metric_key": "dribbles_success_pct",
-        "value": 0.5360824742268041,
+        "value": 0.5327102803738317,
         "value_prev": 0.42857142857142855
       },
       {
         "metric_key": "dribbles_success_per_match",
-        "value": 8.0,
+        "value": 8.142857142857142,
         "value_prev": 4.5
       },
       {
         "metric_key": "duels_per_match",
-        "value": 108.38461538461539,
+        "value": 108.07142857142857,
         "value_prev": 85.0
       },
       {
         "metric_key": "duels_won_pct",
-        "value": 0.5010645848119234,
+        "value": 0.5056179775280899,
         "value_prev": 0.49411764705882355
       },
       {
         "metric_key": "duels_won_per_match",
-        "value": 54.30769230769231,
+        "value": 54.642857142857146,
         "value_prev": 42.0
       },
       {
         "metric_key": "finishing_efficiency_pct",
-        "value": 0.3146067415730337,
+        "value": 0.31521739130434784,
         "value_prev": 0.5
       },
       {
         "metric_key": "fouls_per_match",
-        "value": 15.461538461538462,
+        "value": 15.571428571428571,
         "value_prev": 12.0
       },
       {
@@ -784,52 +864,52 @@
       },
       {
         "metric_key": "goals_against_per_match",
-        "value": 1.3076923076923077,
+        "value": 1.5714285714285714,
         "value_prev": 2.0
       },
       {
         "metric_key": "goals_per_match",
-        "value": 2.230769230769231,
+        "value": 2.142857142857143,
         "value_prev": 1.0
       },
       {
         "metric_key": "interceptions_per_match",
-        "value": 11.307692307692308,
+        "value": 11.214285714285714,
         "value_prev": 10.0
       },
       {
         "metric_key": "offsides_per_match",
-        "value": 2.769230769230769,
+        "value": 2.9285714285714284,
         "value_prev": 2.0
       },
       {
         "metric_key": "passes_accuracy_pct",
-        "value": 0.7626106194690265,
+        "value": 0.7653186274509803,
         "value_prev": 0.8095238095238095
       },
       {
         "metric_key": "passes_accurate_per_match",
-        "value": 265.15384615384613,
+        "value": 267.64285714285717,
         "value_prev": 289.0
       },
       {
         "metric_key": "passes_key_per_match",
-        "value": 15.76923076923077,
+        "value": 15.285714285714286,
         "value_prev": 6.5
       },
       {
         "metric_key": "passes_per_match",
-        "value": 347.6923076923077,
+        "value": 349.7142857142857,
         "value_prev": 357.0
       },
       {
         "metric_key": "passes_share_pct",
-        "value": 0.4780539397144368,
+        "value": 0.4763572679509632,
         "value_prev": 0.45564773452456925
       },
       {
         "metric_key": "saves_pct",
-        "value": 0.7536231884057971,
+        "value": 0.7272727272727273,
         "value_prev": 0.6
       },
       {
@@ -844,37 +924,37 @@
       },
       {
         "metric_key": "shots_inside_box_per_match",
-        "value": 13.23076923076923,
+        "value": 13.0,
         "value_prev": 7.0
       },
       {
         "metric_key": "shots_on_goal_against_per_match",
-        "value": 5.538461538461538,
+        "value": 5.714285714285714,
         "value_prev": 5.0
       },
       {
         "metric_key": "shots_on_goal_difference_per_match",
-        "value": 1.3076923076923077,
+        "value": 0.8571428571428571,
         "value_prev": -3.0
       },
       {
         "metric_key": "shots_on_goal_pct",
-        "value": 0.3449612403100775,
+        "value": 0.336996336996337,
         "value_prev": 0.2222222222222222
       },
       {
         "metric_key": "shots_on_goal_per_match",
-        "value": 6.846153846153846,
+        "value": 6.571428571428571,
         "value_prev": 2.0
       },
       {
         "metric_key": "shots_per_match",
-        "value": 19.846153846153847,
+        "value": 19.5,
         "value_prev": 9.0
       },
       {
         "metric_key": "tackles_per_match",
-        "value": 19.76923076923077,
+        "value": 20.0,
         "value_prev": 15.5
       }
     ]
@@ -888,53 +968,53 @@
       "season_api_year": 2026,
       "competition_type": "domestic_league",
       "team_code": "FRO",
-      "played": 11,
+      "played": 12,
       "wins": 6,
       "draws": 2,
-      "losses": 3,
-      "goals_for": 24,
-      "goals_against": 15,
-      "goal_diff": 9,
+      "losses": 4,
+      "goals_for": 25,
+      "goals_against": 20,
+      "goal_diff": 5,
       "points": 20,
       "clean_sheets": 3,
-      "latest_rank": 6,
-      "latest_form": "LWWDW",
-      "season_games_played": 11,
-      "stat_coverage_season_games": 11,
-      "goals_per_match": 2.1818181818181817,
-      "goals_against_per_match": 1.3636363636363635,
-      "shots_per_match": 20.09090909090909,
-      "shots_on_goal_pct": 0.3393665158371041,
-      "shots_inside_box_pct": 0.6515837104072398,
-      "finishing_efficiency_pct": 0.30666666666666664,
-      "passes_accuracy_pct": 0.7436589314624933,
-      "passes_per_match": 336.90909090909093,
-      "corners_per_match": 7.0,
-      "corners_against_per_match": 6.2727272727272725,
-      "saves_pct": 0.7457627118644068,
-      "player_stat_coverage_season_games": 11,
-      "shots_on_goal_per_match": 6.818181818181818,
-      "shots_on_goal_against_per_match": 5.636363636363637,
-      "shots_on_goal_difference_per_match": 1.1818181818181819,
-      "passes_key_per_match": 15.909090909090908,
-      "duels_per_match": 110.45454545454545,
-      "duels_won_pct": 0.508641975308642,
-      "defensive_actions_per_match": 38.72727272727273,
-      "shots_share_pct": 0.5249406175771971,
-      "points_capture_pct": 0.6060606060606061,
+      "latest_rank": 7,
+      "latest_form": "LLWWD",
+      "season_games_played": 12,
+      "stat_coverage_season_games": 12,
+      "goals_per_match": 2.0833333333333335,
+      "goals_against_per_match": 1.6666666666666667,
+      "shots_per_match": 19.666666666666668,
+      "shots_on_goal_pct": 0.3305084745762712,
+      "shots_inside_box_pct": 0.652542372881356,
+      "finishing_efficiency_pct": 0.3076923076923077,
+      "passes_accuracy_pct": 0.7486526212640863,
+      "passes_per_match": 340.1666666666667,
+      "corners_per_match": 7.166666666666667,
+      "corners_against_per_match": 5.916666666666667,
+      "saves_pct": 0.7164179104477612,
+      "player_stat_coverage_season_games": 12,
+      "shots_on_goal_per_match": 6.5,
+      "shots_on_goal_against_per_match": 5.833333333333333,
+      "shots_on_goal_difference_per_match": 0.6666666666666666,
+      "passes_key_per_match": 15.333333333333334,
+      "duels_per_match": 109.91666666666667,
+      "duels_won_pct": 0.513267626990144,
+      "defensive_actions_per_match": 38.666666666666664,
+      "shots_share_pct": 0.5267857142857143,
+      "points_capture_pct": 0.5555555555555556,
       "unbeaten_run": 0,
       "win_run": 0,
-      "winless_run": 1,
+      "winless_run": 2,
       "clean_sheet_run": 0,
-      "scoring_run": 0,
-      "deserved_points": 19.418362831858406,
-      "deserved_rank": 6,
-      "deserved_points_gap": 0.5816371681415937,
+      "scoring_run": 1,
+      "deserved_points": 19.27712864306057,
+      "deserved_rank": 8,
+      "deserved_points_gap": 0.7228713569394287,
       "deserved_points_gap_rank": 13,
-      "cards_yellow": 20,
+      "cards_yellow": 24,
       "cards_red": 0,
       "longest_unbeaten_run": 4,
-      "longest_winless_run": null,
+      "longest_winless_run": 2,
       "biggest_win_fixture_sk": 1550170,
       "biggest_win_league_code": "SA",
       "biggest_win_opponent_team_sk": 867,
@@ -943,22 +1023,24 @@
       "biggest_win_goals_for": 5,
       "biggest_win_goals_against": 1,
       "biggest_win_kickoff_datetime": "2026-10-29 17:30:00+00:00",
-      "heaviest_defeat_fixture_sk": 1550144,
+      "heaviest_defeat_fixture_sk": 1550197,
       "heaviest_defeat_league_code": "SA",
-      "heaviest_defeat_opponent_team_sk": 492,
-      "heaviest_defeat_opponent_name": "SSC Napoli",
+      "heaviest_defeat_opponent_team_sk": 489,
+      "heaviest_defeat_opponent_name": "AC Milan",
       "heaviest_defeat_home_away": "away",
-      "heaviest_defeat_goals_for": 0,
-      "heaviest_defeat_goals_against": 3,
-      "heaviest_defeat_kickoff_datetime": "2026-10-10 18:45:00+00:00",
+      "heaviest_defeat_goals_for": 1,
+      "heaviest_defeat_goals_against": 5,
+      "heaviest_defeat_kickoff_datetime": "2026-11-22 17:00:00+00:00",
       "is_featured_season": true,
       "season_label": "2026/27",
       "next_fixture": {
-        "opponent_name": "AC Milan",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/489.png",
-        "is_home": false,
-        "kickoff_datetime": "2026-11-22 17:00:00+00:00",
-        "round_name": "Regular Season - 12",
+        "opponent_name": "Parma",
+        "opponent_logo_url": "/crests/teams/523-104.webp",
+        "is_home": true,
+        "kickoff_datetime": "2026-11-28 14:00:00+00:00",
+        "kickoff_local": "2026-11-28 15:00:00",
+        "kickoff_zone_label": "CET",
+        "round_name": "Regular Season - 13",
         "goals_for": null,
         "goals_against": null,
         "result": null,
@@ -966,10 +1048,25 @@
       },
       "recent_results": [
         {
+          "opponent_name": "AC Milan",
+          "opponent_logo_url": "/crests/teams/489-104.webp",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-22 17:00:00+00:00",
+          "kickoff_local": "2026-11-22 18:00:00",
+          "kickoff_zone_label": "CET",
+          "round_name": "Regular Season - 12",
+          "goals_for": 1,
+          "goals_against": 5,
+          "result": "L",
+          "status_short": "FT"
+        },
+        {
           "opponent_name": "Cagliari Calcio",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/490.png",
+          "opponent_logo_url": "/crests/teams/490-104.webp",
           "is_home": false,
           "kickoff_datetime": "2026-11-07 14:00:00+00:00",
+          "kickoff_local": "2026-11-07 15:00:00",
+          "kickoff_zone_label": "CET",
           "round_name": "Regular Season - 11",
           "goals_for": 0,
           "goals_against": 1,
@@ -978,9 +1075,11 @@
         },
         {
           "opponent_name": "Torino FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/503.png",
+          "opponent_logo_url": "/crests/teams/503-104.webp",
           "is_home": true,
           "kickoff_datetime": "2026-11-01 14:00:00+00:00",
+          "kickoff_local": "2026-11-01 15:00:00",
+          "kickoff_zone_label": "CET",
           "round_name": "Regular Season - 10",
           "goals_for": 2,
           "goals_against": 0,
@@ -989,9 +1088,11 @@
         },
         {
           "opponent_name": "US Lecce",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/867.png",
+          "opponent_logo_url": "/crests/teams/867-104.webp",
           "is_home": true,
           "kickoff_datetime": "2026-10-29 17:30:00+00:00",
+          "kickoff_local": "2026-10-29 18:30:00",
+          "kickoff_zone_label": "CET",
           "round_name": "Regular Season - 9",
           "goals_for": 5,
           "goals_against": 1,
@@ -1000,24 +1101,15 @@
         },
         {
           "opponent_name": "Atalanta BC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/499.png",
+          "opponent_logo_url": "/crests/teams/499-104.webp",
           "is_home": false,
           "kickoff_datetime": "2026-10-25 14:00:00+00:00",
+          "kickoff_local": "2026-10-25 15:00:00",
+          "kickoff_zone_label": "CET",
           "round_name": "Regular Season - 8",
           "goals_for": 4,
           "goals_against": 4,
           "result": "D",
-          "status_short": "FT"
-        },
-        {
-          "opponent_name": "US Sassuolo",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-10-16 18:45:00+00:00",
-          "round_name": "Regular Season - 7",
-          "goals_for": 4,
-          "goals_against": 2,
-          "result": "W",
           "status_short": "FT"
         }
       ],
@@ -1029,8 +1121,8 @@
           "nationality": "Serbia",
           "birth_date": "1999-08-17",
           "photo": "https://media.api-sports.io/football/players/349.png",
-          "appearances": 5,
-          "minutes_per_appearance": 42.0,
+          "appearances": 6,
+          "minutes_per_appearance": 39.666666666666664,
           "goals": 1,
           "assists": 0
         },
@@ -1053,8 +1145,8 @@
           "nationality": "Austria",
           "birth_date": "2000-01-27",
           "photo": "https://media.api-sports.io/football/players/7562.png",
-          "appearances": 11,
-          "minutes_per_appearance": 76.0909090909091,
+          "appearances": 12,
+          "minutes_per_appearance": 75.91666666666667,
           "goals": 2,
           "assists": 4
         },
@@ -1089,8 +1181,8 @@
           "nationality": "Italy",
           "birth_date": "1999-03-03",
           "photo": "https://media.api-sports.io/football/players/31219.png",
-          "appearances": 9,
-          "minutes_per_appearance": 20.22222222222222,
+          "appearances": 10,
+          "minutes_per_appearance": 19.8,
           "goals": 0,
           "assists": 0
         },
@@ -1101,8 +1193,8 @@
           "nationality": "Italy",
           "birth_date": "1997-02-05",
           "photo": "https://media.api-sports.io/football/players/32011.png",
-          "appearances": 11,
-          "minutes_per_appearance": 86.0,
+          "appearances": 12,
+          "minutes_per_appearance": 85.16666666666667,
           "goals": 5,
           "assists": 1
         },
@@ -1125,8 +1217,8 @@
           "nationality": "Romania",
           "birth_date": "2000-04-19",
           "photo": "https://media.api-sports.io/football/players/126892.png",
-          "appearances": 6,
-          "minutes_per_appearance": 30.5,
+          "appearances": 7,
+          "minutes_per_appearance": 30.142857142857142,
           "goals": 2,
           "assists": 0
         },
@@ -1137,8 +1229,8 @@
           "nationality": "Italy",
           "birth_date": "2002-04-18",
           "photo": "https://media.api-sports.io/football/players/162570.png",
-          "appearances": 8,
-          "minutes_per_appearance": 65.125,
+          "appearances": 9,
+          "minutes_per_appearance": 62.888888888888886,
           "goals": 0,
           "assists": 0
         },
@@ -1149,8 +1241,8 @@
           "nationality": "Cameroon",
           "birth_date": "2002-11-23",
           "photo": "https://media.api-sports.io/football/players/179399.png",
-          "appearances": 3,
-          "minutes_per_appearance": 42.0,
+          "appearances": 4,
+          "minutes_per_appearance": 47.0,
           "goals": 0,
           "assists": 0
         },
@@ -1161,8 +1253,8 @@
           "nationality": "Italy",
           "birth_date": "2001-12-19",
           "photo": "https://media.api-sports.io/football/players/180586.png",
-          "appearances": 10,
-          "minutes_per_appearance": 62.6,
+          "appearances": 11,
+          "minutes_per_appearance": 65.0909090909091,
           "goals": 0,
           "assists": 0
         },
@@ -1173,8 +1265,8 @@
           "nationality": "Gabon",
           "birth_date": "2001-04-12",
           "photo": "https://media.api-sports.io/football/players/191417.png",
-          "appearances": 10,
-          "minutes_per_appearance": 80.3,
+          "appearances": 11,
+          "minutes_per_appearance": 81.18181818181819,
           "goals": 0,
           "assists": 1
         },
@@ -1185,8 +1277,8 @@
           "nationality": "Morocco",
           "birth_date": "2001-05-29",
           "photo": "https://media.api-sports.io/football/players/203777.png",
-          "appearances": 2,
-          "minutes_per_appearance": 10.5,
+          "appearances": 3,
+          "minutes_per_appearance": 11.666666666666666,
           "goals": 0,
           "assists": 0
         },
@@ -1209,9 +1301,9 @@
           "nationality": "Italy",
           "birth_date": "2001-01-27",
           "photo": "https://media.api-sports.io/football/players/281096.png",
-          "appearances": 9,
-          "minutes_per_appearance": 73.11111111111111,
-          "goals": 0,
+          "appearances": 10,
+          "minutes_per_appearance": 74.8,
+          "goals": 1,
           "assists": 1
         },
         {
@@ -1221,8 +1313,8 @@
           "nationality": "Georgia",
           "birth_date": "2003-02-07",
           "photo": "https://media.api-sports.io/football/players/311251.png",
-          "appearances": 11,
-          "minutes_per_appearance": 81.9090909090909,
+          "appearances": 12,
+          "minutes_per_appearance": 80.25,
           "goals": 3,
           "assists": 4
         },
@@ -1233,8 +1325,8 @@
           "nationality": "Italy",
           "birth_date": "2005-08-11",
           "photo": "https://media.api-sports.io/football/players/312208.png",
-          "appearances": 4,
-          "minutes_per_appearance": 9.5,
+          "appearances": 5,
+          "minutes_per_appearance": 16.6,
           "goals": 0,
           "assists": 1
         },
@@ -1269,7 +1361,7 @@
           "nationality": "Italy",
           "birth_date": "2004-06-12",
           "photo": "https://media.api-sports.io/football/players/327774.png",
-          "appearances": 11,
+          "appearances": 12,
           "minutes_per_appearance": 90.0,
           "goals": 0,
           "assists": 0
@@ -1281,8 +1373,8 @@
           "nationality": "France",
           "birth_date": "2002-09-06",
           "photo": "https://media.api-sports.io/football/players/334915.png",
-          "appearances": 9,
-          "minutes_per_appearance": 76.22222222222223,
+          "appearances": 10,
+          "minutes_per_appearance": 77.6,
           "goals": 1,
           "assists": 4
         },
@@ -1317,8 +1409,8 @@
           "nationality": "Italy",
           "birth_date": "2004-01-12",
           "photo": "https://media.api-sports.io/football/players/353613.png",
-          "appearances": 10,
-          "minutes_per_appearance": 87.4,
+          "appearances": 11,
+          "minutes_per_appearance": 87.63636363636364,
           "goals": 0,
           "assists": 0
         },
@@ -1362,13 +1454,13 @@
       "benchmarks": [
         {
           "metric_key": "blocks_per_match",
-          "metric_value": 6.545454545454546,
+          "metric_value": 6.416666666666667,
           "rank": 1,
           "team_count": 20,
-          "league_median": 4.363636363636363,
+          "league_median": 4.454545454545454,
           "league_p25": 4.0,
-          "league_p75": 5.0,
-          "vs_median_delta": 2.1818181818181825
+          "league_p75": 4.833333333333333,
+          "vs_median_delta": 1.9621212121212128
         },
         {
           "metric_key": "cards_red",
@@ -1382,333 +1474,333 @@
         },
         {
           "metric_key": "cards_yellow",
-          "metric_value": 20.0,
-          "rank": 13,
+          "metric_value": 24.0,
+          "rank": 17,
           "team_count": 20,
           "league_median": 18.0,
-          "league_p25": 15.0,
-          "league_p75": 21.0,
-          "vs_median_delta": 2.0
+          "league_p25": 16.0,
+          "league_p75": 23.0,
+          "vs_median_delta": 6.0
         },
         {
           "metric_key": "clean_sheets",
           "metric_value": 3.0,
-          "rank": 6,
+          "rank": 8,
           "team_count": 20,
           "league_median": 2.0,
           "league_p25": 1.0,
-          "league_p75": 3.0,
+          "league_p75": 4.0,
           "vs_median_delta": 1.0
         },
         {
           "metric_key": "clean_sheets_pct",
-          "metric_value": 0.2727272727272727,
-          "rank": 6,
+          "metric_value": 0.25,
+          "rank": 8,
           "team_count": 20,
-          "league_median": 0.18181818181818182,
-          "league_p25": 0.09090909090909091,
-          "league_p75": 0.2727272727272727,
-          "vs_median_delta": 0.09090909090909088
+          "league_median": 0.16666666666666666,
+          "league_p25": 0.08333333333333333,
+          "league_p75": 0.3333333333333333,
+          "vs_median_delta": 0.08333333333333334
         },
         {
           "metric_key": "corners_against_per_match",
-          "metric_value": 6.2727272727272725,
+          "metric_value": 5.916666666666667,
           "rank": 18,
           "team_count": 20,
           "league_median": 4.7272727272727275,
-          "league_p25": 4.090909090909091,
-          "league_p75": 5.636363636363637,
-          "vs_median_delta": 1.545454545454545
+          "league_p25": 4.25,
+          "league_p75": 5.583333333333333,
+          "vs_median_delta": 1.1893939393939394
         },
         {
           "metric_key": "corners_per_match",
-          "metric_value": 7.0,
+          "metric_value": 7.166666666666667,
           "rank": 2,
           "team_count": 20,
-          "league_median": 4.545454545454546,
-          "league_p25": 3.8181818181818183,
-          "league_p75": 5.363636363636363,
-          "vs_median_delta": 2.454545454545454
+          "league_median": 4.416666666666667,
+          "league_p25": 3.9166666666666665,
+          "league_p75": 5.583333333333333,
+          "vs_median_delta": 2.75
         },
         {
           "metric_key": "defensive_actions_per_match",
-          "metric_value": 38.72727272727273,
+          "metric_value": 38.666666666666664,
           "rank": 1,
           "team_count": 20,
-          "league_median": 28.818181818181817,
-          "league_p25": 27.545454545454547,
-          "league_p75": 31.636363636363637,
-          "vs_median_delta": 9.90909090909091
+          "league_median": 29.166666666666668,
+          "league_p25": 27.666666666666668,
+          "league_p75": 31.333333333333332,
+          "vs_median_delta": 9.499999999999996
         },
         {
           "metric_key": "dribbles_attempts_per_match",
-          "metric_value": 15.272727272727273,
+          "metric_value": 15.666666666666666,
           "rank": 8,
           "team_count": 20,
-          "league_median": 14.636363636363637,
-          "league_p25": 13.363636363636363,
-          "league_p75": 16.181818181818183,
-          "vs_median_delta": 0.6363636363636367
+          "league_median": 14.916666666666666,
+          "league_p25": 13.416666666666666,
+          "league_p75": 16.083333333333332,
+          "vs_median_delta": 0.75
         },
         {
           "metric_key": "dribbles_success_pct",
-          "metric_value": 0.5416666666666666,
+          "metric_value": 0.5372340425531915,
           "rank": 3,
           "team_count": 20,
-          "league_median": 0.4625,
-          "league_p25": 0.4472049689440994,
-          "league_p75": 0.4897959183673469,
-          "vs_median_delta": 0.07916666666666661
+          "league_median": 0.467005076142132,
+          "league_p25": 0.441340782122905,
+          "league_p75": 0.47783251231527096,
+          "vs_median_delta": 0.07022896641105952
         },
         {
           "metric_key": "dribbles_success_per_match",
-          "metric_value": 8.272727272727273,
-          "rank": 3,
+          "metric_value": 8.416666666666666,
+          "rank": 2,
           "team_count": 20,
-          "league_median": 6.7272727272727275,
-          "league_p25": 6.2727272727272725,
-          "league_p75": 7.090909090909091,
-          "vs_median_delta": 1.5454545454545459
+          "league_median": 6.916666666666667,
+          "league_p25": 6.5,
+          "league_p75": 7.083333333333333,
+          "vs_median_delta": 1.4999999999999991
         },
         {
           "metric_key": "duels_per_match",
-          "metric_value": 110.45454545454545,
+          "metric_value": 109.91666666666667,
           "rank": 1,
           "team_count": 20,
-          "league_median": 91.36363636363636,
-          "league_p25": 84.9090909090909,
-          "league_p75": 96.0,
-          "vs_median_delta": 19.090909090909093
+          "league_median": 89.83333333333333,
+          "league_p25": 85.16666666666667,
+          "league_p75": 95.16666666666667,
+          "vs_median_delta": 20.083333333333343
         },
         {
           "metric_key": "duels_won_pct",
-          "metric_value": 0.508641975308642,
-          "rank": 6,
+          "metric_value": 0.513267626990144,
+          "rank": 5,
           "team_count": 20,
-          "league_median": 0.5018832391713748,
+          "league_median": 0.4995215311004785,
           "league_p25": 0.4849056603773585,
-          "league_p75": 0.508641975308642,
-          "vs_median_delta": 0.006758736137267185
+          "league_p75": 0.5099337748344371,
+          "vs_median_delta": 0.013746095889665577
         },
         {
           "metric_key": "duels_won_per_match",
-          "metric_value": 56.18181818181818,
+          "metric_value": 56.416666666666664,
           "rank": 1,
           "team_count": 20,
-          "league_median": 44.81818181818182,
-          "league_p25": 43.0,
-          "league_p75": 48.0,
-          "vs_median_delta": 11.36363636363636
+          "league_median": 44.916666666666664,
+          "league_p25": 43.166666666666664,
+          "league_p75": 47.666666666666664,
+          "vs_median_delta": 11.5
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.30666666666666664,
+          "metric_value": 0.3076923076923077,
           "rank": 7,
           "team_count": 20,
-          "league_median": 0.265625,
-          "league_p25": 0.22448979591836735,
-          "league_p75": 0.3157894736842105,
-          "vs_median_delta": 0.04104166666666664
+          "league_median": 0.2714285714285714,
+          "league_p25": 0.22580645161290322,
+          "league_p75": 0.32926829268292684,
+          "vs_median_delta": 0.0362637362637363
         },
         {
           "metric_key": "fouls_per_match",
-          "metric_value": 14.636363636363637,
+          "metric_value": 14.833333333333334,
           "rank": 20,
           "team_count": 20,
-          "league_median": 10.545454545454545,
-          "league_p25": 9.727272727272727,
+          "league_median": 10.166666666666666,
+          "league_p25": 9.666666666666666,
           "league_p75": 12.090909090909092,
-          "vs_median_delta": 4.090909090909092
+          "vs_median_delta": 4.666666666666668
         },
         {
           "metric_key": "goals_against_per_match",
-          "metric_value": 1.3636363636363635,
-          "rank": 9,
+          "metric_value": 1.6666666666666667,
+          "rank": 12,
           "team_count": 20,
-          "league_median": 1.3636363636363635,
-          "league_p25": 1.1818181818181819,
-          "league_p75": 1.9090909090909092,
-          "vs_median_delta": 0.0
+          "league_median": 1.4166666666666667,
+          "league_p25": 1.1666666666666667,
+          "league_p75": 2.0833333333333335,
+          "vs_median_delta": 0.25
         },
         {
           "metric_key": "goals_per_match",
-          "metric_value": 2.1818181818181817,
-          "rank": 4,
+          "metric_value": 2.0833333333333335,
+          "rank": 5,
           "team_count": 20,
-          "league_median": 1.4545454545454546,
-          "league_p25": 1.0909090909090908,
-          "league_p75": 1.6363636363636365,
-          "vs_median_delta": 0.7272727272727271
+          "league_median": 1.5454545454545454,
+          "league_p25": 1.0833333333333333,
+          "league_p75": 1.75,
+          "vs_median_delta": 0.5378787878787881
         },
         {
           "metric_key": "interceptions_per_match",
-          "metric_value": 11.909090909090908,
-          "rank": 1,
+          "metric_value": 11.75,
+          "rank": 2,
           "team_count": 20,
-          "league_median": 8.636363636363637,
-          "league_p25": 7.7272727272727275,
-          "league_p75": 9.545454545454545,
-          "vs_median_delta": 3.2727272727272716
+          "league_median": 8.833333333333334,
+          "league_p25": 8.0,
+          "league_p75": 9.583333333333334,
+          "vs_median_delta": 2.916666666666666
         },
         {
           "metric_key": "offsides_per_match",
-          "metric_value": 2.8181818181818183,
-          "rank": 16,
-          "team_count": 18,
-          "league_median": 2.272727272727273,
-          "league_p25": 1.2727272727272727,
-          "league_p75": 2.6363636363636362,
-          "vs_median_delta": 0.5454545454545454
+          "metric_value": 3.0,
+          "rank": 20,
+          "team_count": 20,
+          "league_median": 2.0833333333333335,
+          "league_p25": 1.4166666666666667,
+          "league_p75": 2.6666666666666665,
+          "vs_median_delta": 0.9166666666666665
         },
         {
           "metric_key": "passes_accuracy_pct",
-          "metric_value": 0.7436589314624933,
+          "metric_value": 0.7486526212640863,
           "rank": 20,
           "team_count": 20,
-          "league_median": 0.8489323488325683,
+          "league_median": 0.8476418570375829,
           "league_p25": 0.8122623574144486,
-          "league_p75": 0.8681579393323166,
-          "vs_median_delta": -0.105273417370075
+          "league_p75": 0.8655790033693918,
+          "vs_median_delta": -0.09898923577349661
         },
         {
           "metric_key": "passes_accurate_per_match",
-          "metric_value": 250.54545454545453,
+          "metric_value": 254.66666666666666,
           "rank": 20,
           "team_count": 20,
-          "league_median": 386.6363636363636,
+          "league_median": 382.1666666666667,
           "league_p25": 310.72727272727275,
-          "league_p75": 446.72727272727275,
-          "vs_median_delta": -136.0909090909091
+          "league_p75": 443.0,
+          "vs_median_delta": -127.50000000000003
         },
         {
           "metric_key": "passes_key_per_match",
-          "metric_value": 15.909090909090908,
+          "metric_value": 15.333333333333334,
           "rank": 3,
           "team_count": 20,
-          "league_median": 10.272727272727273,
-          "league_p25": 8.909090909090908,
-          "league_p75": 12.454545454545455,
-          "vs_median_delta": 5.636363636363635
+          "league_median": 10.416666666666666,
+          "league_p25": 8.916666666666666,
+          "league_p75": 12.416666666666666,
+          "vs_median_delta": 4.916666666666668
         },
         {
           "metric_key": "passes_per_match",
-          "metric_value": 336.90909090909093,
+          "metric_value": 340.1666666666667,
           "rank": 20,
           "team_count": 20,
-          "league_median": 456.6363636363636,
+          "league_median": 455.1666666666667,
           "league_p25": 382.54545454545456,
-          "league_p75": 513.5454545454545,
-          "vs_median_delta": -119.72727272727269
+          "league_p75": 512.0,
+          "vs_median_delta": -115.0
         },
         {
           "metric_key": "passes_share_pct",
-          "metric_value": 0.46846163569713056,
-          "rank": 13,
+          "metric_value": 0.4673689031371651,
+          "rank": 14,
           "team_count": 20,
-          "league_median": 0.4885676202194197,
+          "league_median": 0.4843460696852382,
           "league_p25": 0.4315897435897436,
-          "league_p75": 0.5420784953459361,
-          "vs_median_delta": -0.020105984522289122
+          "league_p75": 0.5470572522482414,
+          "vs_median_delta": -0.016977166548073075
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.7457627118644068,
-          "rank": 6,
+          "metric_value": 0.7164179104477612,
+          "rank": 8,
           "team_count": 20,
-          "league_median": 0.6938775510204082,
-          "league_p25": 0.6323529411764706,
-          "league_p75": 0.7457627118644068,
-          "vs_median_delta": 0.051885160843998634
+          "league_median": 0.704225352112676,
+          "league_p25": 0.6382978723404256,
+          "league_p75": 0.7222222222222222,
+          "vs_median_delta": 0.012192558335085146
         },
         {
           "metric_key": "saves_per_match",
           "metric_value": 4.0,
-          "rank": 6,
+          "rank": 5,
           "team_count": 20,
-          "league_median": 3.3636363636363638,
-          "league_p25": 2.909090909090909,
-          "league_p75": 4.0,
-          "vs_median_delta": 0.6363636363636362
+          "league_median": 3.4166666666666665,
+          "league_p25": 2.9166666666666665,
+          "league_p75": 3.9166666666666665,
+          "vs_median_delta": 0.5833333333333335
         },
         {
           "metric_key": "shots_inside_box_pct",
-          "metric_value": 0.6515837104072398,
+          "metric_value": 0.652542372881356,
           "rank": 10,
           "team_count": 20,
-          "league_median": 0.6490384615384616,
-          "league_p25": 0.6026490066225165,
-          "league_p75": 0.6818181818181818,
-          "vs_median_delta": 0.0025452488687782715
+          "league_median": 0.6513761467889908,
+          "league_p25": 0.6012269938650306,
+          "league_p75": 0.6994219653179191,
+          "vs_median_delta": 0.0011662260923651635
         },
         {
           "metric_key": "shots_inside_box_per_match",
-          "metric_value": 13.090909090909092,
+          "metric_value": 12.833333333333334,
           "rank": 3,
           "team_count": 20,
-          "league_median": 8.818181818181818,
-          "league_p25": 7.2727272727272725,
-          "league_p75": 10.090909090909092,
-          "vs_median_delta": 4.272727272727273
+          "league_median": 8.833333333333334,
+          "league_p25": 7.5,
+          "league_p75": 10.083333333333334,
+          "vs_median_delta": 4.0
         },
         {
           "metric_key": "shots_on_goal_against_per_match",
-          "metric_value": 5.636363636363637,
-          "rank": 11,
+          "metric_value": 5.833333333333333,
+          "rank": 15,
           "team_count": 20,
-          "league_median": 4.454545454545454,
-          "league_p25": 4.2727272727272725,
-          "league_p75": 5.7272727272727275,
-          "vs_median_delta": 1.1818181818181825
+          "league_median": 4.916666666666667,
+          "league_p25": 4.083333333333333,
+          "league_p75": 5.833333333333333,
+          "vs_median_delta": 0.9166666666666661
         },
         {
           "metric_key": "shots_on_goal_difference_per_match",
-          "metric_value": 1.1818181818181819,
-          "rank": 6,
+          "metric_value": 0.6666666666666666,
+          "rank": 8,
           "team_count": 20,
-          "league_median": -0.5454545454545454,
-          "league_p25": -1.7272727272727273,
-          "league_p75": 1.1818181818181819,
-          "vs_median_delta": 1.7272727272727273
+          "league_median": -0.16666666666666666,
+          "league_p25": -1.6666666666666667,
+          "league_p75": 0.9166666666666666,
+          "vs_median_delta": 0.8333333333333333
         },
         {
           "metric_key": "shots_on_goal_pct",
-          "metric_value": 0.3393665158371041,
-          "rank": 9,
+          "metric_value": 0.3305084745762712,
+          "rank": 11,
           "team_count": 20,
-          "league_median": 0.3333333333333333,
-          "league_p25": 0.3076923076923077,
-          "league_p75": 0.36257309941520466,
-          "vs_median_delta": 0.006033182503770773
+          "league_median": 0.3305084745762712,
+          "league_p25": 0.3178294573643411,
+          "league_p75": 0.35714285714285715,
+          "vs_median_delta": 0.0
         },
         {
           "metric_key": "shots_on_goal_per_match",
-          "metric_value": 6.818181818181818,
-          "rank": 2,
+          "metric_value": 6.5,
+          "rank": 3,
           "team_count": 20,
-          "league_median": 4.636363636363637,
-          "league_p25": 4.0,
-          "league_p75": 5.636363636363637,
-          "vs_median_delta": 2.1818181818181817
+          "league_median": 4.75,
+          "league_p25": 3.75,
+          "league_p75": 5.75,
+          "vs_median_delta": 1.75
         },
         {
           "metric_key": "shots_per_match",
-          "metric_value": 20.09090909090909,
+          "metric_value": 19.666666666666668,
           "rank": 2,
           "team_count": 20,
-          "league_median": 13.727272727272727,
-          "league_p25": 11.727272727272727,
-          "league_p75": 16.363636363636363,
-          "vs_median_delta": 6.363636363636363
+          "league_median": 13.666666666666666,
+          "league_p25": 11.666666666666666,
+          "league_p75": 16.083333333333332,
+          "vs_median_delta": 6.000000000000002
         },
         {
           "metric_key": "tackles_per_match",
-          "metric_value": 20.272727272727273,
+          "metric_value": 20.5,
           "rank": 1,
           "team_count": 20,
-          "league_median": 16.09090909090909,
-          "league_p25": 15.545454545454545,
-          "league_p75": 16.818181818181817,
-          "vs_median_delta": 4.181818181818183
+          "league_median": 16.166666666666668,
+          "league_p25": 15.333333333333334,
+          "league_p75": 16.666666666666668,
+          "vs_median_delta": 4.333333333333332
         }
       ],
       "deserved_scatter": [
@@ -1716,140 +1808,140 @@
           "name": "ACF Fiorentina",
           "sotd": -0.5454545454545454,
           "points": 9,
-          "deserved": 13.764601769911502,
+          "deserved": 13.676980595713596,
           "is_self": false
         },
         {
           "name": "Genoa CFC",
-          "sotd": -1.3636363636363635,
-          "points": 13,
-          "deserved": 11.086504424778761,
-          "is_self": false
-        },
-        {
-          "name": "Venezia",
-          "sotd": -2.0,
-          "points": 6,
-          "deserved": 9.003539823008849,
+          "sotd": -1.4166666666666667,
+          "points": 16,
+          "deserved": 11.788902404763206,
           "is_self": false
         },
         {
           "name": "US Sassuolo",
-          "sotd": -2.272727272727273,
+          "sotd": -1.9166666666666667,
           "points": 8,
-          "deserved": 8.1108407079646,
+          "deserved": 9.99172810757184,
+          "is_self": false
+        },
+        {
+          "name": "Venezia",
+          "sotd": -2.4166666666666665,
+          "points": 6,
+          "deserved": 8.194553810380475,
           "is_self": false
         },
         {
           "name": "Monza",
           "sotd": 0.0,
           "points": 7,
-          "deserved": 15.549999999999999,
+          "deserved": 15.474154892904963,
           "is_self": false
-        },
-        {
-          "name": "Parma",
-          "sotd": -2.5454545454545454,
-          "points": 8,
-          "deserved": 7.218141592920354,
-          "is_self": false
-        },
-        {
-          "name": "Frosinone",
-          "sotd": 1.1818181818181819,
-          "points": 20,
-          "deserved": 19.418362831858406,
-          "is_self": true
         },
         {
           "name": "Bologna FC 1909",
-          "sotd": 0.9090909090909091,
-          "points": 17,
-          "deserved": 18.525663716814158,
+          "sotd": 0.9166666666666666,
+          "points": 18,
+          "deserved": 20.175715791656252,
           "is_self": false
         },
         {
           "name": "Cagliari Calcio",
-          "sotd": -1.7272727272727273,
+          "sotd": -2.0,
           "points": 16,
-          "deserved": 9.896238938053097,
+          "deserved": 9.692199058039947,
           "is_self": false
         },
         {
           "name": "US Lecce",
-          "sotd": -1.0,
+          "sotd": -1.25,
           "points": 10,
-          "deserved": 12.276769911504426,
+          "deserved": 12.387960503826996,
           "is_self": false
         },
         {
           "name": "Torino FC",
-          "sotd": -0.9090909090909091,
+          "sotd": -1.5,
           "points": 14,
-          "deserved": 12.574336283185842,
+          "deserved": 11.489373355231313,
           "is_self": false
         },
         {
           "name": "Inter Milan",
-          "sotd": 3.6363636363636362,
-          "points": 28,
-          "deserved": 27.452654867256637,
+          "sotd": 3.0,
+          "points": 29,
+          "deserved": 27.663942029953617,
           "is_self": false
         },
         {
           "name": "Atalanta BC",
-          "sotd": -0.5454545454545454,
-          "points": 14,
-          "deserved": 13.764601769911502,
+          "sotd": -0.16666666666666666,
+          "points": 15,
+          "deserved": 16.281838147741624,
           "is_self": false
         },
         {
           "name": "Udinese Calcio",
-          "sotd": -1.7272727272727273,
-          "points": 5,
-          "deserved": 9.896238938053097,
+          "sotd": -1.6666666666666667,
+          "points": 6,
+          "deserved": 10.890315256167522,
+          "is_self": false
+        },
+        {
+          "name": "Frosinone",
+          "sotd": 0.6666666666666666,
+          "points": 20,
+          "deserved": 19.27712864306057,
+          "is_self": true
+        },
+        {
+          "name": "Parma",
+          "sotd": -2.5833333333333335,
+          "points": 8,
+          "deserved": 7.595495711316683,
           "is_self": false
         },
         {
           "name": "SS Lazio",
-          "sotd": 0.45454545454545453,
-          "points": 29,
-          "deserved": 17.03783185840708,
+          "sotd": 0.75,
+          "points": 32,
+          "deserved": 19.576657692592462,
           "is_self": false
         },
         {
           "name": "AS Roma",
-          "sotd": 2.272727272727273,
-          "points": 27,
-          "deserved": 22.989159292035396,
+          "sotd": 2.3333333333333335,
+          "points": 30,
+          "deserved": 25.267709633698463,
           "is_self": false
         },
         {
           "name": "SSC Napoli",
-          "sotd": 1.3636363636363635,
-          "points": 15,
-          "deserved": 20.01349557522124,
-          "is_self": false
-        },
-        {
-          "name": "Como 1907",
-          "sotd": 2.4545454545454546,
-          "points": 23,
-          "deserved": 23.584292035398228,
-          "is_self": false
-        },
-        {
-          "name": "Juventus FC",
-          "sotd": 2.272727272727273,
+          "sotd": 1.9166666666666667,
           "points": 18,
-          "deserved": 22.989159292035396,
+          "deserved": 23.77006438603899,
           "is_self": false
         },
         {
           "name": "AC Milan",
-          "sotd": 0.09090909090909091,
-          "points": 24,
-          "deserved": 15.847566371681415,
+          "sotd": 0.5,
+          "points": 27,
+          "deserved": 18.678070543996782,
+          "is_self": false
+        },
+        {
+          "name": "Como 1907",
+          "sotd": 2.6666666666666665,
+          "points": 26,
+          "deserved": 26.465825831826038,
+          "is_self": false
+        },
+        {
+          "name": "Juventus FC",
+          "sotd": 2.6666666666666665,
+          "points": 21,
+          "deserved": 26.465825831826038,
           "is_self": false
         }
       ],
@@ -1859,16 +1951,16 @@
           "competition_type": "domestic_league",
           "entity_type": "club",
           "standing_group_name": "Serie A",
-          "standing_rank": 6,
-          "played": 11,
+          "standing_rank": 7,
+          "played": 12,
           "wins": 6,
           "draws": 2,
-          "losses": 3,
-          "goals_for": 24,
-          "goals_against": 15,
+          "losses": 4,
+          "goals_for": 25,
+          "goals_against": 20,
           "points": 20,
           "latest_played_round_label_i18n_key": "compFactMatchday",
-          "latest_played_round_number": 11,
+          "latest_played_round_number": 12,
           "latest_played_round_letter": null,
           "reached_round_label_i18n_key": "compFactMatchday",
           "reached_round_number": 38,
@@ -1905,57 +1997,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 4.0,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 4.0,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 2.5454545454545454,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 5.0,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 5.363636363636363,
+              "value": 5.166666666666667,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 5.181818181818182,
+              "value": 4.833333333333333,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 5.454545454545454,
+              "value": 5.25,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 4.181818181818182,
+              "value": 4.0,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 4.454545454545454,
+              "value": 4.5,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 4.909090909090909,
+              "value": 4.833333333333333,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 4.181818181818182,
+              "value": 4.583333333333333,
               "is_self": false
             },
             {
@@ -1965,37 +2057,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 4.090909090909091,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 4.636363636363637,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 6.545454545454546,
+              "value": 6.416666666666667,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 5.454545454545454,
+              "value": 5.5,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 4.0,
+              "value": 4.166666666666667,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 3.5454545454545454,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 4.181818181818182,
+              "value": 4.0,
               "is_self": false
             },
             {
@@ -2115,17 +2207,17 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 17.0,
+              "value": 18.0,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 15.0,
+              "value": 16.0,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 21.0,
+              "value": 22.0,
               "is_self": false
             },
             {
@@ -2135,12 +2227,12 @@
             },
             {
               "name": "SSC Napoli",
-              "value": 11.0,
+              "value": 13.0,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 18.0,
+              "value": 20.0,
               "is_self": false
             },
             {
@@ -2160,12 +2252,12 @@
             },
             {
               "name": "Atalanta BC",
-              "value": 12.0,
+              "value": 14.0,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 23.0,
+              "value": 24.0,
               "is_self": false
             },
             {
@@ -2175,17 +2267,17 @@
             },
             {
               "name": "Torino FC",
-              "value": 11.0,
+              "value": 12.0,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 15.0,
+              "value": 16.0,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 20.0,
+              "value": 24.0,
               "is_self": true
             },
             {
@@ -2195,12 +2287,12 @@
             },
             {
               "name": "Parma",
-              "value": 16.0,
+              "value": 17.0,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 21.0,
+              "value": 23.0,
               "is_self": false
             },
             {
@@ -2220,7 +2312,7 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 4.0,
+              "value": 5.0,
               "is_self": false
             },
             {
@@ -2240,7 +2332,7 @@
             },
             {
               "name": "SSC Napoli",
-              "value": 3.0,
+              "value": 4.0,
               "is_self": false
             },
             {
@@ -2250,12 +2342,12 @@
             },
             {
               "name": "Genoa CFC",
-              "value": 2.0,
+              "value": 3.0,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 5.0,
+              "value": 6.0,
               "is_self": false
             },
             {
@@ -2310,7 +2402,7 @@
             },
             {
               "name": "Como 1907",
-              "value": 3.0,
+              "value": 4.0,
               "is_self": false
             },
             {
@@ -2325,7 +2417,7 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.36363636363636365,
+              "value": 0.4166666666666667,
               "is_self": false
             },
             {
@@ -2335,47 +2427,47 @@
             },
             {
               "name": "AC Milan",
-              "value": 0.2727272727272727,
+              "value": 0.25,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.36363636363636365,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.2727272727272727,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.09090909090909091,
+              "value": 0.08333333333333333,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.18181818181818182,
+              "value": 0.25,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.45454545454545453,
+              "value": 0.5,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.5454545454545454,
+              "value": 0.5,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.18181818181818182,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.09090909090909091,
+              "value": 0.08333333333333333,
               "is_self": false
             },
             {
@@ -2385,37 +2477,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.09090909090909091,
+              "value": 0.08333333333333333,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.36363636363636365,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.2727272727272727,
+              "value": 0.25,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.09090909090909091,
+              "value": 0.08333333333333333,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.18181818181818182,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.18181818181818182,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.2727272727272727,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
@@ -2430,57 +2522,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 4.363636363636363,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 6.0,
+              "value": 5.75,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 4.0,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 6.545454545454546,
+              "value": 6.25,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 5.636363636363637,
+              "value": 5.583333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 4.909090909090909,
+              "value": 5.166666666666667,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 5.2727272727272725,
+              "value": 5.25,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 3.8181818181818183,
+              "value": 3.6666666666666665,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 3.272727272727273,
+              "value": 3.25,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 5.818181818181818,
+              "value": 5.833333333333333,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 4.7272727272727275,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
@@ -2490,37 +2582,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 4.636363636363637,
+              "value": 4.916666666666667,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 3.0,
+              "value": 3.1666666666666665,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 6.2727272727272725,
+              "value": 5.916666666666667,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 5.363636363636363,
+              "value": 5.333333333333333,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 6.636363636363637,
+              "value": 6.75,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 4.090909090909091,
+              "value": 4.5,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 4.181818181818182,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
@@ -2535,57 +2627,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 4.818181818181818,
+              "value": 5.166666666666667,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 3.8181818181818183,
+              "value": 3.9166666666666665,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 2.727272727272727,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 3.8181818181818183,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 5.363636363636363,
+              "value": 5.583333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 4.7272727272727275,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 4.090909090909091,
-              "is_self": false
-            },
-            {
-              "name": "Juventus FC",
-              "value": 8.545454545454545,
-              "is_self": false
-            },
-            {
-              "name": "AS Roma",
-              "value": 6.363636363636363,
-              "is_self": false
-            },
-            {
-              "name": "Atalanta BC",
               "value": 4.0,
               "is_self": false
             },
             {
+              "name": "Juventus FC",
+              "value": 8.25,
+              "is_self": false
+            },
+            {
+              "name": "AS Roma",
+              "value": 6.5,
+              "is_self": false
+            },
+            {
+              "name": "Atalanta BC",
+              "value": 4.083333333333333,
+              "is_self": false
+            },
+            {
               "name": "Bologna FC 1909",
-              "value": 5.0,
+              "value": 5.25,
               "is_self": false
             },
             {
@@ -2595,37 +2687,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 3.8181818181818183,
+              "value": 3.9166666666666665,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 6.090909090909091,
+              "value": 6.083333333333333,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 7.0,
+              "value": 7.166666666666667,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 3.909090909090909,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 3.272727272727273,
+              "value": 3.25,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 4.545454545454546,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 6.636363636363637,
+              "value": 6.333333333333333,
               "is_self": false
             },
             {
@@ -2640,57 +2732,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 25.727272727272727,
+              "value": 25.0,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 28.545454545454547,
+              "value": 29.166666666666668,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 27.545454545454547,
+              "value": 27.333333333333332,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 31.636363636363637,
+              "value": 32.166666666666664,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 27.181818181818183,
+              "value": 27.25,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 26.454545454545453,
+              "value": 25.666666666666668,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 33.09090909090909,
+              "value": 33.0,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 27.363636363636363,
+              "value": 27.916666666666668,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 31.636363636363637,
+              "value": 31.333333333333332,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 30.272727272727273,
+              "value": 30.083333333333332,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 29.545454545454547,
+              "value": 29.916666666666668,
               "is_self": false
             },
             {
@@ -2700,37 +2792,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 28.454545454545453,
+              "value": 28.666666666666668,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 29.90909090909091,
+              "value": 29.25,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 38.72727272727273,
+              "value": 38.666666666666664,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 28.636363636363637,
+              "value": 28.5,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 28.09090909090909,
+              "value": 27.666666666666668,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 31.636363636363637,
+              "value": 32.333333333333336,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 29.454545454545453,
+              "value": 29.166666666666668,
               "is_self": false
             },
             {
@@ -2745,57 +2837,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 14.545454545454545,
+              "value": 16.083333333333332,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 15.363636363636363,
+              "value": 15.416666666666666,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 17.09090909090909,
+              "value": 17.166666666666668,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 13.363636363636363,
+              "value": 13.416666666666666,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 11.454545454545455,
+              "value": 11.333333333333334,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 13.363636363636363,
+              "value": 13.666666666666666,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 13.727272727272727,
+              "value": 14.833333333333334,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 16.181818181818183,
+              "value": 15.833333333333334,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 17.0,
+              "value": 16.333333333333332,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 14.636363636363637,
+              "value": 14.583333333333334,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 13.181818181818182,
+              "value": 13.083333333333334,
               "is_self": false
             },
             {
@@ -2805,37 +2897,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 13.727272727272727,
+              "value": 13.75,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 11.454545454545455,
+              "value": 11.583333333333334,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 15.272727272727273,
+              "value": 15.666666666666666,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 14.727272727272727,
+              "value": 14.916666666666666,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 11.636363636363637,
+              "value": 11.833333333333334,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 17.818181818181817,
+              "value": 17.166666666666668,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 16.454545454545453,
+              "value": 16.916666666666668,
               "is_self": false
             },
             {
@@ -2850,57 +2942,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.4625,
+              "value": 0.44041450777202074,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.46153846153846156,
+              "value": 0.4486486486486487,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.4095744680851064,
+              "value": 0.3883495145631068,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.4421768707482993,
+              "value": 0.453416149068323,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.4126984126984127,
+              "value": 0.39705882352941174,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.4897959183673469,
+              "value": 0.47560975609756095,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.45695364238410596,
+              "value": 0.47191011235955055,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.48314606741573035,
+              "value": 0.48947368421052634,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.5454545454545454,
+              "value": 0.5459183673469388,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.4472049689440994,
+              "value": 0.4742857142857143,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.4689655172413793,
+              "value": 0.4713375796178344,
               "is_self": false
             },
             {
@@ -2910,37 +3002,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.5099337748344371,
+              "value": 0.47878787878787876,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.5476190476190477,
+              "value": 0.5611510791366906,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.5416666666666666,
+              "value": 0.5372340425531915,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.4506172839506173,
+              "value": 0.441340782122905,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.453125,
+              "value": 0.4647887323943662,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.39285714285714285,
+              "value": 0.4029126213592233,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.49171270718232046,
+              "value": 0.47783251231527096,
               "is_self": false
             },
             {
@@ -2955,57 +3047,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 6.7272727272727275,
+              "value": 7.083333333333333,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 7.090909090909091,
+              "value": 6.916666666666667,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 7.0,
+              "value": 6.666666666666667,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 5.909090909090909,
+              "value": 6.083333333333333,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 4.7272727272727275,
+              "value": 4.5,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 6.545454545454546,
+              "value": 6.5,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 6.2727272727272725,
+              "value": 7.0,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 7.818181818181818,
+              "value": 7.75,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 9.272727272727273,
+              "value": 8.916666666666666,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 6.545454545454546,
+              "value": 6.916666666666667,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 6.181818181818182,
+              "value": 6.166666666666667,
               "is_self": false
             },
             {
@@ -3015,37 +3107,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 7.0,
+              "value": 6.583333333333333,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 6.2727272727272725,
+              "value": 6.5,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 8.272727272727273,
+              "value": 8.416666666666666,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 6.636363636363637,
+              "value": 6.583333333333333,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 5.2727272727272725,
+              "value": 5.5,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 7.0,
+              "value": 6.916666666666667,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 8.090909090909092,
+              "value": 8.083333333333334,
               "is_self": false
             },
             {
@@ -3060,57 +3152,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 86.54545454545455,
+              "value": 89.0,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 84.9090909090909,
+              "value": 86.0,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 91.81818181818181,
+              "value": 92.83333333333333,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 91.72727272727273,
+              "value": 91.41666666666667,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 87.0,
+              "value": 87.08333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 82.27272727272727,
+              "value": 82.58333333333333,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 92.81818181818181,
+              "value": 93.25,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 88.36363636363636,
+              "value": 88.08333333333333,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 92.36363636363636,
+              "value": 90.75,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 82.36363636363636,
+              "value": 81.58333333333333,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 96.0,
+              "value": 95.16666666666667,
               "is_self": false
             },
             {
@@ -3120,37 +3212,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 96.54545454545455,
+              "value": 95.83333333333333,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 80.0,
+              "value": 79.41666666666667,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 110.45454545454545,
+              "value": 109.91666666666667,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 85.18181818181819,
+              "value": 85.16666666666667,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 91.36363636363636,
+              "value": 89.83333333333333,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 108.54545454545455,
+              "value": 109.16666666666667,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 84.72727272727273,
+              "value": 85.0,
               "is_self": false
             },
             {
@@ -3165,57 +3257,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.4737394957983193,
+              "value": 0.46629213483146065,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.5064239828693791,
+              "value": 0.502906976744186,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.504950495049505,
+              "value": 0.4982046678635548,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.45490584737363726,
+              "value": 0.4612579762989973,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.4942528735632184,
+              "value": 0.4995215311004785,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.4983425414364641,
+              "value": 0.496468213925328,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.515181194906954,
+              "value": 0.516532618409294,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.507201646090535,
+              "value": 0.5099337748344371,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.5246062992125984,
+              "value": 0.5188246097337006,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.4878587196467991,
+              "value": 0.4923391215526047,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.5028409090909091,
+              "value": 0.5043782837127846,
               "is_self": false
             },
             {
@@ -3225,37 +3317,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.5018832391713748,
+              "value": 0.4973913043478261,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.5556818181818182,
+              "value": 0.5477439664218258,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.508641975308642,
+              "value": 0.513267626990144,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.5112059765208111,
+              "value": 0.5068493150684932,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.49651741293532337,
+              "value": 0.5009276437847866,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.474036850921273,
+              "value": 0.4847328244274809,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.5278969957081545,
+              "value": 0.5225490196078432,
               "is_self": false
             },
             {
@@ -3270,27 +3362,27 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 41.0,
+              "value": 41.5,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 43.0,
+              "value": 43.25,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 46.36363636363637,
+              "value": 46.25,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 41.72727272727273,
+              "value": 42.166666666666664,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 43.0,
+              "value": 43.5,
               "is_self": false
             },
             {
@@ -3300,27 +3392,27 @@
             },
             {
               "name": "Genoa CFC",
-              "value": 47.81818181818182,
+              "value": 48.166666666666664,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 44.81818181818182,
+              "value": 44.916666666666664,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 48.45454545454545,
+              "value": 47.083333333333336,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 40.18181818181818,
+              "value": 40.166666666666664,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 48.27272727272727,
+              "value": 48.0,
               "is_self": false
             },
             {
@@ -3330,37 +3422,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 48.45454545454545,
+              "value": 47.666666666666664,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 44.45454545454545,
+              "value": 43.5,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 56.18181818181818,
+              "value": 56.416666666666664,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 43.54545454545455,
+              "value": 43.166666666666664,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 45.36363636363637,
+              "value": 45.0,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 51.45454545454545,
+              "value": 52.916666666666664,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 44.72727272727273,
+              "value": 44.416666666666664,
               "is_self": false
             },
             {
@@ -3375,57 +3467,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.4423076923076923,
+              "value": 0.4482758620689655,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.3,
-              "is_self": false
-            },
-            {
-              "name": "AC Milan",
-              "value": 0.42857142857142855,
-              "is_self": false
-            },
-            {
-              "name": "Cagliari Calcio",
-              "value": 0.18181818181818182,
-              "is_self": false
-            },
-            {
-              "name": "SSC Napoli",
-              "value": 0.25806451612903225,
-              "is_self": false
-            },
-            {
-              "name": "Udinese Calcio",
-              "value": 0.22448979591836735,
-              "is_self": false
-            },
-            {
-              "name": "Genoa CFC",
-              "value": 0.3235294117647059,
-              "is_self": false
-            },
-            {
-              "name": "Juventus FC",
               "value": 0.2631578947368421,
               "is_self": false
             },
             {
+              "name": "AC Milan",
+              "value": 0.43859649122807015,
+              "is_self": false
+            },
+            {
+              "name": "Cagliari Calcio",
+              "value": 0.17777777777777778,
+              "is_self": false
+            },
+            {
+              "name": "SSC Napoli",
+              "value": 0.2361111111111111,
+              "is_self": false
+            },
+            {
+              "name": "Udinese Calcio",
+              "value": 0.23076923076923078,
+              "is_self": false
+            },
+            {
+              "name": "Genoa CFC",
+              "value": 0.3333333333333333,
+              "is_self": false
+            },
+            {
+              "name": "Juventus FC",
+              "value": 0.27692307692307694,
+              "is_self": false
+            },
+            {
               "name": "AS Roma",
-              "value": 0.4166666666666667,
+              "value": 0.43209876543209874,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.2711864406779661,
+              "value": 0.2753623188405797,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.24,
+              "value": 0.24074074074074073,
               "is_self": false
             },
             {
@@ -3435,37 +3527,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.358974358974359,
+              "value": 0.34146341463414637,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.3157894736842105,
+              "value": 0.32926829268292684,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.30666666666666664,
+              "value": 0.3076923076923077,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.18181818181818182,
+              "value": 0.17777777777777778,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.2,
+              "value": 0.1951219512195122,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.21568627450980393,
+              "value": 0.20754716981132076,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.265625,
+              "value": 0.2714285714285714,
               "is_self": false
             },
             {
@@ -3480,57 +3572,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 11.090909090909092,
+              "value": 11.083333333333334,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 10.0,
+              "value": 10.083333333333334,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 9.909090909090908,
+              "value": 9.583333333333334,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 12.545454545454545,
+              "value": 12.5,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 8.909090909090908,
+              "value": 9.25,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 10.818181818181818,
+              "value": 10.833333333333334,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 9.818181818181818,
+              "value": 9.75,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 12.363636363636363,
+              "value": 12.25,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 10.909090909090908,
+              "value": 10.75,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 9.636363636363637,
+              "value": 9.583333333333334,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 13.090909090909092,
+              "value": 13.083333333333334,
               "is_self": false
             },
             {
@@ -3540,37 +3632,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 9.909090909090908,
+              "value": 9.75,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 9.636363636363637,
+              "value": 9.666666666666666,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 14.636363636363637,
+              "value": 14.833333333333334,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 9.727272727272727,
+              "value": 9.833333333333334,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 10.545454545454545,
+              "value": 10.166666666666666,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 13.909090909090908,
+              "value": 13.833333333333334,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 8.0,
+              "value": 7.833333333333333,
               "is_self": false
             },
             {
@@ -3585,57 +3677,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.8181818181818182,
+              "value": 0.75,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 2.6363636363636362,
+              "value": 2.5833333333333335,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 1.1818181818181819,
+              "value": 1.1666666666666667,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 1.3636363636363635,
+              "value": 1.4166666666666667,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 1.2727272727272727,
+              "value": 1.1666666666666667,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 2.272727272727273,
+              "value": 2.1666666666666665,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 1.4545454545454546,
+              "value": 1.3333333333333333,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 1.0909090909090908,
+              "value": 1.0,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.9090909090909091,
+              "value": 0.9166666666666666,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 1.8181818181818181,
+              "value": 2.0,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 1.2727272727272727,
+              "value": 1.25,
               "is_self": false
             },
             {
@@ -3645,37 +3737,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 1.5454545454545454,
+              "value": 1.5,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 1.1818181818181819,
+              "value": 1.4166666666666667,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 1.3636363636363635,
+              "value": 1.6666666666666667,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 1.9090909090909092,
+              "value": 2.0833333333333335,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 1.5454545454545454,
+              "value": 1.8333333333333333,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 2.0,
+              "value": 2.0833333333333335,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.9090909090909091,
+              "value": 0.8333333333333334,
               "is_self": false
             },
             {
@@ -3690,57 +3782,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 2.272727272727273,
+              "value": 2.3333333333333335,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 1.4545454545454546,
+              "value": 1.3333333333333333,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 2.090909090909091,
+              "value": 2.3333333333333335,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.9090909090909091,
+              "value": 0.8333333333333334,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 1.6363636363636365,
+              "value": 1.5833333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 1.0909090909090908,
+              "value": 1.0833333333333333,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 1.0,
+              "value": 1.0833333333333333,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 1.3636363636363635,
+              "value": 1.5833333333333333,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 2.8181818181818183,
+              "value": 3.0,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 1.5454545454545454,
+              "value": 1.75,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 1.4545454545454546,
+              "value": 1.4166666666666667,
               "is_self": false
             },
             {
@@ -3750,37 +3842,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 1.3636363636363635,
+              "value": 1.25,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 2.5454545454545454,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 2.1818181818181817,
+              "value": 2.0833333333333335,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.7272727272727273,
+              "value": 0.6666666666666666,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.8181818181818182,
+              "value": 0.8333333333333334,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 1.0909090909090908,
+              "value": 1.0,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 1.6363636363636365,
+              "value": 1.6666666666666667,
               "is_self": false
             },
             {
@@ -3795,57 +3887,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 8.454545454545455,
+              "value": 8.166666666666666,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 7.7272727272727275,
+              "value": 8.0,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 8.909090909090908,
+              "value": 8.75,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 10.909090909090908,
+              "value": 10.833333333333334,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 6.7272727272727275,
+              "value": 6.833333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 7.636363636363637,
+              "value": 7.416666666666667,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 9.545454545454545,
+              "value": 9.583333333333334,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 7.636363636363637,
+              "value": 8.083333333333334,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 10.090909090909092,
+              "value": 10.416666666666666,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 9.636363636363637,
+              "value": 9.916666666666666,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 9.0,
+              "value": 8.833333333333334,
               "is_self": false
             },
             {
@@ -3855,37 +3947,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 8.636363636363637,
+              "value": 9.083333333333334,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 8.909090909090908,
+              "value": 8.916666666666666,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 11.909090909090908,
+              "value": 11.75,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 7.454545454545454,
+              "value": 7.25,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 9.090909090909092,
+              "value": 8.916666666666666,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 8.636363636363637,
+              "value": 8.833333333333334,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 8.545454545454545,
+              "value": 8.833333333333334,
               "is_self": false
             },
             {
@@ -3900,12 +3992,12 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 1.2727272727272727,
+              "value": 1.75,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 2.6363636363636362,
+              "value": 2.5833333333333335,
               "is_self": false
             },
             {
@@ -3915,37 +4007,42 @@
             },
             {
               "name": "Cagliari Calcio",
-              "value": 2.5454545454545454,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 2.6363636363636362,
+              "value": 2.6666666666666665,
+              "is_self": false
+            },
+            {
+              "name": "Udinese Calcio",
+              "value": 1.1666666666666667,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 2.272727272727273,
+              "value": 2.0833333333333335,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 2.8181818181818183,
+              "value": 2.75,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 2.6363636363636362,
+              "value": 2.8333333333333335,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 1.1818181818181819,
+              "value": 1.4166666666666667,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 2.272727272727273,
+              "value": 2.25,
               "is_self": false
             },
             {
@@ -3955,32 +4052,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 1.8181818181818181,
+              "value": 1.6666666666666667,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 2.909090909090909,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 2.8181818181818183,
+              "value": 3.0,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 2.6363636363636362,
+              "value": 2.5,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 1.2727272727272727,
+              "value": 1.5,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 1.4545454545454546,
+              "value": 1.4166666666666667,
+              "is_self": false
+            },
+            {
+              "name": "Como 1907",
+              "value": 1.4166666666666667,
               "is_self": false
             },
             {
@@ -3995,57 +4097,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.8698884758364313,
+              "value": 0.865234375,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.8672108301811666,
+              "value": 0.8655790033693918,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.8857772183763373,
+              "value": 0.8825518153755696,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.8264405204460966,
+              "value": 0.8240270727580372,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.8620003617290649,
+              "value": 0.8593073593073594,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.8418448139350753,
+              "value": 0.8390047566776436,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.8016766467065868,
+              "value": 0.797339246119734,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.8681579393323166,
+              "value": 0.8689612594536194,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.8571895959430721,
+              "value": 0.8576080521018354,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.8697526236881559,
+              "value": 0.8698523023457863,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.8575026232948584,
+              "value": 0.85607081008274,
               "is_self": false
             },
             {
@@ -4055,37 +4157,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.8288610614192009,
+              "value": 0.8286341999267668,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.8995179270864718,
+              "value": 0.8987882126136051,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.7436589314624933,
+              "value": 0.7486526212640863,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.8489323488325683,
+              "value": 0.8476418570375829,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.7981064483111566,
+              "value": 0.7922232824427481,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.7656704575509125,
+              "value": 0.7626953125,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.9018197828001174,
+              "value": 0.9032300767805136,
               "is_self": false
             },
             {
@@ -4100,57 +4202,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 446.72727272727275,
+              "value": 443.0,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 396.0,
+              "value": 406.75,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 511.8181818181818,
+              "value": 500.3333333333333,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 323.3636363636364,
+              "value": 324.6666666666667,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 433.27272727272725,
+              "value": 430.0833333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 386.6363636363636,
+              "value": 382.1666666666667,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 304.27272727272725,
+              "value": 299.6666666666667,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 465.72727272727275,
+              "value": 469.1666666666667,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 476.3636363636364,
+              "value": 482.8333333333333,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 421.90909090909093,
+              "value": 417.1666666666667,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 371.45454545454544,
+              "value": 370.75,
               "is_self": false
             },
             {
@@ -4160,37 +4262,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 379.09090909090907,
+              "value": 377.1666666666667,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 542.8181818181819,
+              "value": 543.9166666666666,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 250.54545454545453,
+              "value": 254.66666666666666,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 386.72727272727275,
+              "value": 383.4166666666667,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 283.54545454545456,
+              "value": 276.75,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 263.1818181818182,
+              "value": 260.3333333333333,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 558.6363636363636,
+              "value": 568.5833333333334,
               "is_self": false
             },
             {
@@ -4205,57 +4307,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 10.727272727272727,
+              "value": 10.416666666666666,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 10.090909090909092,
+              "value": 11.0,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 9.181818181818182,
+              "value": 9.083333333333334,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 8.909090909090908,
+              "value": 8.583333333333334,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 11.909090909090908,
+              "value": 12.416666666666666,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 11.363636363636363,
+              "value": 11.166666666666666,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 8.545454545454545,
+              "value": 8.333333333333334,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 12.727272727272727,
+              "value": 12.333333333333334,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 16.09090909090909,
+              "value": 15.916666666666666,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 11.090909090909092,
+              "value": 11.0,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 10.0,
+              "value": 10.25,
               "is_self": false
             },
             {
@@ -4265,37 +4367,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 7.545454545454546,
+              "value": 7.666666666666667,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 16.545454545454547,
+              "value": 16.083333333333332,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 15.909090909090908,
+              "value": 15.333333333333334,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 10.272727272727273,
+              "value": 10.166666666666666,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 8.545454545454545,
+              "value": 8.916666666666666,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 8.363636363636363,
+              "value": 8.333333333333334,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 13.909090909090908,
+              "value": 13.416666666666666,
               "is_self": false
             },
             {
@@ -4310,57 +4412,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 513.5454545454545,
+              "value": 512.0,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 456.6363636363636,
+              "value": 469.9166666666667,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 577.8181818181819,
+              "value": 566.9166666666666,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 391.27272727272725,
+              "value": 394.0,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 502.6363636363636,
+              "value": 500.5,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 459.27272727272725,
+              "value": 455.5,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 379.54545454545456,
+              "value": 375.8333333333333,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 536.4545454545455,
+              "value": 539.9166666666666,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 555.7272727272727,
+              "value": 563.0,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 485.09090909090907,
+              "value": 479.5833333333333,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 433.1818181818182,
+              "value": 433.0833333333333,
               "is_self": false
             },
             {
@@ -4370,37 +4472,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 457.3636363636364,
+              "value": 455.1666666666667,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 603.4545454545455,
+              "value": 605.1666666666666,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 336.90909090909093,
+              "value": 340.1666666666667,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 455.54545454545456,
+              "value": 452.3333333333333,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 355.27272727272725,
+              "value": 349.3333333333333,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 343.72727272727275,
+              "value": 341.3333333333333,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 619.4545454545455,
+              "value": 629.5,
               "is_self": false
             },
             {
@@ -4415,57 +4517,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.5420784953459361,
+              "value": 0.5470572522482414,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.46141833547675914,
+              "value": 0.47638759820900567,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.5947969305633539,
+              "value": 0.591102615344513,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.40119313944817303,
+              "value": 0.3975782038345106,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.5260704091341579,
+              "value": 0.5260115606936416,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.4995550281815485,
+              "value": 0.49876813577881196,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.4311680264380874,
+              "value": 0.4241113409817566,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.5812075248694967,
+              "value": 0.5811804808037316,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.5702957365425879,
+              "value": 0.5801133436373004,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.492296337300489,
+              "value": 0.4843460696852382,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.4885676202194197,
+              "value": 0.49032927634682516,
               "is_self": false
             },
             {
@@ -4475,37 +4577,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.5013452914798207,
+              "value": 0.49913186511925434,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.6039486852879629,
+              "value": 0.6034568721954462,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.46846163569713056,
+              "value": 0.4673689031371651,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.4880210362290612,
+              "value": 0.4819319897007902,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.40045086586740447,
+              "value": 0.39228897623058206,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.40503481521156937,
+              "value": 0.40374568753080337,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.6181059506531205,
+              "value": 0.6197899573350837,
               "is_self": false
             },
             {
@@ -4520,57 +4622,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.8478260869565217,
+              "value": 0.8541666666666666,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.6164383561643836,
+              "value": 0.6103896103896104,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.7551020408163265,
+              "value": 0.75,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.7580645161290323,
+              "value": 0.75,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.7021276595744681,
+              "value": 0.7142857142857143,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.6323529411764706,
+              "value": 0.6388888888888888,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.6938775510204082,
+              "value": 0.7321428571428571,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.6129032258064516,
+              "value": 0.625,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.7777777777777778,
+              "value": 0.7843137254901961,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.7121212121212122,
+              "value": 0.6805555555555556,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.6585365853658537,
+              "value": 0.6590909090909091,
               "is_self": false
             },
             {
@@ -4580,37 +4682,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.6808510638297872,
+              "value": 0.7192982456140351,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.6486486486486487,
+              "value": 0.6382978723404256,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.7457627118644068,
+              "value": 0.7164179104477612,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.7301587301587301,
+              "value": 0.704225352112676,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.746031746031746,
+              "value": 0.7083333333333334,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.6557377049180327,
+              "value": 0.6417910447761194,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.7142857142857143,
+              "value": 0.7222222222222222,
               "is_self": false
             },
             {
@@ -4625,57 +4727,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 3.5454545454545454,
+              "value": 3.4166666666666665,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 4.090909090909091,
+              "value": 3.9166666666666665,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 3.3636363636363638,
+              "value": 3.25,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 4.2727272727272725,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 3.0,
+              "value": 2.9166666666666665,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 3.909090909090909,
+              "value": 3.8333333333333335,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 3.090909090909091,
+              "value": 3.4166666666666665,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 1.7272727272727273,
+              "value": 1.6666666666666667,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 3.1818181818181817,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 4.2727272727272725,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 2.4545454545454546,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
@@ -4685,12 +4787,12 @@
             },
             {
               "name": "Torino FC",
-              "value": 2.909090909090909,
+              "value": 3.4166666666666665,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 2.1818181818181817,
+              "value": 2.5,
               "is_self": false
             },
             {
@@ -4700,22 +4802,22 @@
             },
             {
               "name": "Venezia",
-              "value": 4.181818181818182,
+              "value": 4.166666666666667,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 4.2727272727272725,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 3.6363636363636362,
+              "value": 3.5833333333333335,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 2.272727272727273,
+              "value": 2.1666666666666665,
               "is_self": false
             },
             {
@@ -4730,57 +4832,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.5947712418300654,
+              "value": 0.6012269938650306,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.5755395683453237,
+              "value": 0.5609756097560976,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.7619047619047619,
+              "value": 0.7681159420289855,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.6583333333333333,
+              "value": 0.6587301587301587,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.7017543859649122,
+              "value": 0.6994818652849741,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.60625,
+              "value": 0.6198830409356725,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.6201550387596899,
+              "value": 0.6285714285714286,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.5611111111111111,
+              "value": 0.5520833333333334,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.7230046948356808,
+              "value": 0.7155172413793104,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.7025316455696202,
+              "value": 0.6994219653179191,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.6666666666666666,
+              "value": 0.6904761904761905,
               "is_self": false
             },
             {
@@ -4790,37 +4892,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.6324786324786325,
+              "value": 0.627906976744186,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.717948717948718,
+              "value": 0.724,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.6515837104072398,
+              "value": 0.652542372881356,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.6026490066225165,
+              "value": 0.5853658536585366,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.6818181818181818,
+              "value": 0.7007874015748031,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.6090225563909775,
+              "value": 0.6293706293706294,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.6490384615384616,
+              "value": 0.6513761467889908,
               "is_self": false
             },
             {
@@ -4835,57 +4937,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 8.272727272727273,
+              "value": 8.166666666666666,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 7.2727272727272725,
+              "value": 7.666666666666667,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 8.727272727272727,
+              "value": 8.833333333333334,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 7.181818181818182,
+              "value": 6.916666666666667,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 10.909090909090908,
+              "value": 11.25,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 8.818181818181818,
+              "value": 8.833333333333334,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 7.2727272727272725,
+              "value": 7.333333333333333,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 9.181818181818182,
+              "value": 8.833333333333334,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 14.0,
+              "value": 13.833333333333334,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 10.090909090909092,
+              "value": 10.083333333333334,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 9.090909090909092,
+              "value": 9.666666666666666,
               "is_self": false
             },
             {
@@ -4895,37 +4997,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 6.7272727272727275,
+              "value": 6.75,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 15.272727272727273,
+              "value": 15.083333333333334,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 13.090909090909092,
+              "value": 12.833333333333334,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 8.272727272727273,
+              "value": 8.0,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 6.818181818181818,
+              "value": 7.416666666666667,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 7.363636363636363,
+              "value": 7.5,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 12.272727272727273,
+              "value": 11.833333333333334,
               "is_self": false
             },
             {
@@ -4940,57 +5042,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 4.2727272727272725,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 6.818181818181818,
+              "value": 6.666666666666667,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 4.363636363636363,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 5.7272727272727275,
+              "value": 5.75,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 4.2727272727272725,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 6.181818181818182,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 4.454545454545454,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 2.909090909090909,
+              "value": 2.75,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 4.2727272727272725,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 5.909090909090909,
+              "value": 5.916666666666667,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 3.6363636363636362,
+              "value": 3.5833333333333335,
               "is_self": false
             },
             {
@@ -5000,37 +5102,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 4.454545454545454,
+              "value": 4.916666666666667,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 3.272727272727273,
+              "value": 3.8333333333333335,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 5.636363636363637,
+              "value": 5.833333333333333,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 6.0,
+              "value": 6.166666666666667,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 5.7272727272727275,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 5.636363636363637,
+              "value": 5.666666666666667,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 3.3636363636363638,
+              "value": 3.1666666666666665,
               "is_self": false
             },
             {
@@ -5045,57 +5147,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.45454545454545453,
+              "value": 0.75,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": -2.272727272727273,
+              "value": -1.9166666666666667,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.09090909090909091,
+              "value": 0.5,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": -1.7272727272727273,
+              "value": -2.0,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 1.3636363636363635,
+              "value": 1.9166666666666667,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": -1.7272727272727273,
+              "value": -1.6666666666666667,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": -1.3636363636363635,
+              "value": -1.4166666666666667,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 2.272727272727273,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 2.272727272727273,
+              "value": 2.3333333333333335,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": -0.5454545454545454,
+              "value": -0.16666666666666666,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.9090909090909091,
+              "value": 0.9166666666666666,
               "is_self": false
             },
             {
@@ -5105,37 +5207,37 @@
             },
             {
               "name": "Torino FC",
-              "value": -0.9090909090909091,
+              "value": -1.5,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 3.6363636363636362,
+              "value": 3.0,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 1.1818181818181819,
+              "value": 0.6666666666666666,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": -2.0,
+              "value": -2.4166666666666665,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": -2.5454545454545454,
+              "value": -2.5833333333333335,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": -1.0,
+              "value": -1.25,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 2.4545454545454546,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
@@ -5150,57 +5252,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 0.33986928104575165,
+              "value": 0.3558282208588957,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 0.3597122302158273,
+              "value": 0.3475609756097561,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 0.3888888888888889,
+              "value": 0.41304347826086957,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 0.36666666666666664,
+              "value": 0.35714285714285715,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 0.36257309941520466,
+              "value": 0.37305699481865284,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 0.30625,
+              "value": 0.30409356725146197,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 0.26356589147286824,
+              "value": 0.2785714285714286,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 0.31666666666666665,
+              "value": 0.3385416666666667,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 0.3380281690140845,
+              "value": 0.34913793103448276,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 0.37341772151898733,
+              "value": 0.3988439306358382,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 0.3333333333333333,
+              "value": 0.32142857142857145,
               "is_self": false
             },
             {
@@ -5210,37 +5312,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 0.3333333333333333,
+              "value": 0.3178294573643411,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 0.3247863247863248,
+              "value": 0.328,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 0.3393665158371041,
+              "value": 0.3305084745762712,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 0.2913907284768212,
+              "value": 0.27439024390243905,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 0.3181818181818182,
+              "value": 0.3228346456692913,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 0.38345864661654133,
+              "value": 0.3706293706293706,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 0.3076923076923077,
+              "value": 0.3211009174311927,
               "is_self": false
             },
             {
@@ -5255,57 +5357,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 4.7272727272727275,
+              "value": 4.833333333333333,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 4.545454545454546,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 4.454545454545454,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 4.0,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 5.636363636363637,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 4.454545454545454,
+              "value": 4.333333333333333,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 3.090909090909091,
+              "value": 3.25,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 5.181818181818182,
+              "value": 5.416666666666667,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 6.545454545454546,
+              "value": 6.75,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 5.363636363636363,
+              "value": 5.75,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 4.545454545454546,
+              "value": 4.5,
               "is_self": false
             },
             {
@@ -5315,37 +5417,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 3.5454545454545454,
+              "value": 3.4166666666666665,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 6.909090909090909,
+              "value": 6.833333333333333,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 6.818181818181818,
+              "value": 6.5,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 4.0,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 3.1818181818181817,
+              "value": 3.4166666666666665,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 4.636363636363637,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 5.818181818181818,
+              "value": 5.833333333333333,
               "is_self": false
             },
             {
@@ -5360,57 +5462,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 13.909090909090908,
+              "value": 13.583333333333334,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 12.636363636363637,
+              "value": 13.666666666666666,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 11.454545454545455,
+              "value": 11.5,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 10.909090909090908,
+              "value": 10.5,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 15.545454545454545,
+              "value": 16.083333333333332,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 14.545454545454545,
+              "value": 14.25,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 11.727272727272727,
+              "value": 11.666666666666666,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 16.363636363636363,
+              "value": 16.0,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 19.363636363636363,
+              "value": 19.333333333333332,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 14.363636363636363,
+              "value": 14.416666666666666,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 13.636363636363637,
+              "value": 14.0,
               "is_self": false
             },
             {
@@ -5420,37 +5522,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 10.636363636363637,
+              "value": 10.75,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 21.272727272727273,
+              "value": 20.833333333333332,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 20.09090909090909,
+              "value": 19.666666666666668,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 13.727272727272727,
+              "value": 13.666666666666666,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 10.0,
+              "value": 10.583333333333334,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 12.090909090909092,
+              "value": 11.916666666666666,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 18.90909090909091,
+              "value": 18.166666666666668,
               "is_self": false
             },
             {
@@ -5465,57 +5567,57 @@
           "clubs": [
             {
               "name": "SS Lazio",
-              "value": 13.272727272727273,
+              "value": 13.083333333333334,
               "is_self": false
             },
             {
               "name": "US Sassuolo",
-              "value": 16.818181818181817,
+              "value": 17.083333333333332,
               "is_self": false
             },
             {
               "name": "AC Milan",
-              "value": 16.09090909090909,
+              "value": 16.166666666666668,
               "is_self": false
             },
             {
               "name": "Cagliari Calcio",
-              "value": 15.727272727272727,
+              "value": 16.666666666666668,
               "is_self": false
             },
             {
               "name": "SSC Napoli",
-              "value": 15.090909090909092,
+              "value": 15.25,
               "is_self": false
             },
             {
               "name": "Udinese Calcio",
-              "value": 13.636363636363637,
+              "value": 13.416666666666666,
               "is_self": false
             },
             {
               "name": "Genoa CFC",
-              "value": 18.09090909090909,
+              "value": 18.166666666666668,
               "is_self": false
             },
             {
               "name": "Juventus FC",
-              "value": 15.545454545454545,
+              "value": 15.833333333333334,
               "is_self": false
             },
             {
               "name": "AS Roma",
-              "value": 17.09090909090909,
+              "value": 16.416666666666668,
               "is_self": false
             },
             {
               "name": "Atalanta BC",
-              "value": 15.727272727272727,
+              "value": 15.333333333333334,
               "is_self": false
             },
             {
               "name": "Bologna FC 1909",
-              "value": 16.363636363636363,
+              "value": 16.5,
               "is_self": false
             },
             {
@@ -5525,37 +5627,37 @@
             },
             {
               "name": "Torino FC",
-              "value": 15.727272727272727,
+              "value": 15.5,
               "is_self": false
             },
             {
               "name": "Inter Milan",
-              "value": 16.363636363636363,
+              "value": 15.583333333333334,
               "is_self": false
             },
             {
               "name": "Frosinone",
-              "value": 20.272727272727273,
+              "value": 20.5,
               "is_self": true
             },
             {
               "name": "Venezia",
-              "value": 15.727272727272727,
+              "value": 15.75,
               "is_self": false
             },
             {
               "name": "Parma",
-              "value": 15.0,
+              "value": 14.583333333333334,
               "is_self": false
             },
             {
               "name": "US Lecce",
-              "value": 19.454545454545453,
+              "value": 20.166666666666668,
               "is_self": false
             },
             {
               "name": "Como 1907",
-              "value": 16.727272727272727,
+              "value": 16.333333333333332,
               "is_self": false
             },
             {
@@ -5630,23 +5732,25 @@
       "biggest_win_goals_for": 5,
       "biggest_win_goals_against": 1,
       "biggest_win_kickoff_datetime": "2026-10-29 17:30:00+00:00",
-      "heaviest_defeat_fixture_sk": 1550144,
+      "heaviest_defeat_fixture_sk": 1550197,
       "heaviest_defeat_league_code": "SA",
-      "heaviest_defeat_opponent_team_sk": 492,
-      "heaviest_defeat_opponent_name": "SSC Napoli",
+      "heaviest_defeat_opponent_team_sk": 489,
+      "heaviest_defeat_opponent_name": "AC Milan",
       "heaviest_defeat_home_away": "away",
-      "heaviest_defeat_goals_for": 0,
-      "heaviest_defeat_goals_against": 3,
-      "heaviest_defeat_kickoff_datetime": "2026-10-10 18:45:00+00:00",
+      "heaviest_defeat_goals_for": 1,
+      "heaviest_defeat_goals_against": 5,
+      "heaviest_defeat_kickoff_datetime": "2026-11-22 17:00:00+00:00",
       "is_featured_season": false,
       "season_label": "2026/27",
       "next_fixture": null,
       "recent_results": [
         {
           "opponent_name": "US Sassuolo",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
+          "opponent_logo_url": "/crests/teams/488-104.webp",
           "is_home": false,
           "kickoff_datetime": "2026-09-02 13:00:00+00:00",
+          "kickoff_local": "2026-09-02 15:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Round of 32",
           "goals_for": 1,
           "goals_against": 1,
@@ -5655,9 +5759,11 @@
         },
         {
           "opponent_name": "Juve Stabia",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/863.png",
+          "opponent_logo_url": "/crests/teams/863-104.webp",
           "is_home": true,
           "kickoff_datetime": "2026-08-16 16:00:00+00:00",
+          "kickoff_local": "2026-08-16 18:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Round of 64",
           "goals_for": 4,
           "goals_against": 1,
@@ -6082,9 +6188,11 @@
       "recent_results": [
         {
           "opponent_name": "Cagliari Calcio",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/490.png",
+          "opponent_logo_url": "/crests/teams/490-104.webp",
           "is_home": false,
           "kickoff_datetime": "2025-09-23 15:00:00+00:00",
+          "kickoff_local": "2025-09-23 17:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "2nd Round",
           "goals_for": 1,
           "goals_against": 4,
@@ -6093,9 +6201,11 @@
         },
         {
           "opponent_name": "Monza",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1579.png",
+          "opponent_logo_url": "/crests/teams/1579-104.webp",
           "is_home": false,
           "kickoff_datetime": "2025-08-17 16:00:00+00:00",
+          "kickoff_local": "2025-08-17 18:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "1st Round",
           "goals_for": 1,
           "goals_against": 0,
@@ -6676,9 +6786,11 @@
       "recent_results": [
         {
           "opponent_name": "Pisa SC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/801.png",
+          "opponent_logo_url": "/crests/teams/801-104.webp",
           "is_home": true,
           "kickoff_datetime": "2024-08-12 16:00:00+00:00",
+          "kickoff_local": "2024-08-12 18:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "1st Round",
           "goals_for": 0,
           "goals_against": 3,
@@ -7475,9 +7587,11 @@
       "recent_results": [
         {
           "opponent_name": "Udinese Calcio",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/494.png",
+          "opponent_logo_url": "/crests/teams/494-104.webp",
           "is_home": true,
           "kickoff_datetime": "2024-05-26 18:45:00+00:00",
+          "kickoff_local": "2024-05-26 20:45:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 38",
           "goals_for": 0,
           "goals_against": 1,
@@ -7486,9 +7600,11 @@
         },
         {
           "opponent_name": "Monza",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1579.png",
+          "opponent_logo_url": "/crests/teams/1579-104.webp",
           "is_home": false,
           "kickoff_datetime": "2024-05-19 13:00:00+00:00",
+          "kickoff_local": "2024-05-19 15:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 37",
           "goals_for": 1,
           "goals_against": 0,
@@ -7497,9 +7613,11 @@
         },
         {
           "opponent_name": "Inter Milan",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/505.png",
+          "opponent_logo_url": "/crests/teams/505-104.webp",
           "is_home": true,
           "kickoff_datetime": "2024-05-10 18:45:00+00:00",
+          "kickoff_local": "2024-05-10 20:45:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 36",
           "goals_for": 0,
           "goals_against": 5,
@@ -7508,9 +7626,11 @@
         },
         {
           "opponent_name": "Empoli",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/511.png",
+          "opponent_logo_url": "/crests/teams/511-104.webp",
           "is_home": false,
           "kickoff_datetime": "2024-05-05 13:00:00+00:00",
+          "kickoff_local": "2024-05-05 15:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 35",
           "goals_for": 0,
           "goals_against": 0,
@@ -7519,9 +7639,11 @@
         },
         {
           "opponent_name": "Salernitana",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/514.png",
+          "opponent_logo_url": "/crests/teams/514-104.webp",
           "is_home": true,
           "kickoff_datetime": "2024-04-26 18:45:00+00:00",
+          "kickoff_local": "2024-04-26 20:45:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 34",
           "goals_for": 3,
           "goals_against": 0,
@@ -8431,6 +8553,16 @@
           "vs_median_delta": -0.7105263157894735
         },
         {
+          "metric_key": "offsides_per_match",
+          "metric_value": 1.263157894736842,
+          "rank": 4,
+          "team_count": 20,
+          "league_median": 1.605263157894737,
+          "league_p25": 1.4473684210526316,
+          "league_p75": 1.736842105263158,
+          "vs_median_delta": -0.3421052631578949
+        },
+        {
           "metric_key": "passes_accuracy_pct",
           "metric_value": 0.7979122390298787,
           "rank": 12,
@@ -8801,9 +8933,11 @@
       "recent_results": [
         {
           "opponent_name": "Juventus FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/496.png",
+          "opponent_logo_url": "/crests/teams/496-104.webp",
           "is_home": false,
           "kickoff_datetime": "2024-01-11 20:00:00+00:00",
+          "kickoff_local": "2024-01-11 21:00:00",
+          "kickoff_zone_label": "CET",
           "round_name": "Quarter-finals",
           "goals_for": 0,
           "goals_against": 4,
@@ -8812,9 +8946,11 @@
         },
         {
           "opponent_name": "SSC Napoli",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/492.png",
+          "opponent_logo_url": "/crests/teams/492-104.webp",
           "is_home": false,
           "kickoff_datetime": "2023-12-19 20:00:00+00:00",
+          "kickoff_local": "2023-12-19 21:00:00",
+          "kickoff_zone_label": "CET",
           "round_name": "Round of 16",
           "goals_for": 4,
           "goals_against": 0,
@@ -8823,9 +8959,11 @@
         },
         {
           "opponent_name": "Torino FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/503.png",
+          "opponent_logo_url": "/crests/teams/503-104.webp",
           "is_home": false,
           "kickoff_datetime": "2023-11-02 20:00:00+00:00",
+          "kickoff_local": "2023-11-02 21:00:00",
+          "kickoff_zone_label": "CET",
           "round_name": "2nd Round",
           "goals_for": 2,
           "goals_against": 1,
@@ -8834,9 +8972,11 @@
         },
         {
           "opponent_name": "Pisa SC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/801.png",
+          "opponent_logo_url": "/crests/teams/801-104.webp",
           "is_home": true,
           "kickoff_datetime": "2023-08-11 15:45:00+00:00",
+          "kickoff_local": "2023-08-11 17:45:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "1st Round",
           "goals_for": 1,
           "goals_against": 0,
@@ -9684,9 +9824,11 @@
       "recent_results": [
         {
           "opponent_name": "Monza",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1579.png",
+          "opponent_logo_url": "/crests/teams/1579-104.webp",
           "is_home": false,
           "kickoff_datetime": "2022-08-07 19:15:00+00:00",
+          "kickoff_local": "2022-08-07 21:15:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "1st Round",
           "goals_for": 2,
           "goals_against": 3,
@@ -10291,9 +10433,11 @@
       "recent_results": [
         {
           "opponent_name": "Venezia",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/517.png",
+          "opponent_logo_url": "/crests/teams/517-104.webp",
           "is_home": false,
           "kickoff_datetime": "2021-08-15 18:45:00+00:00",
+          "kickoff_local": "2021-08-15 20:45:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "1st Round",
           "goals_for": 1,
           "goals_against": 1,
@@ -11006,9 +11150,11 @@
       "recent_results": [
         {
           "opponent_name": "Chievo",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/491.png",
+          "opponent_logo_url": "/crests/teams/491-104.webp",
           "is_home": true,
           "kickoff_datetime": "2019-05-25 16:00:00+00:00",
+          "kickoff_local": "2019-05-25 18:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 38",
           "goals_for": 0,
           "goals_against": 0,
@@ -11017,9 +11163,11 @@
         },
         {
           "opponent_name": "AC Milan",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/489.png",
+          "opponent_logo_url": "/crests/teams/489-104.webp",
           "is_home": false,
           "kickoff_datetime": "2019-05-19 16:00:00+00:00",
+          "kickoff_local": "2019-05-19 18:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 37",
           "goals_for": 0,
           "goals_against": 2,
@@ -11028,9 +11176,11 @@
         },
         {
           "opponent_name": "Udinese Calcio",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/494.png",
+          "opponent_logo_url": "/crests/teams/494-104.webp",
           "is_home": true,
           "kickoff_datetime": "2019-05-12 13:00:00+00:00",
+          "kickoff_local": "2019-05-12 15:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 36",
           "goals_for": 1,
           "goals_against": 3,
@@ -11039,9 +11189,11 @@
         },
         {
           "opponent_name": "US Sassuolo",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/488.png",
+          "opponent_logo_url": "/crests/teams/488-104.webp",
           "is_home": false,
           "kickoff_datetime": "2019-05-05 13:00:00+00:00",
+          "kickoff_local": "2019-05-05 15:00:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 35",
           "goals_for": 2,
           "goals_against": 2,
@@ -11050,9 +11202,11 @@
         },
         {
           "opponent_name": "SSC Napoli",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/492.png",
+          "opponent_logo_url": "/crests/teams/492-104.webp",
           "is_home": true,
           "kickoff_datetime": "2019-04-28 10:30:00+00:00",
+          "kickoff_local": "2019-04-28 12:30:00",
+          "kickoff_zone_label": "CEST",
           "round_name": "Regular Season - 34",
           "goals_for": 0,
           "goals_against": 2,
@@ -11768,6 +11922,16 @@
           "league_p25": 9.710526315789474,
           "league_p75": 11.0,
           "vs_median_delta": 0.10526315789473806
+        },
+        {
+          "metric_key": "offsides_per_match",
+          "metric_value": 1.9210526315789473,
+          "rank": 11,
+          "team_count": 20,
+          "league_median": 1.868421052631579,
+          "league_p25": 1.6578947368421053,
+          "league_p75": 2.026315789473684,
+          "vs_median_delta": 0.05263157894736836
         },
         {
           "metric_key": "passes_accuracy_pct",

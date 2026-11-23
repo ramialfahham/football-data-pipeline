@@ -10,7 +10,7 @@
       "league_code": "CDF",
       "name": "Coupe de France",
       "slug": "coupe-de-france",
-      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "crest": "/crests/leagues/66-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,8 +19,10 @@
           "fixture_id": 1647948,
           "slug": "2026-11-13-dijon-vs-orleans",
           "kickoff": "2026-11-13 19:00:00+00:00",
+          "kickoff_local": "2026-11-13 20:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -35,13 +37,13 @@
             "team_id": 89,
             "name": "Dijon",
             "slug": "dijon",
-            "crest": "https://media.api-sports.io/football/teams/89.png"
+            "crest": "/crests/teams/89-104.webp"
           },
           "away": {
             "team_id": 103,
             "name": "Orleans",
             "slug": "orleans",
-            "crest": "https://media.api-sports.io/football/teams/103.png"
+            "crest": "/crests/teams/103-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -50,8 +52,10 @@
           "fixture_id": 1647959,
           "slug": "2026-11-13-la-neuvillette-vs-valenciennes",
           "kickoff": "2026-11-13 19:00:00+00:00",
+          "kickoff_local": "2026-11-13 20:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -66,13 +70,13 @@
             "team_id": 28629,
             "name": "La Neuvillette",
             "slug": "la-neuvillette",
-            "crest": "https://media.api-sports.io/football/teams/28629.png"
+            "crest": "/crests/teams/28629-104.webp"
           },
           "away": {
             "team_id": 105,
             "name": "Valenciennes",
             "slug": "valenciennes",
-            "crest": "https://media.api-sports.io/football/teams/105.png"
+            "crest": "/crests/teams/105-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -81,8 +85,10 @@
           "fixture_id": 1647986,
           "slug": "2026-11-13-st-philbert-gd-lieu-vs-la-roche-vf",
           "kickoff": "2026-11-13 19:00:00+00:00",
+          "kickoff_local": "2026-11-13 20:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -97,13 +103,57 @@
             "team_id": 15110,
             "name": "St-Philbert Gd Lieu",
             "slug": "st-philbert-gd-lieu",
-            "crest": "https://media.api-sports.io/football/teams/15110.png"
+            "crest": "/crests/teams/15110-104.webp"
           },
           "away": {
             "team_id": 9915,
             "name": "La Roche VF",
             "slug": "la-roche-vf",
-            "crest": "https://media.api-sports.io/football/teams/9915.png"
+            "crest": "/crests/teams/9915-104.webp"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "/crests/leagues/536-104.webp",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644690,
+          "slug": "2026-11-13-curacao-vs-panama",
+          "kickoff": "2026-11-13 00:30:00+00:00",
+          "kickoff_local": "2026-11-12 20:30:00",
+          "kickoff_zone_label": "AST",
+          "round": "Quarter-finals",
+          "round_label_i18n_key": "roundQuarterfinalsAm",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 11,
+          "fixture_order": 99,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 0,
+          "home": {
+            "team_id": 5530,
+            "name": "Curaçao",
+            "slug": "curacao",
+            "crest": "/crests/teams/5530-104.webp"
+          },
+          "away": {
+            "team_id": 11,
+            "name": "Panama",
+            "slug": "panama",
+            "crest": "/crests/teams/11-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false

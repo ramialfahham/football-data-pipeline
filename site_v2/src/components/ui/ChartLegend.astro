@@ -9,5 +9,5 @@ const MARK = { median: "rs-tick-key", team: "chart-dot chart-me", other: "chart-
 ---
 
 <div class="chart-legend" aria-hidden="true">
-  {keys.map((k) => <span class="chart-key"><i class={MARK[k.mark]}></i>{k.label}</span>)}
+  {keys.map((k) => <span class="chart-key"><i class={MARK[k.mark]}></i><span>{k.label}</span></span>)}
 </div>

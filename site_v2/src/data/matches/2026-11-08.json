@@ -7,696 +7,10 @@
   "next_day": "2026-11-09",
   "competitions": [
     {
-      "league_code": "APD",
-      "name": "Liga Profesional de Fútbol (Argentina)",
-      "slug": "liga-profesional-argentina",
-      "crest": "https://media.api-sports.io/football/leagues/128.png",
-      "entity_type": "club",
-      "confederation": "CONMEBOL",
-      "region_rank": 3,
-      "fixtures": [
-        {
-          "fixture_id": 1493236,
-          "slug": "2026-11-08-instituto-cordoba-vs-newells-old-boys",
-          "kickoff": "2026-11-08 01:00:00+00:00",
-          "round": "Clausura - 16",
-          "round_label_i18n_key": "roundClausuraMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 36,
-          "fixture_order": 494,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 478,
-            "name": "Instituto Cordoba",
-            "slug": "instituto-cordoba",
-            "crest": "https://media.api-sports.io/football/teams/478.png"
-          },
-          "away": {
-            "team_id": 457,
-            "name": "Newells Old Boys",
-            "slug": "newells-old-boys",
-            "crest": "https://media.api-sports.io/football/teams/457.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1493232,
-          "slug": "2026-11-08-central-cordoba-de-santiago-vs-lanus",
-          "kickoff": "2026-11-08 22:30:00+00:00",
-          "round": "Clausura - 16",
-          "round_label_i18n_key": "roundClausuraMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 36,
-          "fixture_order": 495,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1065,
-            "name": "Central Cordoba de Santiago",
-            "slug": "central-cordoba-de-santiago",
-            "crest": "https://media.api-sports.io/football/teams/1065.png"
-          },
-          "away": {
-            "team_id": 446,
-            "name": "Lanus",
-            "slug": "lanus",
-            "crest": "https://media.api-sports.io/football/teams/446.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "BL1",
-      "name": "Bundesliga",
-      "slug": "bundesliga",
-      "crest": "https://media.api-sports.io/football/leagues/78.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1575219,
-          "slug": "2026-11-08-1-fc-koln-vs-bayer-04-leverkusen",
-          "kickoff": "2026-11-08 14:30:00+00:00",
-          "round": "Regular Season - 9",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 9,
-          "round_letter": null,
-          "round_order": 9,
-          "round_sequence": 9,
-          "fixture_order": 79,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 192,
-            "name": "1. FC Köln",
-            "slug": "1-fc-koln",
-            "crest": "https://media.api-sports.io/football/teams/192.png"
-          },
-          "away": {
-            "team_id": 168,
-            "name": "Bayer 04 Leverkusen",
-            "slug": "bayer-04-leverkusen",
-            "crest": "https://media.api-sports.io/football/teams/168.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1575216,
-          "slug": "2026-11-08-sc-freiburg-vs-1-fc-union-berlin",
-          "kickoff": "2026-11-08 16:30:00+00:00",
-          "round": "Regular Season - 9",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 9,
-          "round_letter": null,
-          "round_order": 9,
-          "round_sequence": 9,
-          "fixture_order": 80,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 0,
-          "home": {
-            "team_id": 160,
-            "name": "SC Freiburg",
-            "slug": "sc-freiburg",
-            "crest": "https://media.api-sports.io/football/teams/160.png"
-          },
-          "away": {
-            "team_id": 182,
-            "name": "1. FC Union Berlin",
-            "slug": "1-fc-union-berlin",
-            "crest": "https://media.api-sports.io/football/teams/182.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1575215,
-          "slug": "2026-11-08-tsg-1899-hoffenheim-vs-fc-schalke-04",
-          "kickoff": "2026-11-08 18:30:00+00:00",
-          "round": "Regular Season - 9",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 9,
-          "round_letter": null,
-          "round_order": 9,
-          "round_sequence": 9,
-          "fixture_order": 81,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 1,
-          "home": {
-            "team_id": 167,
-            "name": "TSG 1899 Hoffenheim",
-            "slug": "tsg-1899-hoffenheim",
-            "crest": "https://media.api-sports.io/football/teams/167.png"
-          },
-          "away": {
-            "team_id": 174,
-            "name": "FC Schalke 04",
-            "slug": "fc-schalke-04",
-            "crest": "https://media.api-sports.io/football/teams/174.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "BL2",
-      "name": "2. Bundesliga",
-      "slug": "2-bundesliga",
-      "crest": "https://media.api-sports.io/football/leagues/79.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1576224,
-          "slug": "2026-11-08-vfl-bochum-vs-karlsruher-sc",
-          "kickoff": "2026-11-08 12:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 97,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 3,
-          "goals_away": 2,
-          "home": {
-            "team_id": 176,
-            "name": "VfL Bochum",
-            "slug": "vfl-bochum",
-            "crest": "https://media.api-sports.io/football/teams/176.png"
-          },
-          "away": {
-            "team_id": 785,
-            "name": "Karlsruher SC",
-            "slug": "karlsruher-sc",
-            "crest": "https://media.api-sports.io/football/teams/785.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1576226,
-          "slug": "2026-11-08-1-fc-heidenheim-vs-hannover-96",
-          "kickoff": "2026-11-08 12:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 98,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 180,
-            "name": "1. FC Heidenheim",
-            "slug": "1-fc-heidenheim",
-            "crest": "https://media.api-sports.io/football/teams/180.png"
-          },
-          "away": {
-            "team_id": 166,
-            "name": "Hannover 96",
-            "slug": "hannover-96",
-            "crest": "https://media.api-sports.io/football/teams/166.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1576229,
-          "slug": "2026-11-08-1-fc-magdeburg-vs-fc-st-pauli",
-          "kickoff": "2026-11-08 12:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 99,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 4,
-          "goals_away": 1,
-          "home": {
-            "team_id": 179,
-            "name": "1. FC Magdeburg",
-            "slug": "1-fc-magdeburg",
-            "crest": "https://media.api-sports.io/football/teams/179.png"
-          },
-          "away": {
-            "team_id": 186,
-            "name": "FC St. Pauli",
-            "slug": "fc-st-pauli",
-            "crest": "https://media.api-sports.io/football/teams/186.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "BPL",
-      "name": "Belgian Pro League",
-      "slug": "belgian-pro-league",
-      "crest": "https://media.api-sports.io/football/leagues/144.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1558672,
-          "slug": "2026-11-08-club-brugge-kv-vs-anderlecht",
-          "kickoff": "2026-11-08 12:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 96,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 1,
-          "home": {
-            "team_id": 569,
-            "name": "Club Brugge KV",
-            "slug": "club-brugge-kv",
-            "crest": "https://media.api-sports.io/football/teams/569.png"
-          },
-          "away": {
-            "team_id": 554,
-            "name": "Anderlecht",
-            "slug": "anderlecht",
-            "crest": "https://media.api-sports.io/football/teams/554.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1558673,
-          "slug": "2026-11-08-gent-vs-kortrijk",
-          "kickoff": "2026-11-08 15:00:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 97,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 631,
-            "name": "Gent",
-            "slug": "gent",
-            "crest": "https://media.api-sports.io/football/teams/631.png"
-          },
-          "away": {
-            "team_id": 734,
-            "name": "Kortrijk",
-            "slug": "kortrijk",
-            "crest": "https://media.api-sports.io/football/teams/734.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1558676,
-          "slug": "2026-11-08-union-st-gilloise-vs-genk",
-          "kickoff": "2026-11-08 17:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 98,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 1393,
-            "name": "Union St. Gilloise",
-            "slug": "union-st-gilloise",
-            "crest": "https://media.api-sports.io/football/teams/1393.png"
-          },
-          "away": {
-            "team_id": 742,
-            "name": "Genk",
-            "slug": "genk",
-            "crest": "https://media.api-sports.io/football/teams/742.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1558678,
-          "slug": "2026-11-08-st-truiden-vs-zulte-waregem",
-          "kickoff": "2026-11-08 18:15:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 99,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 4,
-          "goals_away": 1,
-          "home": {
-            "team_id": 735,
-            "name": "St. Truiden",
-            "slug": "st-truiden",
-            "crest": "https://media.api-sports.io/football/teams/735.png"
-          },
-          "away": {
-            "team_id": 600,
-            "name": "Zulte Waregem",
-            "slug": "zulte-waregem",
-            "crest": "https://media.api-sports.io/football/teams/600.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "ED",
-      "name": "Eredivisie",
-      "slug": "eredivisie",
-      "crest": "https://media.api-sports.io/football/leagues/88.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1552221,
-          "slug": "2026-11-08-sc-heerenveen-vs-feyenoord",
-          "kickoff": "2026-11-08 11:15:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 104,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 5,
-          "goals_away": 3,
-          "home": {
-            "team_id": 210,
-            "name": "SC Heerenveen",
-            "slug": "sc-heerenveen",
-            "crest": "https://media.api-sports.io/football/teams/210.png"
-          },
-          "away": {
-            "team_id": 209,
-            "name": "Feyenoord",
-            "slug": "feyenoord",
-            "crest": "https://media.api-sports.io/football/teams/209.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552222,
-          "slug": "2026-11-08-fc-twente-vs-afc-ajax",
-          "kickoff": "2026-11-08 13:30:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 105,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 415,
-            "name": "FC Twente",
-            "slug": "fc-twente",
-            "crest": "https://media.api-sports.io/football/teams/415.png"
-          },
-          "away": {
-            "team_id": 194,
-            "name": "AFC Ajax",
-            "slug": "afc-ajax",
-            "crest": "https://media.api-sports.io/football/teams/194.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552219,
-          "slug": "2026-11-08-cambuur-vs-psv-eindhoven",
-          "kickoff": "2026-11-08 15:45:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 106,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 5,
-          "home": {
-            "team_id": 420,
-            "name": "Cambuur",
-            "slug": "cambuur",
-            "crest": "https://media.api-sports.io/football/teams/420.png"
-          },
-          "away": {
-            "team_id": 197,
-            "name": "PSV Eindhoven",
-            "slug": "psv-eindhoven",
-            "crest": "https://media.api-sports.io/football/teams/197.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552224,
-          "slug": "2026-11-08-az-alkmaar-vs-fc-groningen",
-          "kickoff": "2026-11-08 15:45:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 107,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 4,
-          "goals_away": 3,
-          "home": {
-            "team_id": 201,
-            "name": "AZ Alkmaar",
-            "slug": "az-alkmaar",
-            "crest": "https://media.api-sports.io/football/teams/201.png"
-          },
-          "away": {
-            "team_id": 202,
-            "name": "FC Groningen",
-            "slug": "fc-groningen",
-            "crest": "https://media.api-sports.io/football/teams/202.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552223,
-          "slug": "2026-11-08-fc-utrecht-vs-nec-nijmegen",
-          "kickoff": "2026-11-08 19:00:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 108,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 3,
-          "home": {
-            "team_id": 207,
-            "name": "FC Utrecht",
-            "slug": "fc-utrecht",
-            "crest": "https://media.api-sports.io/football/teams/207.png"
-          },
-          "away": {
-            "team_id": 413,
-            "name": "NEC Nijmegen",
-            "slug": "nec-nijmegen",
-            "crest": "https://media.api-sports.io/football/teams/413.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "EKS",
-      "name": "Ekstraklasa",
-      "slug": "ekstraklasa",
-      "crest": "https://media.api-sports.io/football/leagues/106.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1553219,
-          "slug": "2026-11-08-jagiellonia-vs-gks-katowice",
-          "kickoff": "2026-11-08 13:45:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 124,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 336,
-            "name": "Jagiellonia",
-            "slug": "jagiellonia",
-            "crest": "https://media.api-sports.io/football/teams/336.png"
-          },
-          "away": {
-            "team_id": 3484,
-            "name": "GKS Katowice",
-            "slug": "gks-katowice",
-            "crest": "https://media.api-sports.io/football/teams/3484.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1553222,
-          "slug": "2026-11-08-legia-warszawa-vs-rakow-czestochowa",
-          "kickoff": "2026-11-08 16:30:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 125,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 4,
-          "home": {
-            "team_id": 339,
-            "name": "Legia Warszawa",
-            "slug": "legia-warszawa",
-            "crest": "https://media.api-sports.io/football/teams/339.png"
-          },
-          "away": {
-            "team_id": 3491,
-            "name": "Raków Częstochowa",
-            "slug": "rakow-czestochowa",
-            "crest": "https://media.api-sports.io/football/teams/3491.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1553221,
-          "slug": "2026-11-08-lech-poznan-vs-zaglebie-lubin",
-          "kickoff": "2026-11-08 19:15:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 126,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 347,
-            "name": "Lech Poznan",
-            "slug": "lech-poznan",
-            "crest": "https://media.api-sports.io/football/teams/347.png"
-          },
-          "away": {
-            "team_id": 345,
-            "name": "Zaglebie Lubin",
-            "slug": "zaglebie-lubin",
-            "crest": "https://media.api-sports.io/football/teams/345.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
       "league_code": "FAC",
       "name": "FA Cup",
       "slug": "fa-cup",
-      "crest": "https://media.api-sports.io/football/leagues/45.png",
+      "crest": "/crests/leagues/45-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -705,6 +19,8 @@
           "fixture_id": 1646915,
           "slug": "2026-11-08-stafford-rangers-vs-grimsby",
           "kickoff": "2026-11-08 12:00:00+00:00",
+          "kickoff_local": "2026-11-08 12:00:00",
+          "kickoff_zone_label": "GMT",
           "round": "1/128-finals",
           "round_label_i18n_key": "roundFaFirstRoundProper",
           "round_number": null,
@@ -721,13 +37,13 @@
             "team_id": 7748,
             "name": "Stafford Rangers",
             "slug": "stafford-rangers",
-            "crest": "https://media.api-sports.io/football/teams/7748.png"
+            "crest": "/crests/teams/7748-104.webp"
           },
           "away": {
             "team_id": 1365,
             "name": "Grimsby",
             "slug": "grimsby",
-            "crest": "https://media.api-sports.io/football/teams/1365.png"
+            "crest": "/crests/teams/1365-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -736,6 +52,8 @@
           "fixture_id": 1646909,
           "slug": "2026-11-08-cray-wanderers-vs-stockport-county",
           "kickoff": "2026-11-08 14:15:00+00:00",
+          "kickoff_local": "2026-11-08 14:15:00",
+          "kickoff_zone_label": "GMT",
           "round": "1/128-finals",
           "round_label_i18n_key": "roundFaFirstRoundProper",
           "round_number": null,
@@ -752,13 +70,13 @@
             "team_id": 7711,
             "name": "Cray Wanderers",
             "slug": "cray-wanderers",
-            "crest": "https://media.api-sports.io/football/teams/7711.png"
+            "crest": "/crests/teams/7711-104.webp"
           },
           "away": {
             "team_id": 4686,
             "name": "Stockport County",
             "slug": "stockport-county",
-            "crest": "https://media.api-sports.io/football/teams/4686.png"
+            "crest": "/crests/teams/4686-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -767,6 +85,8 @@
           "fixture_id": 1646817,
           "slug": "2026-11-08-wimborne-town-vs-crawley-town",
           "kickoff": "2026-11-08 15:00:00+00:00",
+          "kickoff_local": "2026-11-08 15:00:00",
+          "kickoff_zone_label": "GMT",
           "round": "1/128-finals",
           "round_label_i18n_key": "roundFaFirstRoundProper",
           "round_number": null,
@@ -783,13 +103,13 @@
             "team_id": 7758,
             "name": "Wimborne Town",
             "slug": "wimborne-town",
-            "crest": "https://media.api-sports.io/football/teams/7758.png"
+            "crest": "/crests/teams/7758-104.webp"
           },
           "away": {
             "team_id": 1362,
             "name": "Crawley Town",
             "slug": "crawley-town",
-            "crest": "https://media.api-sports.io/football/teams/1362.png"
+            "crest": "/crests/teams/1362-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -798,6 +118,8 @@
           "fixture_id": 1646810,
           "slug": "2026-11-08-oldham-vs-sheffield-wednesday",
           "kickoff": "2026-11-08 17:15:00+00:00",
+          "kickoff_local": "2026-11-08 17:15:00",
+          "kickoff_zone_label": "GMT",
           "round": "1/128-finals",
           "round_label_i18n_key": "roundFaFirstRoundProper",
           "round_number": null,
@@ -814,553 +136,13 @@
             "team_id": 1349,
             "name": "Oldham",
             "slug": "oldham",
-            "crest": "https://media.api-sports.io/football/teams/1349.png"
+            "crest": "/crests/teams/1349-104.webp"
           },
           "away": {
             "team_id": 74,
             "name": "Sheffield Wednesday",
             "slug": "sheffield-wednesday",
-            "crest": "https://media.api-sports.io/football/teams/74.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "J1",
-      "name": "J1 League",
-      "slug": "j1-league",
-      "crest": "https://media.api-sports.io/football/leagues/98.png",
-      "entity_type": "club",
-      "confederation": "AFC",
-      "region_rank": 5,
-      "fixtures": [
-        {
-          "fixture_id": 1556136,
-          "slug": "2026-11-08-machida-zelvia-vs-sanfrecce-hiroshima",
-          "kickoff": "2026-11-08 05:00:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 137,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 0,
-          "home": {
-            "team_id": 303,
-            "name": "Machida Zelvia",
-            "slug": "machida-zelvia",
-            "crest": "https://media.api-sports.io/football/teams/303.png"
-          },
-          "away": {
-            "team_id": 282,
-            "name": "Sanfrecce Hiroshima",
-            "slug": "sanfrecce-hiroshima",
-            "crest": "https://media.api-sports.io/football/teams/282.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1556140,
-          "slug": "2026-11-08-vissel-kobe-vs-urawa",
-          "kickoff": "2026-11-08 05:00:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 138,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 289,
-            "name": "Vissel Kobe",
-            "slug": "vissel-kobe",
-            "crest": "https://media.api-sports.io/football/teams/289.png"
-          },
-          "away": {
-            "team_id": 287,
-            "name": "Urawa",
-            "slug": "urawa",
-            "crest": "https://media.api-sports.io/football/teams/287.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1556134,
-          "slug": "2026-11-08-gamba-osaka-vs-cerezo-osaka",
-          "kickoff": "2026-11-08 06:00:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 139,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 3,
-          "home": {
-            "team_id": 293,
-            "name": "Gamba Osaka",
-            "slug": "gamba-osaka",
-            "crest": "https://media.api-sports.io/football/teams/293.png"
-          },
-          "away": {
-            "team_id": 291,
-            "name": "Cerezo Osaka",
-            "slug": "cerezo-osaka",
-            "crest": "https://media.api-sports.io/football/teams/291.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1556132,
-          "slug": "2026-11-08-jef-united-chiba-vs-mito-hollyhock",
-          "kickoff": "2026-11-08 08:00:00+00:00",
-          "round": "Regular Season - 14",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 14,
-          "round_letter": null,
-          "round_order": 14,
-          "round_sequence": 14,
-          "fixture_order": 140,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 301,
-            "name": "JEF United Chiba",
-            "slug": "jef-united-chiba",
-            "crest": "https://media.api-sports.io/football/teams/301.png"
-          },
-          "away": {
-            "team_id": 305,
-            "name": "Mito Hollyhock",
-            "slug": "mito-hollyhock",
-            "crest": "https://media.api-sports.io/football/teams/305.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "KL1",
-      "name": "K League 1",
-      "slug": "k-league-1",
-      "crest": "https://media.api-sports.io/football/leagues/292.png",
-      "entity_type": "club",
-      "confederation": "AFC",
-      "region_rank": 5,
-      "fixtures": [
-        {
-          "fixture_id": 1647378,
-          "slug": "2026-11-08-daejeon-citizen-vs-incheon-united",
-          "kickoff": "2026-11-08 05:00:00+00:00",
-          "round": "Championship Group - 35",
-          "round_label_i18n_key": null,
-          "round_number": null,
-          "round_letter": null,
-          "round_order": 35,
-          "round_sequence": 37,
-          "fixture_order": 208,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 0,
-          "home": {
-            "team_id": 2750,
-            "name": "Daejeon Citizen",
-            "slug": "daejeon-citizen",
-            "crest": "https://media.api-sports.io/football/teams/2750.png"
-          },
-          "away": {
-            "team_id": 2763,
-            "name": "Incheon United",
-            "slug": "incheon-united",
-            "crest": "https://media.api-sports.io/football/teams/2763.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1647379,
-          "slug": "2026-11-08-fc-seoul-vs-ulsan-hyundai-fc",
-          "kickoff": "2026-11-08 05:00:00+00:00",
-          "round": "Championship Group - 35",
-          "round_label_i18n_key": null,
-          "round_number": null,
-          "round_letter": null,
-          "round_order": 35,
-          "round_sequence": 37,
-          "fixture_order": 209,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 2766,
-            "name": "FC Seoul",
-            "slug": "fc-seoul",
-            "crest": "https://media.api-sports.io/football/teams/2766.png"
-          },
-          "away": {
-            "team_id": 2767,
-            "name": "Ulsan Hyundai FC",
-            "slug": "ulsan-hyundai-fc",
-            "crest": "https://media.api-sports.io/football/teams/2767.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1647380,
-          "slug": "2026-11-08-gangwon-fc-vs-jeonbuk-motors",
-          "kickoff": "2026-11-08 07:30:00+00:00",
-          "round": "Championship Group - 35",
-          "round_label_i18n_key": null,
-          "round_number": null,
-          "round_letter": null,
-          "round_order": 35,
-          "round_sequence": 37,
-          "fixture_order": 210,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 3,
-          "goals_away": 2,
-          "home": {
-            "team_id": 2746,
-            "name": "Gangwon FC",
-            "slug": "gangwon-fc",
-            "crest": "https://media.api-sports.io/football/teams/2746.png"
-          },
-          "away": {
-            "team_id": 2762,
-            "name": "Jeonbuk Motors",
-            "slug": "jeonbuk-motors",
-            "crest": "https://media.api-sports.io/football/teams/2762.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "L1",
-      "name": "Ligue 1",
-      "slug": "ligue-1",
-      "crest": "https://media.api-sports.io/football/leagues/61.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1552816,
-          "slug": "2026-11-08-stade-rennais-fc-vs-lille-osc",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 85,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 94,
-            "name": "Stade Rennais FC",
-            "slug": "stade-rennais-fc",
-            "crest": "https://media.api-sports.io/football/teams/94.png"
-          },
-          "away": {
-            "team_id": 79,
-            "name": "Lille OSC",
-            "slug": "lille-osc",
-            "crest": "https://media.api-sports.io/football/teams/79.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552810,
-          "slug": "2026-11-08-angers-sco-vs-ogc-nice",
-          "kickoff": "2026-11-08 16:15:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 86,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 2,
-          "home": {
-            "team_id": 77,
-            "name": "Angers SCO",
-            "slug": "angers-sco",
-            "crest": "https://media.api-sports.io/football/teams/77.png"
-          },
-          "away": {
-            "team_id": 84,
-            "name": "OGC Nice",
-            "slug": "ogc-nice",
-            "crest": "https://media.api-sports.io/football/teams/84.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552812,
-          "slug": "2026-11-08-stade-brestois-29-vs-olympique-lyonnais",
-          "kickoff": "2026-11-08 16:15:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 87,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 0,
-          "home": {
-            "team_id": 106,
-            "name": "Stade Brestois 29",
-            "slug": "stade-brestois-29",
-            "crest": "https://media.api-sports.io/football/teams/106.png"
-          },
-          "away": {
-            "team_id": 80,
-            "name": "Olympique Lyonnais",
-            "slug": "olympique-lyonnais",
-            "crest": "https://media.api-sports.io/football/teams/80.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552813,
-          "slug": "2026-11-08-le-havre-ac-vs-fc-lorient",
-          "kickoff": "2026-11-08 16:15:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 88,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 2,
-          "home": {
-            "team_id": 111,
-            "name": "Le Havre AC",
-            "slug": "le-havre-ac",
-            "crest": "https://media.api-sports.io/football/teams/111.png"
-          },
-          "away": {
-            "team_id": 97,
-            "name": "FC Lorient",
-            "slug": "fc-lorient",
-            "crest": "https://media.api-sports.io/football/teams/97.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552814,
-          "slug": "2026-11-08-le-mans-vs-as-monaco-fc",
-          "kickoff": "2026-11-08 16:15:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 89,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1298,
-            "name": "Le Mans",
-            "slug": "le-mans",
-            "crest": "https://media.api-sports.io/football/teams/1298.png"
-          },
-          "away": {
-            "team_id": 91,
-            "name": "AS Monaco FC",
-            "slug": "as-monaco-fc",
-            "crest": "https://media.api-sports.io/football/teams/91.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1552818,
-          "slug": "2026-11-08-rc-lens-vs-olympique-de-marseille",
-          "kickoff": "2026-11-08 19:45:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 90,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 116,
-            "name": "RC Lens",
-            "slug": "rc-lens",
-            "crest": "https://media.api-sports.io/football/teams/116.png"
-          },
-          "away": {
-            "team_id": 81,
-            "name": "Olympique de Marseille",
-            "slug": "olympique-de-marseille",
-            "crest": "https://media.api-sports.io/football/teams/81.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "LMX",
-      "name": "Liga MX",
-      "slug": "liga-mx",
-      "crest": "https://media.api-sports.io/football/leagues/262.png",
-      "entity_type": "club",
-      "confederation": "CONCACAF",
-      "region_rank": 4,
-      "fixtures": [
-        {
-          "fixture_id": 1551033,
-          "slug": "2026-11-08-tigres-uanl-vs-cruz-azul",
-          "kickoff": "2026-11-08 01:00:00+00:00",
-          "round": "Apertura - 16",
-          "round_label_i18n_key": "roundAperturaMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 16,
-          "fixture_order": 140,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 3,
-          "home": {
-            "team_id": 2279,
-            "name": "Tigres UANL",
-            "slug": "tigres-uanl",
-            "crest": "https://media.api-sports.io/football/teams/2279.png"
-          },
-          "away": {
-            "team_id": 2295,
-            "name": "Cruz Azul",
-            "slug": "cruz-azul",
-            "crest": "https://media.api-sports.io/football/teams/2295.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1551034,
-          "slug": "2026-11-08-toluca-vs-monterrey",
-          "kickoff": "2026-11-08 01:00:00+00:00",
-          "round": "Apertura - 16",
-          "round_label_i18n_key": "roundAperturaMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 16,
-          "fixture_order": 141,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 4,
-          "goals_away": 0,
-          "home": {
-            "team_id": 2281,
-            "name": "Toluca",
-            "slug": "toluca",
-            "crest": "https://media.api-sports.io/football/teams/2281.png"
-          },
-          "away": {
-            "team_id": 2282,
-            "name": "Monterrey",
-            "slug": "monterrey",
-            "crest": "https://media.api-sports.io/football/teams/2282.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1551035,
-          "slug": "2026-11-08-u-n-a-m-pumas-vs-club-america",
-          "kickoff": "2026-11-08 03:10:00+00:00",
-          "round": "Apertura - 16",
-          "round_label_i18n_key": "roundAperturaMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 16,
-          "fixture_order": 142,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 2286,
-            "name": "U.N.A.M. - Pumas",
-            "slug": "u-n-a-m-pumas",
-            "crest": "https://media.api-sports.io/football/teams/2286.png"
-          },
-          "away": {
-            "team_id": 2287,
-            "name": "Club America",
-            "slug": "club-america",
-            "crest": "https://media.api-sports.io/football/teams/2287.png"
+            "crest": "/crests/teams/74-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1371,7 +153,7 @@
       "league_code": "LP",
       "name": "Liga Portugal",
       "slug": "liga-portugal",
-      "crest": "https://media.api-sports.io/football/leagues/94.png",
+      "crest": "/crests/leagues/94-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -1380,37 +162,8 @@
           "fixture_id": 1575540,
           "slug": "2026-11-08-cd-nacional-vs-academico-viseu",
           "kickoff": "2026-11-08 15:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 94,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 225,
-            "name": "CD Nacional",
-            "slug": "cd-nacional",
-            "crest": "https://media.api-sports.io/football/teams/225.png"
-          },
-          "away": {
-            "team_id": 238,
-            "name": "Academico Viseu",
-            "slug": "academico-viseu",
-            "crest": "https://media.api-sports.io/football/teams/238.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1575542,
-          "slug": "2026-11-08-cd-santa-clara-vs-gil-vicente-fc",
-          "kickoff": "2026-11-08 15:30:00+00:00",
+          "kickoff_local": "2026-11-08 15:30:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 11",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 11,
@@ -1422,18 +175,51 @@
           "unplayed_state": null,
           "is_played": true,
           "goals_home": 1,
+          "goals_away": 0,
+          "home": {
+            "team_id": 225,
+            "name": "CD Nacional",
+            "slug": "cd-nacional",
+            "crest": "/crests/teams/225-104.webp"
+          },
+          "away": {
+            "team_id": 238,
+            "name": "Academico Viseu",
+            "slug": "academico-viseu",
+            "crest": "/crests/teams/238-104.webp"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1575542,
+          "slug": "2026-11-08-cd-santa-clara-vs-gil-vicente-fc",
+          "kickoff": "2026-11-08 15:30:00+00:00",
+          "kickoff_local": "2026-11-08 14:30:00",
+          "kickoff_zone_label": "UTC-1",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 94,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 1,
           "goals_away": 2,
           "home": {
             "team_id": 227,
             "name": "CD Santa Clara",
             "slug": "cd-santa-clara",
-            "crest": "https://media.api-sports.io/football/teams/227.png"
+            "crest": "/crests/teams/227-104.webp"
           },
           "away": {
             "team_id": 762,
             "name": "Gil Vicente FC",
             "slug": "gil-vicente-fc",
-            "crest": "https://media.api-sports.io/football/teams/762.png"
+            "crest": "/crests/teams/762-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1442,6 +228,8 @@
           "fixture_id": 1575544,
           "slug": "2026-11-08-vitoria-sc-vs-fc-porto",
           "kickoff": "2026-11-08 18:00:00+00:00",
+          "kickoff_local": "2026-11-08 18:00:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 11",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 11,
@@ -1458,13 +246,13 @@
             "team_id": 224,
             "name": "Vitória SC",
             "slug": "vitoria-sc",
-            "crest": "https://media.api-sports.io/football/teams/224.png"
+            "crest": "/crests/teams/224-104.webp"
           },
           "away": {
             "team_id": 212,
             "name": "FC Porto",
             "slug": "fc-porto",
-            "crest": "https://media.api-sports.io/football/teams/212.png"
+            "crest": "/crests/teams/212-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1473,6 +261,8 @@
           "fixture_id": 1575538,
           "slug": "2026-11-08-cf-estrela-da-amadora-vs-sl-benfica",
           "kickoff": "2026-11-08 20:30:00+00:00",
+          "kickoff_local": "2026-11-08 20:30:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 11",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 11,
@@ -1489,13 +279,13 @@
             "team_id": 15130,
             "name": "CF Estrela da Amadora",
             "slug": "cf-estrela-da-amadora",
-            "crest": "https://media.api-sports.io/football/teams/15130.png"
+            "crest": "/crests/teams/15130-104.webp"
           },
           "away": {
             "team_id": 211,
             "name": "SL Benfica",
             "slug": "sl-benfica",
-            "crest": "https://media.api-sports.io/football/teams/211.png"
+            "crest": "/crests/teams/211-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1504,6 +294,8 @@
           "fixture_id": 1575541,
           "slug": "2026-11-08-rio-ave-fc-vs-sc-braga",
           "kickoff": "2026-11-08 20:30:00+00:00",
+          "kickoff_local": "2026-11-08 20:30:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 11",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 11,
@@ -1520,874 +312,13 @@
             "team_id": 226,
             "name": "Rio Ave FC",
             "slug": "rio-ave-fc",
-            "crest": "https://media.api-sports.io/football/teams/226.png"
+            "crest": "/crests/teams/226-104.webp"
           },
           "away": {
             "team_id": 217,
             "name": "SC Braga",
             "slug": "sc-braga",
-            "crest": "https://media.api-sports.io/football/teams/217.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "MLS",
-      "name": "Major League Soccer",
-      "slug": "mls",
-      "crest": "https://media.api-sports.io/football/leagues/253.png",
-      "entity_type": "club",
-      "confederation": "CONCACAF",
-      "region_rank": 4,
-      "fixtures": [
-        {
-          "fixture_id": 1490608,
-          "slug": "2026-11-08-seattle-sounders-vs-los-angeles-fc",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 504,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1595,
-            "name": "Seattle Sounders",
-            "slug": "seattle-sounders",
-            "crest": "https://media.api-sports.io/football/teams/1595.png"
-          },
-          "away": {
-            "team_id": 1616,
-            "name": "Los Angeles FC",
-            "slug": "los-angeles-fc",
-            "crest": "https://media.api-sports.io/football/teams/1616.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1490609,
-          "slug": "2026-11-08-real-salt-lake-vs-los-angeles-galaxy",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 505,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1606,
-            "name": "Real Salt Lake",
-            "slug": "real-salt-lake",
-            "crest": "https://media.api-sports.io/football/teams/1606.png"
-          },
-          "away": {
-            "team_id": 1605,
-            "name": "Los Angeles Galaxy",
-            "slug": "los-angeles-galaxy",
-            "crest": "https://media.api-sports.io/football/teams/1605.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1490610,
-          "slug": "2026-11-08-fc-dallas-vs-colorado-rapids",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 506,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 3,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1597,
-            "name": "FC Dallas",
-            "slug": "fc-dallas",
-            "crest": "https://media.api-sports.io/football/teams/1597.png"
-          },
-          "away": {
-            "team_id": 1610,
-            "name": "Colorado Rapids",
-            "slug": "colorado-rapids",
-            "crest": "https://media.api-sports.io/football/teams/1610.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1490611,
-          "slug": "2026-11-08-austin-vs-portland-timbers",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 507,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 2,
-          "home": {
-            "team_id": 16489,
-            "name": "Austin",
-            "slug": "austin",
-            "crest": "https://media.api-sports.io/football/teams/16489.png"
-          },
-          "away": {
-            "team_id": 1617,
-            "name": "Portland Timbers",
-            "slug": "portland-timbers",
-            "crest": "https://media.api-sports.io/football/teams/1617.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1490612,
-          "slug": "2026-11-08-san-diego-vs-sporting-kansas-city",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 508,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 1,
-          "home": {
-            "team_id": 25484,
-            "name": "San Diego",
-            "slug": "san-diego",
-            "crest": "https://media.api-sports.io/football/teams/25484.png"
-          },
-          "away": {
-            "team_id": 1611,
-            "name": "Sporting Kansas City",
-            "slug": "sporting-kansas-city",
-            "crest": "https://media.api-sports.io/football/teams/1611.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1490613,
-          "slug": "2026-11-08-minnesota-united-fc-vs-san-jose-earthquakes",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 509,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 3,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1612,
-            "name": "Minnesota United FC",
-            "slug": "minnesota-united-fc",
-            "crest": "https://media.api-sports.io/football/teams/1612.png"
-          },
-          "away": {
-            "team_id": 1596,
-            "name": "San Jose Earthquakes",
-            "slug": "san-jose-earthquakes",
-            "crest": "https://media.api-sports.io/football/teams/1596.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1490614,
-          "slug": "2026-11-08-houston-dynamo-vs-st-louis-city",
-          "kickoff": "2026-11-08 00:00:00+00:00",
-          "round": "Regular Season - 34",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 34,
-          "round_letter": null,
-          "round_order": 34,
-          "round_sequence": 34,
-          "fixture_order": 510,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1600,
-            "name": "Houston Dynamo",
-            "slug": "houston-dynamo",
-            "crest": "https://media.api-sports.io/football/teams/1600.png"
-          },
-          "away": {
-            "team_id": 20787,
-            "name": "St. Louis City",
-            "slug": "st-louis-city",
-            "crest": "https://media.api-sports.io/football/teams/20787.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "PD",
-      "name": "La Liga",
-      "slug": "la-liga",
-      "crest": "https://media.api-sports.io/football/leagues/140.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1570445,
-          "slug": "2026-11-08-elche-cf-vs-real-betis",
-          "kickoff": "2026-11-08 13:00:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 116,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 2,
-          "home": {
-            "team_id": 797,
-            "name": "Elche CF",
-            "slug": "elche-cf",
-            "crest": "https://media.api-sports.io/football/teams/797.png"
-          },
-          "away": {
-            "team_id": 543,
-            "name": "Real Betis",
-            "slug": "real-betis",
-            "crest": "https://media.api-sports.io/football/teams/543.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1570449,
-          "slug": "2026-11-08-real-sociedad-vs-rayo-vallecano",
-          "kickoff": "2026-11-08 15:15:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 117,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 548,
-            "name": "Real Sociedad",
-            "slug": "real-sociedad",
-            "crest": "https://media.api-sports.io/football/teams/548.png"
-          },
-          "away": {
-            "team_id": 728,
-            "name": "Rayo Vallecano",
-            "slug": "rayo-vallecano",
-            "crest": "https://media.api-sports.io/football/teams/728.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1570444,
-          "slug": "2026-11-08-rc-celta-de-vigo-vs-levante-ud",
-          "kickoff": "2026-11-08 17:30:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 118,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 0,
-          "home": {
-            "team_id": 538,
-            "name": "RC Celta de Vigo",
-            "slug": "rc-celta-de-vigo",
-            "crest": "https://media.api-sports.io/football/teams/538.png"
-          },
-          "away": {
-            "team_id": 539,
-            "name": "Levante UD",
-            "slug": "levante-ud",
-            "crest": "https://media.api-sports.io/football/teams/539.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1570452,
-          "slug": "2026-11-08-villarreal-cf-vs-getafe-cf",
-          "kickoff": "2026-11-08 17:30:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 119,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 0,
-          "home": {
-            "team_id": 533,
-            "name": "Villarreal CF",
-            "slug": "villarreal-cf",
-            "crest": "https://media.api-sports.io/football/teams/533.png"
-          },
-          "away": {
-            "team_id": 546,
-            "name": "Getafe CF",
-            "slug": "getafe-cf",
-            "crest": "https://media.api-sports.io/football/teams/546.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1570443,
-          "slug": "2026-11-08-atletico-madrid-vs-fc-barcelona",
-          "kickoff": "2026-11-08 20:00:00+00:00",
-          "round": "Regular Season - 12",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 12,
-          "round_letter": null,
-          "round_order": 12,
-          "round_sequence": 12,
-          "fixture_order": 120,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 530,
-            "name": "Atlético Madrid",
-            "slug": "atletico-madrid",
-            "crest": "https://media.api-sports.io/football/teams/530.png"
-          },
-          "away": {
-            "team_id": 529,
-            "name": "FC Barcelona",
-            "slug": "fc-barcelona",
-            "crest": "https://media.api-sports.io/football/teams/529.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "PL",
-      "name": "Premier League",
-      "slug": "premier-league",
-      "crest": "https://media.api-sports.io/football/leagues/39.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1557458,
-          "slug": "2026-11-08-brighton-hove-albion-fc-vs-brentford-fc",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 96,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 0,
-          "home": {
-            "team_id": 51,
-            "name": "Brighton & Hove Albion FC",
-            "slug": "brighton-hove-albion-fc",
-            "crest": "https://media.api-sports.io/football/teams/51.png"
-          },
-          "away": {
-            "team_id": 55,
-            "name": "Brentford FC",
-            "slug": "brentford-fc",
-            "crest": "https://media.api-sports.io/football/teams/55.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1557459,
-          "slug": "2026-11-08-crystal-palace-fc-vs-liverpool-fc",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 97,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 3,
-          "home": {
-            "team_id": 52,
-            "name": "Crystal Palace FC",
-            "slug": "crystal-palace-fc",
-            "crest": "https://media.api-sports.io/football/teams/52.png"
-          },
-          "away": {
-            "team_id": 40,
-            "name": "Liverpool FC",
-            "slug": "liverpool-fc",
-            "crest": "https://media.api-sports.io/football/teams/40.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1557462,
-          "slug": "2026-11-08-ipswich-town-fc-vs-afc-bournemouth",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 98,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 57,
-            "name": "Ipswich Town FC",
-            "slug": "ipswich-town-fc",
-            "crest": "https://media.api-sports.io/football/teams/57.png"
-          },
-          "away": {
-            "team_id": 35,
-            "name": "AFC Bournemouth",
-            "slug": "afc-bournemouth",
-            "crest": "https://media.api-sports.io/football/teams/35.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1557466,
-          "slug": "2026-11-08-sunderland-afc-vs-chelsea-fc",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 99,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 0,
-          "home": {
-            "team_id": 746,
-            "name": "Sunderland AFC",
-            "slug": "sunderland-afc",
-            "crest": "https://media.api-sports.io/football/teams/746.png"
-          },
-          "away": {
-            "team_id": 49,
-            "name": "Chelsea FC",
-            "slug": "chelsea-fc",
-            "crest": "https://media.api-sports.io/football/teams/49.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1557464,
-          "slug": "2026-11-08-manchester-united-fc-vs-aston-villa-fc",
-          "kickoff": "2026-11-08 16:30:00+00:00",
-          "round": "Regular Season - 10",
-          "round_label_i18n_key": "roundMatchweek",
-          "round_number": 10,
-          "round_letter": null,
-          "round_order": 10,
-          "round_sequence": 10,
-          "fixture_order": 100,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 4,
-          "goals_away": 4,
-          "home": {
-            "team_id": 33,
-            "name": "Manchester United FC",
-            "slug": "manchester-united-fc",
-            "crest": "https://media.api-sports.io/football/teams/33.png"
-          },
-          "away": {
-            "team_id": 66,
-            "name": "Aston Villa FC",
-            "slug": "aston-villa-fc",
-            "crest": "https://media.api-sports.io/football/teams/66.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "SA",
-      "name": "Serie A",
-      "slug": "serie-a",
-      "crest": "https://media.api-sports.io/football/leagues/135.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1550193,
-          "slug": "2026-11-08-ssc-napoli-vs-ss-lazio",
-          "kickoff": "2026-11-08 11:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 106,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 1,
-          "home": {
-            "team_id": 492,
-            "name": "SSC Napoli",
-            "slug": "ssc-napoli",
-            "crest": "https://media.api-sports.io/football/teams/492.png"
-          },
-          "away": {
-            "team_id": 487,
-            "name": "SS Lazio",
-            "slug": "ss-lazio",
-            "crest": "https://media.api-sports.io/football/teams/487.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1550190,
-          "slug": "2026-11-08-genoa-cfc-vs-ac-milan",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 107,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 2,
-          "home": {
-            "team_id": 495,
-            "name": "Genoa CFC",
-            "slug": "genoa-cfc",
-            "crest": "https://media.api-sports.io/football/teams/495.png"
-          },
-          "away": {
-            "team_id": 489,
-            "name": "AC Milan",
-            "slug": "ac-milan",
-            "crest": "https://media.api-sports.io/football/teams/489.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1550192,
-          "slug": "2026-11-08-monza-vs-atalanta-bc",
-          "kickoff": "2026-11-08 14:00:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 108,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1579,
-            "name": "Monza",
-            "slug": "monza",
-            "crest": "https://media.api-sports.io/football/teams/1579.png"
-          },
-          "away": {
-            "team_id": 499,
-            "name": "Atalanta BC",
-            "slug": "atalanta-bc",
-            "crest": "https://media.api-sports.io/football/teams/499.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1550191,
-          "slug": "2026-11-08-inter-milan-vs-como-1907",
-          "kickoff": "2026-11-08 17:00:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 109,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 0,
-          "home": {
-            "team_id": 505,
-            "name": "Inter Milan",
-            "slug": "inter-milan",
-            "crest": "https://media.api-sports.io/football/teams/505.png"
-          },
-          "away": {
-            "team_id": 895,
-            "name": "Como 1907",
-            "slug": "como-1907",
-            "crest": "https://media.api-sports.io/football/teams/895.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1550189,
-          "slug": "2026-11-08-acf-fiorentina-vs-juventus-fc",
-          "kickoff": "2026-11-08 19:45:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 110,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 2,
-          "home": {
-            "team_id": 502,
-            "name": "ACF Fiorentina",
-            "slug": "acf-fiorentina",
-            "crest": "https://media.api-sports.io/football/teams/502.png"
-          },
-          "away": {
-            "team_id": 496,
-            "name": "Juventus FC",
-            "slug": "juventus-fc",
-            "crest": "https://media.api-sports.io/football/teams/496.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "TSL",
-      "name": "Süper Lig",
-      "slug": "super-lig",
-      "crest": "https://media.api-sports.io/football/leagues/203.png",
-      "entity_type": "club",
-      "confederation": "UEFA",
-      "region_rank": 1,
-      "fixtures": [
-        {
-          "fixture_id": 1584464,
-          "slug": "2026-11-08-rizespor-vs-erzurumspor-fk",
-          "kickoff": "2026-11-08 10:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "roundWeek",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 96,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 2,
-          "goals_away": 1,
-          "home": {
-            "team_id": 1007,
-            "name": "Rizespor",
-            "slug": "rizespor",
-            "crest": "https://media.api-sports.io/football/teams/1007.png"
-          },
-          "away": {
-            "team_id": 1009,
-            "name": "Erzurumspor FK",
-            "slug": "erzurumspor-fk",
-            "crest": "https://media.api-sports.io/football/teams/1009.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1584459,
-          "slug": "2026-11-08-corum-fk-vs-fenerbahce",
-          "kickoff": "2026-11-08 13:00:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "roundWeek",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 97,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 5,
-          "home": {
-            "team_id": 6343,
-            "name": "Çorum FK",
-            "slug": "corum-fk",
-            "crest": "https://media.api-sports.io/football/teams/6343.png"
-          },
-          "away": {
-            "team_id": 611,
-            "name": "Fenerbahçe",
-            "slug": "fenerbahce",
-            "crest": "https://media.api-sports.io/football/teams/611.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1584457,
-          "slug": "2026-11-08-alanyaspor-vs-trabzonspor",
-          "kickoff": "2026-11-08 15:30:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "roundWeek",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 98,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 2,
-          "home": {
-            "team_id": 996,
-            "name": "Alanyaspor",
-            "slug": "alanyaspor",
-            "crest": "https://media.api-sports.io/football/teams/996.png"
-          },
-          "away": {
-            "team_id": 998,
-            "name": "Trabzonspor",
-            "slug": "trabzonspor",
-            "crest": "https://media.api-sports.io/football/teams/998.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1584458,
-          "slug": "2026-11-08-besiktas-vs-genclerbirligi-s-k",
-          "kickoff": "2026-11-08 18:00:00+00:00",
-          "round": "Regular Season - 11",
-          "round_label_i18n_key": "roundWeek",
-          "round_number": 11,
-          "round_letter": null,
-          "round_order": 11,
-          "round_sequence": 11,
-          "fixture_order": 99,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 3,
-          "goals_away": 0,
-          "home": {
-            "team_id": 549,
-            "name": "Beşiktaş",
-            "slug": "besiktas",
-            "crest": "https://media.api-sports.io/football/teams/549.png"
-          },
-          "away": {
-            "team_id": 997,
-            "name": "Gençlerbirliği S.K.",
-            "slug": "genclerbirligi-s-k",
-            "crest": "https://media.api-sports.io/football/teams/997.png"
+            "crest": "/crests/teams/217-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false

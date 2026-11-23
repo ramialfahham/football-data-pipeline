@@ -1,0 +1,1372 @@
+diff --git a/.claude/task/36-crest-sample/contract.md b/.claude/task/36-crest-sample/contract.md
+new file mode 100644
+index 00000000..062ba9ba
+--- /dev/null
++++ b/.claude/task/36-crest-sample/contract.md
+@@ -0,0 +1,91 @@
++# Task contract — the committed sample carries our crest paths; the provider-image pin is 0 (MR B)
++
++objective: >
++  The committed sample under `site_v2/src/data/**` is rolled forward from prod, now that
++  `dim_team` and `dim_league` publish `/crests/{teams|leagues}/{id}-104.webp`, so the sample's
++  crests and league logos are our own paths. `IMAGE_PINS.providerImage` in
++  `site_v2/scripts/check-built-pages.mjs` goes from 59,337 to 0, so the built-pages check fails any
++  page that renders a crest or logo from the provider's host on every build, sample or full. The
++  runbook's order wording for the bucket is corrected. Done means 0 provider images in `dist/` and
++  #36 ticked.
++refs: "#36, #290 (gate item: crests from our own host)"
++
++scope_paths:
++  - site_v2/src/components/ui/ChartLegend.astro
++  - tests/fixtures/chart_screenshots/**
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++  - site_v2/src/data/**
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - site_v2/src/data/README.md
++  - site_v2/.gitignore
++  - .gitignore
++  - deploy/nightly/README.md
++  - .claude/task/36-crest-sample/contract.md
++  - .claude/task/36-crest-sample/rendered_page_evidence.md
++  - .claude/task/36-crest-sample/acceptance_evidence.md
++  - .claude/task/36-crest-sample/review.md
++  - .claude/task/36-crest-sample/review_input.patch
++
++impact_map: >
++  writers: the committed sample has one writer, `scripts/export_site_data.py` run as the recipe in
++  `site_v2/src/data/README.md` (step 1 to 6). Nothing is hand-edited. The pin has one reader,
++  `checkImageOrigins` in `site_v2/scripts/check-built-pages.mjs`, run by `npm run build` and by the
++  full-export gate of `fdp-site`.
++  downstream: every committed payload that carries a crest or league logo (landing, teams, matches,
++  fixtures, competition, players) changes the address from the provider's to our path where an object
++  is stored; a team without a stored object keeps a null logo and the page shows initials. One page
++  component changes: `site_v2/src/components/ui/ChartLegend.astro` puts each legend label in one
++  `<span>`. Its consumers, from `grep -rn ChartLegend site_v2/src`, are
++  `site_v2/src/components/player/PlayerComparison.astro` (Player page),
++  `site_v2/src/components/team/TeamDeserved.astro` and
++  `site_v2/src/components/team/TeamLeagueStrips.astro` (Team page, Performance tab). All three pass
++  plain strings; no CSS selects a child of `.chart-key` as a text node, so a plain label renders as
++  before. The evidence is `rendered_page_evidence.md` in the task folder.
++  blast_radius: the MR and main builds (`build:site-v2`) read the sample. A pin of 0 holds on every
++  build, so a sample payload that still carries a provider address fails CI. The nightly full export
++  carries the same paths already, so the pin cannot fail the nightly for a path that was published
++  by the crest MR.
++  deploy_order: nothing to order. The crest fill is complete and the dimensions publish the paths.
++
++depends_on:
++  - none: the crest-hosting MR (!516) and the first fill are on main and in prod
++
++shared_files:
++  - tests/fixtures/chart_screenshots/* the chart screenshot baselines are retaken because the committed sample changed; the layout and the axes do not change. glab mr list shows no other open MR that changes them
++  - tests/fixtures/design_inventory/baseline*.json a count that fell is lowered; no count rises and no pin is loosened. glab mr list shows no other open MR that changes them
++
++decisions_taken: >
++  The coordinating session's message of 2026-11-23 orders this MR after the verified first fill:
++  regenerate the sample from prod read-only, set the provider-image pin to 0, correct the order
++  wording in the runbook. The CPO's ruling on how crests and placeholders look (approved in chat,
++  2026-11-22, #36) stands. No new dependency, no new mechanism, no provider call. The read-only
++  export queries run on prod under the standing BigQuery rule: a dry run first and the size reported.
++
++decisions_reserved:
++  - "none: the change moves committed data to the paths already published and lowers a pin"
++
++approved_design:
++  - player: #136
++  - team: #134
++  - none: no other page output changes beyond the crest address; the placeholder for a team without a crest is the existing approved initials spot. The player page change applies the ruled row "Name in whole words" of docs/wireframes/block_standard.md to the comparison legend: a label that holds markup wraps as one text between words.
++
++acceptance_criteria:
++  - No file under site_v2/src/data names a provider team or league image address, so the built pages carry 0 provider crest or logo images.
++  - On the player page of Rabiot-Provost (id 272) at 280, 375 and 1010 px in en, de and fi, no comparison legend key is wider than its legend and the name wraps between words.
++  - The design inventory reports 0 failures, and its pin for the chart on the Player pages stays at 0.
++  - The retaken chart screenshots differ from the old ones in their data only: sizes of the scatter and strip charts equal, and the axes and layout unchanged.
++
++done_when:
++  - "`cd site_v2 && node --test` passes and `npm run build` reports 0 provider crest/logo images."
++  - "`git grep -c 'api-sports.io/football/\\(teams\\|leagues\\)' -- site_v2/src/data` finds no match."
++  - "On the player page of Rabiot-Provost (id 272) at 280, 375 and 1010 px in en, de and fi, no legend key is wider than the legend and the name wraps between words."
++  - "The design inventory pin `Player pages · miss · Chart` stays at 0."
++  - "`python scripts/ci_local.py --mr` passes."
++
++amendments:
++  - "The sample's new board players put a very long name in the legend of the player comparison, and the design inventory reported a legend wider than its page at 280 px. The coordinating session's message of 2026-11-23 (approved in chat, 2026-11-23) orders the fix in this branch, applying the ruled whole-words behaviour, and the refresh of the chart screenshot baselines after a check that the 18 differences come only from the data. Scope gains ChartLegend.astro, the chart screenshot baselines and the design inventory baselines."
++  - "Review round 3 found that the legend is also used by the Team page. The page-surface line gains team: #134, the impact_map names the three consumers, and scope gains rendered_page_evidence.md."
++  - "The commit gate for a change under site_v2/src asks for acceptance_criteria and acceptance_evidence.md. The criteria restate the done_when lines that concern the built pages, and the evidence file is in scope_paths."
+diff --git a/.gitignore b/.gitignore
+index e9fffcf5..7dae2c91 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -290,9 +290,8 @@ site_v2/src/data/teams/*.json
+ !site_v2/src/data/teams/49.json
+ !site_v2/src/data/teams/50.json
+ !site_v2/src/data/teams/51.json
+-!site_v2/src/data/teams/81.json
+ !site_v2/src/data/teams/85.json
+-!site_v2/src/data/teams/108.json
++!site_v2/src/data/teams/106.json
+ !site_v2/src/data/teams/157.json
+ !site_v2/src/data/teams/160.json
+ !site_v2/src/data/teams/162.json
+@@ -310,12 +309,13 @@ site_v2/src/data/teams/*.json
+ !site_v2/src/data/teams/182.json
+ !site_v2/src/data/teams/185.json
+ !site_v2/src/data/teams/192.json
++!site_v2/src/data/teams/194.json
+ !site_v2/src/data/teams/197.json
+-!site_v2/src/data/teams/209.json
+ !site_v2/src/data/teams/211.json
+ !site_v2/src/data/teams/212.json
+ !site_v2/src/data/teams/224.json
+ !site_v2/src/data/teams/228.json
++!site_v2/src/data/teams/415.json
+ !site_v2/src/data/teams/420.json
+ !site_v2/src/data/teams/497.json
+ !site_v2/src/data/teams/505.json
+@@ -331,7 +331,7 @@ site_v2/src/data/fixtures/*.json
+ # Every fixture an unplayed row of a committed page links to, from one export: every day of the
+ # Matches page (matches/*.json, the next matchday of every competition), every unplayed Bundesliga
+ # fixture of competitions/BL1/2026.json's Matchdays tab, and so every Home Next matches row.
+-# 540 ids (529 unplayed and the 11 played samples), one pattern per run of ids.
++# The unplayed ids of those pages and the played samples, one pattern per run of ids.
+ # ⛔ Replace, never add. The export emits UPCOMING fixtures only (`status_short in ('NS', 'TBD')
+ # and fixture_date >= current_date()` in `fetch_fixture_payloads`), so a past id can never be
+ # re-exported and a stale entry would pin a payload no rerun updates. Refresh the day files, the
+@@ -341,31 +341,25 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/1318799.json
+ !site_v2/src/data/fixtures/1388000.json
+ !site_v2/src/data/fixtures/1478037.json
+-!site_v2/src/data/fixtures/149245[7-9].json
++!site_v2/src/data/fixtures/149246[1379].json
+ !site_v2/src/data/fixtures/154595[89].json
+ !site_v2/src/data/fixtures/154596[0-8].json
+ !site_v2/src/data/fixtures/1549407.json
+-!site_v2/src/data/fixtures/155019[7-9].json
+-!site_v2/src/data/fixtures/155020[0-6].json
++!site_v2/src/data/fixtures/1550203.json
+ !site_v2/src/data/fixtures/1550684.json
+ !site_v2/src/data/fixtures/1550700.json
+-!site_v2/src/data/fixtures/155103[89].json
+-!site_v2/src/data/fixtures/155104[0-6].json
+-!site_v2/src/data/fixtures/155222[5-9].json
+-!site_v2/src/data/fixtures/155223[0-3].json
+-!site_v2/src/data/fixtures/1552819.json
+-!site_v2/src/data/fixtures/155282[0-7].json
+-!site_v2/src/data/fixtures/155322[7-9].json
+-!site_v2/src/data/fixtures/155323[0-5].json
+-!site_v2/src/data/fixtures/155614[1-9].json
+-!site_v2/src/data/fixtures/1556150.json
+-!site_v2/src/data/fixtures/155746[7-9].json
+-!site_v2/src/data/fixtures/155747[0-6].json
+-!site_v2/src/data/fixtures/155868[0-8].json
+-!site_v2/src/data/fixtures/157045[3-9].json
+-!site_v2/src/data/fixtures/157046[0-2].json
++!site_v2/src/data/fixtures/155223[4-9].json
++!site_v2/src/data/fixtures/155224[0-2].json
++!site_v2/src/data/fixtures/155282[89].json
++!site_v2/src/data/fixtures/155283[0-6].json
++!site_v2/src/data/fixtures/1553233.json
++!site_v2/src/data/fixtures/155615[1-9].json
++!site_v2/src/data/fixtures/1556160.json
++!site_v2/src/data/fixtures/1557469.json
++!site_v2/src/data/fixtures/1558689.json
++!site_v2/src/data/fixtures/155869[0-7].json
++!site_v2/src/data/fixtures/1570457.json
+ !site_v2/src/data/fixtures/1575150.json
+-!site_v2/src/data/fixtures/157522[1-9].json
+ !site_v2/src/data/fixtures/157523[0-9].json
+ !site_v2/src/data/fixtures/157524[0-9].json
+ !site_v2/src/data/fixtures/157525[0-9].json
+@@ -390,12 +384,10 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/157544[0-5].json
+ !site_v2/src/data/fixtures/157554[5-9].json
+ !site_v2/src/data/fixtures/157555[0-3].json
+-!site_v2/src/data/fixtures/157623[3-9].json
+-!site_v2/src/data/fixtures/157624[01].json
+-!site_v2/src/data/fixtures/158446[6-9].json
+-!site_v2/src/data/fixtures/158447[0-4].json
+-!site_v2/src/data/fixtures/160304[48].json
+-!site_v2/src/data/fixtures/1603051.json
++!site_v2/src/data/fixtures/157624[2-9].json
++!site_v2/src/data/fixtures/1576250.json
++!site_v2/src/data/fixtures/1584467.json
++!site_v2/src/data/fixtures/160308[0-8].json
+ !site_v2/src/data/fixtures/162997[5-9].json
+ !site_v2/src/data/fixtures/162998[0-9].json
+ !site_v2/src/data/fixtures/1629990.json
+@@ -437,12 +429,12 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/1640760.json
+ !site_v2/src/data/fixtures/1644170.json
+ !site_v2/src/data/fixtures/1647178.json
+-!site_v2/src/data/fixtures/164738[1-3].json
++!site_v2/src/data/fixtures/164738[4-6].json
+ !site_v2/src/data/fixtures/164767[1-8].json
+ !site_v2/src/data/fixtures/164835[1-8].json
+-!site_v2/src/data/fixtures/164949[12].json
+-!site_v2/src/data/fixtures/164956[4-9].json
+-!site_v2/src/data/fixtures/164957[01].json
++!site_v2/src/data/fixtures/164949[7-9].json
++!site_v2/src/data/fixtures/164950[0-4].json
++!site_v2/src/data/fixtures/164956[57].json
+ !site_v2/src/data/fixtures/164967[2-9].json
+ !site_v2/src/data/fixtures/164968[0-9].json
+ !site_v2/src/data/fixtures/164969[01].json
+@@ -451,89 +443,92 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/165028[0-9].json
+ !site_v2/src/data/fixtures/165029[0-9].json
+ !site_v2/src/data/fixtures/165030[0-5].json
+-# The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
+-# matchdays. Every competition the index lists gets a page; only this one carries content in the
++!site_v2/src/data/fixtures/165104[5-9].json
++!site_v2/src/data/fixtures/1651050.json
++!site_v2/src/data/fixtures/165112[12].json
++# The competition page's sample: one competition-season, the Bundesliga 2026/27. Every competition the index lists gets a page; only this one carries content in the
+ # committed build, and the teams and fixtures above are what it links to.
+ site_v2/src/data/competitions/**/*.json
+ !site_v2/src/data/competitions/BL1/2026.json
+ # The Player page's sample: the players the Home and Bundesliga boards link to, and their peer
+ # files. Replace as a set, from one export, like the teams above (src/data/README.md).
+ site_v2/src/data/players/*.json
+-!site_v2/src/data/players/134.json
+ !site_v2/src/data/players/184.json
++!site_v2/src/data/players/249.json
++!site_v2/src/data/players/269.json
++!site_v2/src/data/players/272.json
+ !site_v2/src/data/players/502.json
+ !site_v2/src/data/players/567.json
++!site_v2/src/data/players/711.json
+ !site_v2/src/data/players/714.json
+ !site_v2/src/data/players/794.json
+ !site_v2/src/data/players/972.json
++!site_v2/src/data/players/984.json
+ !site_v2/src/data/players/1100.json
+ !site_v2/src/data/players/1148.json
+ !site_v2/src/data/players/1149.json
+ !site_v2/src/data/players/1156.json
+ !site_v2/src/data/players/1496.json
++!site_v2/src/data/players/1798.json
++!site_v2/src/data/players/1910.json
+ !site_v2/src/data/players/1922.json
+ !site_v2/src/data/players/1924.json
+ !site_v2/src/data/players/1972.json
+-!site_v2/src/data/players/2897.json
+ !site_v2/src/data/players/2937.json
+-!site_v2/src/data/players/6231.json
+ !site_v2/src/data/players/7073.json
+ !site_v2/src/data/players/7327.json
+ !site_v2/src/data/players/10500.json
+ !site_v2/src/data/players/18964.json
+-!site_v2/src/data/players/18970.json
+ !site_v2/src/data/players/19617.json
+ !site_v2/src/data/players/21587.json
++!site_v2/src/data/players/24798.json
+ !site_v2/src/data/players/25033.json
+ !site_v2/src/data/players/25158.json
+ !site_v2/src/data/players/25297.json
++!site_v2/src/data/players/25342.json
+ !site_v2/src/data/players/25391.json
+-!site_v2/src/data/players/25626.json
+ !site_v2/src/data/players/25915.json
++!site_v2/src/data/players/25926.json
+ !site_v2/src/data/players/26171.json
+ !site_v2/src/data/players/26256.json
++!site_v2/src/data/players/31043.json
+ !site_v2/src/data/players/32011.json
+ !site_v2/src/data/players/36798.json
+ !site_v2/src/data/players/37438.json
+-!site_v2/src/data/players/44814.json
+-!site_v2/src/data/players/46930.json
++!site_v2/src/data/players/38124.json
+ !site_v2/src/data/players/47516.json
++!site_v2/src/data/players/48765.json
+ !site_v2/src/data/players/88140.json
+ !site_v2/src/data/players/90617.json
+ !site_v2/src/data/players/126951.json
+-!site_v2/src/data/players/128384.json
+ !site_v2/src/data/players/161939.json
+-!site_v2/src/data/players/162219.json
++!site_v2/src/data/players/162265.json
+ !site_v2/src/data/players/162761.json
+ !site_v2/src/data/players/163032.json
+-!site_v2/src/data/players/163039.json
+ !site_v2/src/data/players/163078.json
+ !site_v2/src/data/players/177452.json
+ !site_v2/src/data/players/178768.json
+ !site_v2/src/data/players/179400.json
+ !site_v2/src/data/players/202696.json
++!site_v2/src/data/players/203224.json
+ !site_v2/src/data/players/291964.json
+ !site_v2/src/data/players/303679.json
+ !site_v2/src/data/players/314511.json
+-!site_v2/src/data/players/326067.json
++!site_v2/src/data/players/326102.json
+ !site_v2/src/data/players/327347.json
+ !site_v2/src/data/players/328033.json
+ !site_v2/src/data/players/328225.json
++!site_v2/src/data/players/329715.json
+ !site_v2/src/data/players/336671.json
+-!site_v2/src/data/players/340547.json
+-!site_v2/src/data/players/352730.json
+ !site_v2/src/data/players/353143.json
+ !site_v2/src/data/players/362755.json
+-!site_v2/src/data/players/363156.json
+-!site_v2/src/data/players/383665.json
++!site_v2/src/data/players/386305.json
+ !site_v2/src/data/players/386828.json
+ !site_v2/src/data/players/409190.json
+ !site_v2/src/data/players/432310.json
+-!site_v2/src/data/players/449509.json
+ !site_v2/src/data/players/478991.json
+ site_v2/src/data/player_peers/**/*.json
+ !site_v2/src/data/player_peers/AFCON/2025/ATT.json
+-!site_v2/src/data/player_peers/AFCON/2025/CM.json
+ !site_v2/src/data/player_peers/BL1/2026/AM.json
+ !site_v2/src/data/player_peers/BL1/2026/ATT.json
+ !site_v2/src/data/player_peers/BL1/2026/CM.json
+@@ -541,24 +536,25 @@ site_v2/src/data/player_peers/**/*.json
+ !site_v2/src/data/player_peers/BL1/2026/DM.json
+ !site_v2/src/data/player_peers/BL1/2026/GK.json
+ !site_v2/src/data/player_peers/ED/2026/AM.json
+-!site_v2/src/data/player_peers/ED/2026/ATT.json
++!site_v2/src/data/player_peers/ED/2026/CM.json
+ !site_v2/src/data/player_peers/ED/2026/DEF.json
+ !site_v2/src/data/player_peers/L1/2026/ATT.json
+-!site_v2/src/data/player_peers/L1/2026/CM.json
++!site_v2/src/data/player_peers/L1/2026/DM.json
+ !site_v2/src/data/player_peers/LP/2026/AM.json
+ !site_v2/src/data/player_peers/LP/2026/ATT.json
+ !site_v2/src/data/player_peers/LP/2026/DEF.json
+ !site_v2/src/data/player_peers/PD/2026/AM.json
+ !site_v2/src/data/player_peers/PD/2026/ATT.json
+ !site_v2/src/data/player_peers/PD/2026/DEF.json
++!site_v2/src/data/player_peers/PL/2026/AM.json
+ !site_v2/src/data/player_peers/PL/2026/ATT.json
+ !site_v2/src/data/player_peers/PL/2026/DEF.json
+ !site_v2/src/data/player_peers/PL/2026/DM.json
+ !site_v2/src/data/player_peers/SA/2026/ATT.json
+ !site_v2/src/data/player_peers/SA/2026/CM.json
++!site_v2/src/data/player_peers/SA/2026/DEF.json
+ !site_v2/src/data/player_peers/SA/2026/DM.json
+ !site_v2/src/data/player_peers/UCL/2026/ATT.json
+-!site_v2/src/data/player_peers/UCL/2026/CM.json
+ !site_v2/src/data/player_peers/UCL/2026/DEF.json
+ !site_v2/src/data/player_peers/UCL/2026/DM.json
+ !site_v2/src/data/player_peers/UCL/2026/GK.json
+@@ -572,7 +568,7 @@ site_v2/src/data/player_peers/**/*.json
+ !site_v2/src/data/player_peers/UNL/2026/CM.json
+ !site_v2/src/data/player_peers/UNL/2026/DEF.json
+ !site_v2/src/data/player_peers/UNL/2026/DM.json
+-!site_v2/src/data/player_peers/WC/2026/DEF.json
++!site_v2/src/data/player_peers/WCQEU/2024/ATT.json
+ 
+ # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
+ # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
+diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
+index 3e01bf03..636d16e8 100644
+--- a/deploy/nightly/README.md
++++ b/deploy/nightly/README.md
+@@ -551,7 +551,7 @@ PYTHONPATH=. python -c "from google.cloud import bigquery; from ingestion.api_fo
+ 
+ The table has two columns, `payload` (JSON) and `ingested_at` (TIMESTAMP), partitioned by day on `ingested_at`. The crest phase creates the same table when it runs.
+ 
+-### Create the bucket, once, before the first nightly after the merge
++### Create the bucket, once, after the state table and before the merge
+ 
+ The CPO runs two commands. The nightly service account writes to the bucket. The site job reads from it. One grant serves both.
+ 
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index d87ad1a1..89c03dca 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -396,7 +396,7 @@ export function checkMatchRowsFound({ matchRows, payloadFiles }) {
+ export const OUR_HOSTS = ["matchdaypilot.com", "www.matchdaypilot.com", "football-data-pipeline-gcp.web.app"];
+ export const PROVIDER_HOST = "api-sports.io";
+ export const PROVIDER_PERSON_PATHS = ["/football/players/", "/football/coachs/"];
+-export const IMAGE_PINS = { playerPhoto: 0, providerImage: 59337, foreign: 0 };
++export const IMAGE_PINS = { playerPhoto: 0, providerImage: 0, foreign: 0 };
+ export const IMAGE_EXAMPLES = 3;
+ 
+ const IMG_TAG = /<(?:img|source)\b[^>]*>/gi;
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index ebd0cacf..085504be 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -484,8 +484,9 @@ test("images are counted by kind across pages, with the first addresses of each
+   assert.deepEqual(counts.examples.playerPhoto, [`/de/ ${PROVIDER}/players/9.png`]);
+ });
+ 
+-test("the committed pins hold player photos and other hosts at 0", () => {
++test("the committed pins hold every kind of provider and foreign image at 0", () => {
+   assert.equal(IMAGE_PINS.playerPhoto, 0);
++  assert.equal(IMAGE_PINS.providerImage, 0);
+   assert.equal(IMAGE_PINS.foreign, 0);
+ });
+ 
+diff --git a/site_v2/src/components/ui/ChartLegend.astro b/site_v2/src/components/ui/ChartLegend.astro
+index d29c685a..1bd58507 100644
+--- a/site_v2/src/components/ui/ChartLegend.astro
++++ b/site_v2/src/components/ui/ChartLegend.astro
+@@ -9,5 +9,5 @@ const MARK = { median: "rs-tick-key", team: "chart-dot chart-me", other: "chart-
+ ---
+ 
+ <div class="chart-legend" aria-hidden="true">
+-  {keys.map((k) => <span class="chart-key"><i class={MARK[k.mark]}></i>{k.label}</span>)}
++  {keys.map((k) => <span class="chart-key"><i class={MARK[k.mark]}></i><span>{k.label}</span></span>)}
+ </div>
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-dark-1010.png b/tests/fixtures/chart_screenshots/comparison-en-dark-1010.png
+index 263231a9..e5e981a5 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-dark-1010.png and b/tests/fixtures/chart_screenshots/comparison-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-dark-375.png b/tests/fixtures/chart_screenshots/comparison-en-dark-375.png
+index 832dcfc7..a967b621 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-dark-375.png and b/tests/fixtures/chart_screenshots/comparison-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-light-1010.png b/tests/fixtures/chart_screenshots/comparison-en-light-1010.png
+index 1e7965fe..b0323b8c 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-light-1010.png and b/tests/fixtures/chart_screenshots/comparison-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-light-375.png b/tests/fixtures/chart_screenshots/comparison-en-light-375.png
+index 425b492b..d780d7c5 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-light-375.png and b/tests/fixtures/chart_screenshots/comparison-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-fi-dark-1010.png b/tests/fixtures/chart_screenshots/comparison-fi-dark-1010.png
+index 7b33b7f2..af997ae4 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/comparison-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-fi-dark-375.png b/tests/fixtures/chart_screenshots/comparison-fi-dark-375.png
+index 6dd394b2..8ea93ad4 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-fi-dark-375.png and b/tests/fixtures/chart_screenshots/comparison-fi-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index 8af7d563..66c7ef43 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -1,23 +1,23 @@
+ {
+  "platform": "linux",
+  "shots": {
+-  "comparison-en-dark-1010.png": "4ce256e2be92e900131ab82b2fa7f00bf29ee63844c4895703534fc8d0542a63",
+-  "comparison-en-dark-375.png": "1d5f22f0689a59aa2b2be173365071237c2df04ba4cd350b8d7e187f415ee995",
+-  "comparison-en-light-1010.png": "f55c59cce58be72b874cfbbb2ac3fda26f308baf1343b6ba8e67da3f9ec88cec",
+-  "comparison-en-light-375.png": "511956b8ef70b9aae8b7a639ff47b159686987e6ae0d082d8ee07238b0475125",
+-  "comparison-fi-dark-1010.png": "025401823def0b2ed507ea6d874b95074614ef2e6709f086a0f0fa436b42cdd0",
+-  "comparison-fi-dark-375.png": "3ae62c58a3a99853b06b3ae019b56cfd2863f432b3b0cbf2d746481d379efaeb",
+-  "scatter-en-dark-1010.png": "7daeff661bf70b64bb33e5f81f1cdeb71ed598b89cdcccc53064e059728097b7",
+-  "scatter-en-dark-375.png": "f59270e134730fcde0e3fe2c30032457f4d61ba353ff9c3f3b0b1a7fcd79f067",
+-  "scatter-en-light-1010.png": "95f11cfad86302d89755d2ddcce2028124b68091be2b44ec187f986fa2393b6e",
+-  "scatter-en-light-375.png": "1cec4da1a05c2d5975551b7ac4817ed50d0a9a9f96074be6c469a6b149308add",
+-  "scatter-fi-dark-1010.png": "0d1253f03efb50b51e44d71e3196f4daddda946f184d27b3d5cf0708dddfe93d",
+-  "scatter-fi-dark-375.png": "e73450e91c5e2f8a6c8558dfdff37659379ff061259c9aaec978407c0d6bbdfe",
+-  "strip-en-dark-1010.png": "47e847a9852ecf1108b126c0f73615586b9b7b9622fc95a8dd5f320449f952a9",
+-  "strip-en-dark-375.png": "8396a28ab7ac1d0b05619b00081eeecc2cec341842c047a75d6f76fd4f5a333f",
+-  "strip-en-light-1010.png": "239e667ce548f610a82a8dfdd80cf7f689fc7f7bbc5144f0ad8912c7e05dfe85",
+-  "strip-en-light-375.png": "fc49780377f5fdd50ebb4cd62b60c37e2007d9a87e08ba0a0aa8dd561e923e39",
+-  "strip-fi-dark-1010.png": "7a456e896b5e8d45d771b693718189381a8024ccf3676365c202a4223a84e7df",
+-  "strip-fi-dark-375.png": "5a3ccb296172e8c61722a2c5587bb3abf9bd06cf2ae8aa5293e7d843e190ed0b"
++  "comparison-en-dark-1010.png": "5fbd32f600e2ee05af2132257592b3d9961fe62fb86ac81d778854e288f5e460",
++  "comparison-en-dark-375.png": "0dfc6a53e4c2df1623082533aad5eefb753ad3bcdefb0e9c3ab0596a85236280",
++  "comparison-en-light-1010.png": "780415887649bacfb89d6327715708b2b42a47d97be6109369ca149f941a5300",
++  "comparison-en-light-375.png": "da71d9e2eb657a1c43dba15ceeae6cf956f3c43214c5ab686821ea5a9c36f871",
++  "comparison-fi-dark-1010.png": "088cd9ad6b69e7103aebb9bd544aa69fb7657a984b851d99b521c843ac9a32c4",
++  "comparison-fi-dark-375.png": "299ef10afb77b8799087c1cd8a63faa890df4c602424c1f14e0eb6142a9cd51a",
++  "scatter-en-dark-1010.png": "ccc215d5bdc3d3783fa68014783c481a19e0a8cfe16a1d08dd86ba69ceda44f4",
++  "scatter-en-dark-375.png": "899e9469ddd4451e5d639aeb76f213268bb54fe8fb1a2b0e9702e2281a451e0d",
++  "scatter-en-light-1010.png": "90b04ced03b972bdc95fdb5cf3bce72b58c1366c29eb884806cec3e63fbef3a3",
++  "scatter-en-light-375.png": "99eccd5bc56ed81c36c94ec68f10c6befb94b97bfbff208d8a4856a778ffe87a",
++  "scatter-fi-dark-1010.png": "a66928c786d1ebe6c627d5440587582526e1700b12236adb8618dc0c3860a8fc",
++  "scatter-fi-dark-375.png": "4231a8553ad3957db28eaa486e3db0c099e193e16c0ea9b7d2603db1d467796d",
++  "strip-en-dark-1010.png": "3e1d1a2d4ac50645be6d94f1587ab886c1cb7f2a974240c30352f421c7190b40",
++  "strip-en-dark-375.png": "bf6bb2110ddef0435e99b4053e3956467c0df6a41d7ace9054a8920fae5d104f",
++  "strip-en-light-1010.png": "1bf40988aa21da171a04d9c75dc50d5f79a17edbc6e738cc091d2090e87ea47d",
++  "strip-en-light-375.png": "1e5a61c964aade18d5d60463b7cd92233ef0dfdf3512c2d9fa5b180a7a1b9ee1",
++  "strip-fi-dark-1010.png": "b6192d67572dff95e833b3d1994e6ec1cf3cde22cba347e4c8d55c07083c3bf2",
++  "strip-fi-dark-375.png": "ccdfe154dd470b17e398f378ae270054612a4e8859eb4fe8a9a5817fe56c84e5"
+  }
+ }
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png b/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png
+index 595e9e2e..dc951720 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png and b/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-dark-375.png b/tests/fixtures/chart_screenshots/scatter-en-dark-375.png
+index 12b9cf9a..05a07d40 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-dark-375.png and b/tests/fixtures/chart_screenshots/scatter-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-light-1010.png b/tests/fixtures/chart_screenshots/scatter-en-light-1010.png
+index d9fc6fef..d636dab6 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-light-1010.png and b/tests/fixtures/chart_screenshots/scatter-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-light-375.png b/tests/fixtures/chart_screenshots/scatter-en-light-375.png
+index d1b4ca16..68d71775 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-light-375.png and b/tests/fixtures/chart_screenshots/scatter-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png b/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png
+index 2fdbe66a..61881348 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png b/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png
+index 22f986ad..6ef5764e 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png and b/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png
+index ed5a7d71..008c2042 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-375.png b/tests/fixtures/chart_screenshots/strip-en-dark-375.png
+index 213cee52..fc13a7f1 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-375.png and b/tests/fixtures/chart_screenshots/strip-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-1010.png b/tests/fixtures/chart_screenshots/strip-en-light-1010.png
+index ebb5e3fa..58c5c430 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-1010.png and b/tests/fixtures/chart_screenshots/strip-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-375.png b/tests/fixtures/chart_screenshots/strip-en-light-375.png
+index 3f8dd378..1150d670 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-375.png and b/tests/fixtures/chart_screenshots/strip-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png
+index d42d92e7..29c6c609 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png
+index 73c4f34b..ac773394 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png differ
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index b8913617..61a84b1e 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -15,7 +15,7 @@
+  "rendered": {
+   "platform": "linux",
+   "pages": {
+-   "Match page": {"scroll": 1734, "classes": 1},
++   "Match page": {"scroll": 1715, "classes": 1},
+    "Played match page": {"scroll": 2, "classes": 1},
+    "competition-hub cup": {"classes": 9},
+    "competition-hub groups": {"classes": 9},
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md                         |    19 +-
+#    site_v2/src/data/competition_index.json            |   224 +-
+#    site_v2/src/data/competitions/BL1/2026.json        |  3508 +-
+#    site_v2/src/data/fixtures/1224099.json             |    80 +-
+#    site_v2/src/data/fixtures/1318799.json             |    46 +-
+#    site_v2/src/data/fixtures/1388000.json             |    81 +-
+#    site_v2/src/data/fixtures/1478037.json             |   128 +-
+#    .../data/fixtures/{1492458.json => 1492461.json}   |   542 +-
+#    .../data/fixtures/{1492457.json => 1492463.json}   |   590 +-
+#    .../data/fixtures/{1492459.json => 1492467.json}   |   510 +-
+#    site_v2/src/data/fixtures/1492469.json             |   548 +
+#    site_v2/src/data/fixtures/1545958.json             |     6 +-
+#    site_v2/src/data/fixtures/1545959.json             |     6 +-
+#    site_v2/src/data/fixtures/1545960.json             |     6 +-
+#    site_v2/src/data/fixtures/1545961.json             |     6 +-
+#    site_v2/src/data/fixtures/1545962.json             |     6 +-
+#    site_v2/src/data/fixtures/1545963.json             |     6 +-
+#    site_v2/src/data/fixtures/1545964.json             |     6 +-
+#    site_v2/src/data/fixtures/1545965.json             |     6 +-
+#    site_v2/src/data/fixtures/1545966.json             |     6 +-
+#    site_v2/src/data/fixtures/1545967.json             |     6 +-
+#    site_v2/src/data/fixtures/1545968.json             |     6 +-
+#    site_v2/src/data/fixtures/1549407.json             |     6 +-
+#    site_v2/src/data/fixtures/1550197.json             |   520 -
+#    site_v2/src/data/fixtures/1550198.json             |   575 -
+#    site_v2/src/data/fixtures/1550199.json             |   573 -
+#    site_v2/src/data/fixtures/1550200.json             |   520 -
+#    site_v2/src/data/fixtures/1550201.json             |   520 -
+#    site_v2/src/data/fixtures/1550202.json             |   573 -
+#    site_v2/src/data/fixtures/1550203.json             |    28 +-
+#    site_v2/src/data/fixtures/1550204.json             |   574 -
+#    site_v2/src/data/fixtures/1550205.json             |   574 -
+#    site_v2/src/data/fixtures/1550206.json             |   573 -
+#    site_v2/src/data/fixtures/1550684.json             |   132 +-
+#    site_v2/src/data/fixtures/1550700.json             |   132 +-
+#    site_v2/src/data/fixtures/1551038.json             |   453 -
+#    site_v2/src/data/fixtures/1551039.json             |   555 -
+#    site_v2/src/data/fixtures/1551040.json             |   555 -
+#    site_v2/src/data/fixtures/1551041.json             |   573 -
+#    site_v2/src/data/fixtures/1551042.json             |   564 -
+#    site_v2/src/data/fixtures/1551043.json             |   573 -
+#    site_v2/src/data/fixtures/1551044.json             |   573 -
+#    site_v2/src/data/fixtures/1551045.json             |   573 -
+#    site_v2/src/data/fixtures/1551046.json             |   564 -
+#    site_v2/src/data/fixtures/1552226.json             |   538 -
+#    site_v2/src/data/fixtures/1552228.json             |   537 -
+#    .../data/fixtures/{1552233.json => 1552234.json}   |   520 +-
+#    .../data/fixtures/{1552225.json => 1552235.json}   |   475 +-
+#    .../data/fixtures/{1552231.json => 1552236.json}   |   512 +-
+#    site_v2/src/data/fixtures/1552237.json             |   625 +
+#    .../data/fixtures/{1552232.json => 1552238.json}   |   435 +-
+#    site_v2/src/data/fixtures/1552239.json             |   634 +
+#    .../data/fixtures/{1552229.json => 1552240.json}   |   624 +-
+#    .../data/fixtures/{1552227.json => 1552241.json}   |   562 +-
+#    .../data/fixtures/{1552230.json => 1552242.json}   |   521 +-
+#    .../data/fixtures/{1552819.json => 1552828.json}   |   632 +-
+#    .../data/fixtures/{1552823.json => 1552829.json}   |   604 +-
+#    .../data/fixtures/{1552825.json => 1552830.json}   |   520 +-
+#    .../data/fixtures/{1552826.json => 1552831.json}   |   583 +-
+#    .../data/fixtures/{1552822.json => 1552832.json}   |   513 +-
+#    .../data/fixtures/{1552820.json => 1552833.json}   |   668 +-
+#    .../data/fixtures/{1552827.json => 1552834.json}   |   557 +-
+#    .../data/fixtures/{1552824.json => 1552835.json}   |   619 +-
+#    .../data/fixtures/{1552821.json => 1552836.json}   |   527 +-
+#    site_v2/src/data/fixtures/1553227.json             |   556 -
+#    site_v2/src/data/fixtures/1553228.json             |   520 -
+#    site_v2/src/data/fixtures/1553229.json             |   555 -
+#    site_v2/src/data/fixtures/1553230.json             |   537 -
+#    site_v2/src/data/fixtures/1553231.json             |   460 -
+#    site_v2/src/data/fixtures/1553232.json             |   555 -
+#    site_v2/src/data/fixtures/1553233.json             |    44 +-
+#    site_v2/src/data/fixtures/1553234.json             |   519 -
+#    site_v2/src/data/fixtures/1553235.json             |   555 -
+#    site_v2/src/data/fixtures/1556141.json             |   573 -
+#    site_v2/src/data/fixtures/1556142.json             |   519 -
+#    site_v2/src/data/fixtures/1556150.json             |   460 -
+#    .../data/fixtures/{1556145.json => 1556151.json}   |   580 +-
+#    .../data/fixtures/{1556144.json => 1556152.json}   |   509 +-
+#    .../data/fixtures/{1556148.json => 1556153.json}   |   552 +-
+#    .../data/fixtures/{1556149.json => 1556154.json}   |   516 +-
+#    .../data/fixtures/{1556143.json => 1556155.json}   |   430 +-
+#    .../data/fixtures/{1556146.json => 1556156.json}   |   577 +-
+#    .../data/fixtures/{1556147.json => 1556157.json}   |   464 +-
+#    site_v2/src/data/fixtures/1556158.json             |   623 +
+#    site_v2/src/data/fixtures/1556159.json             |   605 +
+#    site_v2/src/data/fixtures/1556160.json             |   641 +
+#    site_v2/src/data/fixtures/1557467.json             |   503 -
+#    site_v2/src/data/fixtures/1557468.json             |   556 -
+#    site_v2/src/data/fixtures/1557469.json             |    32 +-
+#    site_v2/src/data/fixtures/1557470.json             |   573 -
+#    site_v2/src/data/fixtures/1557471.json             |   461 -
+#    site_v2/src/data/fixtures/1557472.json             |   461 -
+#    site_v2/src/data/fixtures/1557473.json             |   575 -
+#    site_v2/src/data/fixtures/1557474.json             |   574 -
+#    site_v2/src/data/fixtures/1557475.json             |   574 -
+#    site_v2/src/data/fixtures/1557476.json             |   501 -
+#    site_v2/src/data/fixtures/1558685.json             |   538 -
+#    .../data/fixtures/{1558688.json => 1558689.json}   |   610 +-
+#    .../data/fixtures/{1558682.json => 1558690.json}   |   476 +-
+#    .../data/fixtures/{1558681.json => 1558691.json}   |   481 +-
+#    .../data/fixtures/{1558680.json => 1558692.json}   |   565 +-
+#    .../data/fixtures/{1558687.json => 1558693.json}   |   366 +-
+#    site_v2/src/data/fixtures/1558694.json             |   643 +
+#    .../data/fixtures/{1558686.json => 1558695.json}   |   529 +-
+#    .../data/fixtures/{1558683.json => 1558696.json}   |   633 +-
+#    .../data/fixtures/{1558684.json => 1558697.json}   |   432 +-
+#    site_v2/src/data/fixtures/1570453.json             |   521 -
+#    site_v2/src/data/fixtures/1570454.json             |   575 -
+#    site_v2/src/data/fixtures/1570455.json             |   569 -
+#    site_v2/src/data/fixtures/1570456.json             |   576 -
+#    site_v2/src/data/fixtures/1570457.json             |    32 +-
+#    site_v2/src/data/fixtures/1570458.json             |   503 -
+#    site_v2/src/data/fixtures/1570459.json             |   462 -
+#    site_v2/src/data/fixtures/1570460.json             |   575 -
+#    site_v2/src/data/fixtures/1570461.json             |   576 -
+#    site_v2/src/data/fixtures/1570462.json             |   576 -
+#    site_v2/src/data/fixtures/1575150.json             |   172 +-
+#    site_v2/src/data/fixtures/1575221.json             |   576 -
+#    site_v2/src/data/fixtures/1575222.json             |   522 -
+#    site_v2/src/data/fixtures/1575223.json             |   576 -
+#    site_v2/src/data/fixtures/1575224.json             |   575 -
+#    site_v2/src/data/fixtures/1575225.json             |   576 -
+#    site_v2/src/data/fixtures/1575226.json             |   576 -
+#    site_v2/src/data/fixtures/1575227.json             |   557 -
+#    site_v2/src/data/fixtures/1575228.json             |   558 -
+#    site_v2/src/data/fixtures/1575229.json             |   463 -
+#    site_v2/src/data/fixtures/1575230.json             |   358 +-
+#    site_v2/src/data/fixtures/1575231.json             |   347 +-
+#    site_v2/src/data/fixtures/1575232.json             |   367 +-
+#    site_v2/src/data/fixtures/1575233.json             |   358 +-
+#    site_v2/src/data/fixtures/1575234.json             |   350 +-
+#    site_v2/src/data/fixtures/1575235.json             |   329 +-
+#    site_v2/src/data/fixtures/1575236.json             |   346 +-
+#    site_v2/src/data/fixtures/1575237.json             |   340 +-
+#    site_v2/src/data/fixtures/1575238.json             |   338 +-
+#    site_v2/src/data/fixtures/1575239.json             |   330 +-
+#    site_v2/src/data/fixtures/1575240.json             |   350 +-
+#    site_v2/src/data/fixtures/1575241.json             |   344 +-
+#    site_v2/src/data/fixtures/1575242.json             |   370 +-
+#    site_v2/src/data/fixtures/1575243.json             |   344 +-
+#    site_v2/src/data/fixtures/1575244.json             |   342 +-
+#    site_v2/src/data/fixtures/1575245.json             |   332 +-
+#    site_v2/src/data/fixtures/1575246.json             |   342 +-
+#    site_v2/src/data/fixtures/1575247.json             |   348 +-
+#    site_v2/src/data/fixtures/1575248.json             |   346 +-
+#    site_v2/src/data/fixtures/1575249.json             |   342 +-
+#    site_v2/src/data/fixtures/1575250.json             |   356 +-
+#    site_v2/src/data/fixtures/1575251.json             |   334 +-
+#    site_v2/src/data/fixtures/1575252.json             |   364 +-
+#    site_v2/src/data/fixtures/1575253.json             |   330 +-
+#    site_v2/src/data/fixtures/1575254.json             |   334 +-
+#    site_v2/src/data/fixtures/1575255.json             |   346 +-
+#    site_v2/src/data/fixtures/1575256.json             |   350 +-
+#    site_v2/src/data/fixtures/1575257.json             |   328 +-
+#    site_v2/src/data/fixtures/1575258.json             |   348 +-
+#    site_v2/src/data/fixtures/1575259.json             |   356 +-
+#    site_v2/src/data/fixtures/1575260.json             |   352 +-
+#    site_v2/src/data/fixtures/1575261.json             |   348 +-
+#    site_v2/src/data/fixtures/1575262.json             |   352 +-
+#    site_v2/src/data/fixtures/1575263.json             |   330 +-
+#    site_v2/src/data/fixtures/1575264.json             |   346 +-
+#    site_v2/src/data/fixtures/1575265.json             |   342 +-
+#    site_v2/src/data/fixtures/1575266.json             |   356 +-
+#    site_v2/src/data/fixtures/1575267.json             |   346 +-
+#    site_v2/src/data/fixtures/1575268.json             |   366 +-
+#    site_v2/src/data/fixtures/1575269.json             |   342 +-
+#    site_v2/src/data/fixtures/1575270.json             |   326 +-
+#    site_v2/src/data/fixtures/1575271.json             |   344 +-
+#    site_v2/src/data/fixtures/1575272.json             |   348 +-
+#    site_v2/src/data/fixtures/1575273.json             |   334 +-
+#    site_v2/src/data/fixtures/1575274.json             |   340 +-
+#    site_v2/src/data/fixtures/1575275.json             |   340 +-
+#    site_v2/src/data/fixtures/1575276.json             |   338 +-
+#    site_v2/src/data/fixtures/1575277.json             |   350 +-
+#    site_v2/src/data/fixtures/1575278.json             |   344 +-
+#    site_v2/src/data/fixtures/1575279.json             |   364 +-
+#    site_v2/src/data/fixtures/1575280.json             |   336 +-
+#    site_v2/src/data/fixtures/1575281.json             |   340 +-
+#    site_v2/src/data/fixtures/1575282.json             |   332 +-
+#    site_v2/src/data/fixtures/1575283.json             |   358 +-
+#    site_v2/src/data/fixtures/1575284.json             |   362 +-
+#    site_v2/src/data/fixtures/1575285.json             |   346 +-
+#    site_v2/src/data/fixtures/1575286.json             |   356 +-
+#    site_v2/src/data/fixtures/1575287.json             |   344 +-
+#    site_v2/src/data/fixtures/1575288.json             |   338 +-
+#    site_v2/src/data/fixtures/1575289.json             |   332 +-
+#    site_v2/src/data/fixtures/1575290.json             |   344 +-
+#    site_v2/src/data/fixtures/1575291.json             |   348 +-
+#    site_v2/src/data/fixtures/1575292.json             |   332 +-
+#    site_v2/src/data/fixtures/1575293.json             |   328 +-
+#    site_v2/src/data/fixtures/1575294.json             |   348 +-
+#    site_v2/src/data/fixtures/1575295.json             |   360 +-
+#    site_v2/src/data/fixtures/1575296.json             |   344 +-
+#    site_v2/src/data/fixtures/1575297.json             |   336 +-
+#    site_v2/src/data/fixtures/1575298.json             |   342 +-
+#    site_v2/src/data/fixtures/1575299.json             |   352 +-
+#    site_v2/src/data/fixtures/1575300.json             |   344 +-
+#    site_v2/src/data/fixtures/1575301.json             |   348 +-
+#    site_v2/src/data/fixtures/1575302.json             |   326 +-
+#    site_v2/src/data/fixtures/1575303.json             |   362 +-
+#    site_v2/src/data/fixtures/1575304.json             |   338 +-
+#    site_v2/src/data/fixtures/1575305.json             |   354 +-
+#    site_v2/src/data/fixtures/1575306.json             |   356 +-
+#    site_v2/src/data/fixtures/1575307.json             |   344 +-
+#    site_v2/src/data/fixtures/1575308.json             |   346 +-
+#    site_v2/src/data/fixtures/1575309.json             |   330 +-
+#    site_v2/src/data/fixtures/1575310.json             |   346 +-
+#    site_v2/src/data/fixtures/1575311.json             |   342 +-
+#    site_v2/src/data/fixtures/1575312.json             |   352 +-
+#    site_v2/src/data/fixtures/1575313.json             |   358 +-
+#    site_v2/src/data/fixtures/1575314.json             |   356 +-
+#    site_v2/src/data/fixtures/1575315.json             |   350 +-
+#    site_v2/src/data/fixtures/1575316.json             |   336 +-
+#    site_v2/src/data/fixtures/1575317.json             |   332 +-
+#    site_v2/src/data/fixtures/1575318.json             |   346 +-
+#    site_v2/src/data/fixtures/1575319.json             |   330 +-
+#    site_v2/src/data/fixtures/1575320.json             |   344 +-
+#    site_v2/src/data/fixtures/1575321.json             |   350 +-
+#    site_v2/src/data/fixtures/1575322.json             |   354 +-
+#    site_v2/src/data/fixtures/1575323.json             |   362 +-
+#    site_v2/src/data/fixtures/1575324.json             |   346 +-
+#    site_v2/src/data/fixtures/1575325.json             |   344 +-
+#    site_v2/src/data/fixtures/1575326.json             |   328 +-
+#    site_v2/src/data/fixtures/1575327.json             |   328 +-
+#    site_v2/src/data/fixtures/1575328.json             |   346 +-
+#    site_v2/src/data/fixtures/1575329.json             |   340 +-
+#    site_v2/src/data/fixtures/1575330.json             |   336 +-
+#    site_v2/src/data/fixtures/1575331.json             |   358 +-
+#    site_v2/src/data/fixtures/1575332.json             |   348 +-
+#    site_v2/src/data/fixtures/1575333.json             |   328 +-
+#    site_v2/src/data/fixtures/1575334.json             |   350 +-
+#    site_v2/src/data/fixtures/1575335.json             |   344 +-
+#    site_v2/src/data/fixtures/1575336.json             |   350 +-
+#    site_v2/src/data/fixtures/1575337.json             |   348 +-
+#    site_v2/src/data/fixtures/1575338.json             |   344 +-
+#    site_v2/src/data/fixtures/1575339.json             |   332 +-
+#    site_v2/src/data/fixtures/1575340.json             |   332 +-
+#    site_v2/src/data/fixtures/1575341.json             |   350 +-
+#    site_v2/src/data/fixtures/1575342.json             |   364 +-
+#    site_v2/src/data/fixtures/1575343.json             |   360 +-
+#    site_v2/src/data/fixtures/1575344.json             |   344 +-
+#    site_v2/src/data/fixtures/1575345.json             |   340 +-
+#    site_v2/src/data/fixtures/1575346.json             |   336 +-
+#    site_v2/src/data/fixtures/1575347.json             |   346 +-
+#    site_v2/src/data/fixtures/1575348.json             |   364 +-
+#    site_v2/src/data/fixtures/1575349.json             |   354 +-
+#    site_v2/src/data/fixtures/1575350.json             |   346 +-
+#    site_v2/src/data/fixtures/1575351.json             |   332 +-
+#    site_v2/src/data/fixtures/1575352.json             |   334 +-
+#    site_v2/src/data/fixtures/1575353.json             |   346 +-
+#    site_v2/src/data/fixtures/1575354.json             |   328 +-
+#    site_v2/src/data/fixtures/1575355.json             |   352 +-
+#    site_v2/src/data/fixtures/1575356.json             |   338 +-
+#    site_v2/src/data/fixtures/1575357.json             |   336 +-
+#    site_v2/src/data/fixtures/1575358.json             |   346 +-
+#    site_v2/src/data/fixtures/1575359.json             |   352 +-
+#    site_v2/src/data/fixtures/1575360.json             |   364 +-
+#    site_v2/src/data/fixtures/1575361.json             |   360 +-
+#    site_v2/src/data/fixtures/1575362.json             |   342 +-
+#    site_v2/src/data/fixtures/1575363.json             |   330 +-
+#    site_v2/src/data/fixtures/1575364.json             |   334 +-
+#    site_v2/src/data/fixtures/1575365.json             |   340 +-
+#    site_v2/src/data/fixtures/1575366.json             |   342 +-
+#    site_v2/src/data/fixtures/1575367.json             |   346 +-
+#    site_v2/src/data/fixtures/1575368.json             |   350 +-
+#    site_v2/src/data/fixtures/1575369.json             |   352 +-
+#    site_v2/src/data/fixtures/1575370.json             |   330 +-
+#    site_v2/src/data/fixtures/1575371.json             |   334 +-
+#    site_v2/src/data/fixtures/1575372.json             |   350 +-
+#    site_v2/src/data/fixtures/1575373.json             |   358 +-
+#    site_v2/src/data/fixtures/1575374.json             |   374 +-
+#    site_v2/src/data/fixtures/1575375.json             |   368 +-
+#    site_v2/src/data/fixtures/1575376.json             |   353 +-
+#    site_v2/src/data/fixtures/1575377.json             |   392 +-
+#    site_v2/src/data/fixtures/1575378.json             |   400 +-
+#    site_v2/src/data/fixtures/1575379.json             |   402 +-
+#    site_v2/src/data/fixtures/1575380.json             |   353 +-
+#    site_v2/src/data/fixtures/1575381.json             |   366 +-
+#    site_v2/src/data/fixtures/1575382.json             |   379 +-
+#    site_v2/src/data/fixtures/1575383.json             |   326 +-
+#    site_v2/src/data/fixtures/1575384.json             |   356 +-
+#    site_v2/src/data/fixtures/1575385.json             |   356 +-
+#    site_v2/src/data/fixtures/1575386.json             |   344 +-
+#    site_v2/src/data/fixtures/1575387.json             |   364 +-
+#    site_v2/src/data/fixtures/1575388.json             |   346 +-
+#    site_v2/src/data/fixtures/1575389.json             |   332 +-
+#    site_v2/src/data/fixtures/1575390.json             |   334 +-
+#    site_v2/src/data/fixtures/1575391.json             |   344 +-
+#    site_v2/src/data/fixtures/1575392.json             |   342 +-
+#    site_v2/src/data/fixtures/1575393.json             |   348 +-
+#    site_v2/src/data/fixtures/1575394.json             |   370 +-
+#    site_v2/src/data/fixtures/1575395.json             |   350 +-
+#    site_v2/src/data/fixtures/1575396.json             |   344 +-
+#    site_v2/src/data/fixtures/1575397.json             |   332 +-
+#    site_v2/src/data/fixtures/1575398.json             |   342 +-
+#    site_v2/src/data/fixtures/1575399.json             |   344 +-
+#    site_v2/src/data/fixtures/1575400.json             |   330 +-
+#    site_v2/src/data/fixtures/1575401.json             |   346 +-
+#    site_v2/src/data/fixtures/1575402.json             |   334 +-
+#    site_v2/src/data/fixtures/1575403.json             |   346 +-
+#    site_v2/src/data/fixtures/1575404.json             |   364 +-
+#    site_v2/src/data/fixtures/1575405.json             |   342 +-
+#    site_v2/src/data/fixtures/1575406.json             |   356 +-
+#    site_v2/src/data/fixtures/1575407.json             |   334 +-
+#    site_v2/src/data/fixtures/1575408.json             |   330 +-
+#    site_v2/src/data/fixtures/1575409.json             |   350 +-
+#    site_v2/src/data/fixtures/1575410.json             |   348 +-
+#    site_v2/src/data/fixtures/1575411.json             |   352 +-
+#    site_v2/src/data/fixtures/1575412.json             |   352 +-
+#    site_v2/src/data/fixtures/1575413.json             |   356 +-
+#    site_v2/src/data/fixtures/1575414.json             |   330 +-
+#    site_v2/src/data/fixtures/1575415.json             |   346 +-
+#    site_v2/src/data/fixtures/1575416.json             |   342 +-
+#    site_v2/src/data/fixtures/1575417.json             |   328 +-
+#    site_v2/src/data/fixtures/1575418.json             |   348 +-
+#    site_v2/src/data/fixtures/1575419.json             |   326 +-
+#    site_v2/src/data/fixtures/1575420.json             |   340 +-
+#    site_v2/src/data/fixtures/1575421.json             |   344 +-
+#    site_v2/src/data/fixtures/1575422.json             |   348 +-
+#    site_v2/src/data/fixtures/1575423.json             |   346 +-
+#    site_v2/src/data/fixtures/1575424.json             |   356 +-
+#    site_v2/src/data/fixtures/1575425.json             |   334 +-
+#    site_v2/src/data/fixtures/1575426.json             |   342 +-
+#    site_v2/src/data/fixtures/1575427.json             |   366 +-
+#    site_v2/src/data/fixtures/1575428.json             |   344 +-
+#    site_v2/src/data/fixtures/1575429.json             |   350 +-
+#    site_v2/src/data/fixtures/1575430.json             |   332 +-
+#    site_v2/src/data/fixtures/1575431.json             |   336 +-
+#    site_v2/src/data/fixtures/1575432.json             |   340 +-
+#    site_v2/src/data/fixtures/1575433.json             |   338 +-
+#    site_v2/src/data/fixtures/1575434.json             |   364 +-
+#    site_v2/src/data/fixtures/1575435.json             |   340 +-
+#    site_v2/src/data/fixtures/1575436.json             |   358 +-
+#    site_v2/src/data/fixtures/1575437.json             |   338 +-
+#    site_v2/src/data/fixtures/1575438.json             |   356 +-
+#    site_v2/src/data/fixtures/1575439.json             |   362 +-
+#    site_v2/src/data/fixtures/1575440.json             |   344 +-
+#    site_v2/src/data/fixtures/1575441.json             |   346 +-
+#    site_v2/src/data/fixtures/1575442.json             |   332 +-
+#    site_v2/src/data/fixtures/1575443.json             |   332 +-
+#    site_v2/src/data/fixtures/1575444.json             |   344 +-
+#    site_v2/src/data/fixtures/1575445.json             |   348 +-
+#    site_v2/src/data/fixtures/1575545.json             |    28 +-
+#    site_v2/src/data/fixtures/1575546.json             |    26 +-
+#    site_v2/src/data/fixtures/1575547.json             |    32 +-
+#    site_v2/src/data/fixtures/1575548.json             |    34 +-
+#    site_v2/src/data/fixtures/1575549.json             |    38 +-
+#    site_v2/src/data/fixtures/1575550.json             |    26 +-
+#    site_v2/src/data/fixtures/1575551.json             |    28 +-
+#    site_v2/src/data/fixtures/1575552.json             |    26 +-
+#    site_v2/src/data/fixtures/1575553.json             |    28 +-
+#    site_v2/src/data/fixtures/1576233.json             |   520 -
+#    site_v2/src/data/fixtures/1576235.json             |   538 -
+#    .../data/fixtures/{1576240.json => 1576242.json}   |   557 +-
+#    .../data/fixtures/{1576241.json => 1576243.json}   |   535 +-
+#    .../data/fixtures/{1576236.json => 1576244.json}   |   577 +-
+#    .../data/fixtures/{1576239.json => 1576245.json}   |   574 +-
+#    site_v2/src/data/fixtures/1576246.json             |   541 +
+#    .../data/fixtures/{1576237.json => 1576247.json}   |   552 +-
+#    .../data/fixtures/{1576234.json => 1576248.json}   |   482 +-
+#    site_v2/src/data/fixtures/1576249.json             |   513 +
+#    .../data/fixtures/{1576238.json => 1576250.json}   |   514 +-
+#    site_v2/src/data/fixtures/1584466.json             |   460 -
+#    site_v2/src/data/fixtures/1584467.json             |    30 +-
+#    site_v2/src/data/fixtures/1584468.json             |   460 -
+#    site_v2/src/data/fixtures/1584469.json             |   538 -
+#    site_v2/src/data/fixtures/1584470.json             |   501 -
+#    site_v2/src/data/fixtures/1584471.json             |   555 -
+#    site_v2/src/data/fixtures/1584472.json             |   502 -
+#    site_v2/src/data/fixtures/1584473.json             |   556 -
+#    site_v2/src/data/fixtures/1584474.json             |   520 -
+#    site_v2/src/data/fixtures/1603080.json             |   539 +
+#    site_v2/src/data/fixtures/1603081.json             |   591 +
+#    .../data/fixtures/{1603051.json => 1603082.json}   |   389 +-
+#    site_v2/src/data/fixtures/1603083.json             |   462 +
+#    site_v2/src/data/fixtures/1603084.json             |   539 +
+#    .../data/fixtures/{1603044.json => 1603085.json}   |   539 +-
+#    .../data/fixtures/{1603048.json => 1603086.json}   |   413 +-
+#    site_v2/src/data/fixtures/1603087.json             |   521 +
+#    site_v2/src/data/fixtures/1603088.json             |   555 +
+#    site_v2/src/data/fixtures/1629975.json             |    24 +-
+#    site_v2/src/data/fixtures/1629976.json             |    26 +-
+#    site_v2/src/data/fixtures/1629977.json             |   165 +-
+#    site_v2/src/data/fixtures/1629978.json             |    22 +-
+#    site_v2/src/data/fixtures/1629979.json             |    26 +-
+#    site_v2/src/data/fixtures/1629980.json             |    24 +-
+#    site_v2/src/data/fixtures/1629981.json             |    57 +-
+#    site_v2/src/data/fixtures/1629982.json             |   163 +-
+#    site_v2/src/data/fixtures/1629983.json             |   162 +-
+#    site_v2/src/data/fixtures/1629984.json             |    59 +-
+#    site_v2/src/data/fixtures/1629985.json             |    22 +-
+#    site_v2/src/data/fixtures/1629986.json             |    24 +-
+#    site_v2/src/data/fixtures/1629987.json             |    24 +-
+#    site_v2/src/data/fixtures/1629988.json             |   167 +-
+#    site_v2/src/data/fixtures/1629989.json             |    57 +-
+#    site_v2/src/data/fixtures/1629990.json             |   200 +-
+#    site_v2/src/data/fixtures/1635611.json             |   298 +-
+#    site_v2/src/data/fixtures/1635625.json             |   173 +-
+#    site_v2/src/data/fixtures/1635641.json             |    26 +-
+#    site_v2/src/data/fixtures/1635642.json             |   302 +-
+#    site_v2/src/data/fixtures/1635649.json             |   157 +-
+#    site_v2/src/data/fixtures/1635663.json             |   167 +-
+#    site_v2/src/data/fixtures/1635667.json             |   312 +-
+#    site_v2/src/data/fixtures/1635673.json             |   312 +-
+#    site_v2/src/data/fixtures/1635682.json             |   290 +-
+#    site_v2/src/data/fixtures/1635692.json             |   306 +-
+#    site_v2/src/data/fixtures/1635703.json             |   300 +-
+#    site_v2/src/data/fixtures/1635713.json             |   294 +-
+#    site_v2/src/data/fixtures/1635715.json             |   300 +-
+#    site_v2/src/data/fixtures/1635718.json             |   177 +-
+#    site_v2/src/data/fixtures/1635724.json             |   153 +-
+#    site_v2/src/data/fixtures/1635728.json             |   101 +-
+#    site_v2/src/data/fixtures/1635731.json             |   169 +-
+#    site_v2/src/data/fixtures/1635735.json             |   169 +-
+#    site_v2/src/data/fixtures/1636231.json             |   171 +-
+#    site_v2/src/data/fixtures/1636244.json             |   238 +-
+#    site_v2/src/data/fixtures/1636252.json             |   310 +-
+#    site_v2/src/data/fixtures/1636255.json             |   175 +-
+#    site_v2/src/data/fixtures/1636261.json             |    26 +-
+#    site_v2/src/data/fixtures/1636270.json             |   171 +-
+#    site_v2/src/data/fixtures/1636277.json             |   161 +-
+#    site_v2/src/data/fixtures/1636294.json             |   165 +-
+#    site_v2/src/data/fixtures/1636298.json             |   163 +-
+#    site_v2/src/data/fixtures/1636301.json             |   302 +-
+#    site_v2/src/data/fixtures/1636305.json             |   163 +-
+#    site_v2/src/data/fixtures/1636307.json             |   165 +-
+#    site_v2/src/data/fixtures/1636315.json             |    26 +-
+#    site_v2/src/data/fixtures/1636329.json             |   292 +-
+#    site_v2/src/data/fixtures/1636334.json             |    28 +-
+#    site_v2/src/data/fixtures/1636336.json             |   167 +-
+#    site_v2/src/data/fixtures/1636343.json             |   312 +-
+#    site_v2/src/data/fixtures/1636349.json             |    24 +-
+#    site_v2/src/data/fixtures/1636381.json             |   157 +-
+#    site_v2/src/data/fixtures/1636386.json             |   165 +-
+#    site_v2/src/data/fixtures/1636389.json             |    26 +-
+#    site_v2/src/data/fixtures/1636393.json             |    26 +-
+#    site_v2/src/data/fixtures/1636395.json             |   173 +-
+#    site_v2/src/data/fixtures/1636402.json             |   163 +-
+#    site_v2/src/data/fixtures/1636405.json             |    26 +-
+#    site_v2/src/data/fixtures/1636410.json             |   294 +-
+#    site_v2/src/data/fixtures/1636412.json             |   159 +-
+#    site_v2/src/data/fixtures/1636420.json             |   169 +-
+#    site_v2/src/data/fixtures/1636421.json             |   165 +-
+#    site_v2/src/data/fixtures/1636426.json             |   101 +-
+#    site_v2/src/data/fixtures/1636428.json             |    26 +-
+#    site_v2/src/data/fixtures/1636431.json             |    26 +-
+#    site_v2/src/data/fixtures/1636435.json             |    28 +-
+#    site_v2/src/data/fixtures/1636438.json             |    28 +-
+#    site_v2/src/data/fixtures/1636457.json             |    26 +-
+#    site_v2/src/data/fixtures/1636460.json             |    26 +-
+#    site_v2/src/data/fixtures/1637926.json             |   150 +-
+#    site_v2/src/data/fixtures/1637927.json             |   178 +-
+#    site_v2/src/data/fixtures/1638134.json             |   288 +-
+#    site_v2/src/data/fixtures/1638135.json             |   310 +-
+#    site_v2/src/data/fixtures/1638206.json             |   160 +-
+#    site_v2/src/data/fixtures/1638207.json             |   158 +-
+#    site_v2/src/data/fixtures/1639883.json             |   184 +-
+#    site_v2/src/data/fixtures/1639884.json             |   308 +-
+#    site_v2/src/data/fixtures/1640000.json             |   232 +-
+#    site_v2/src/data/fixtures/1640760.json             |    12 +-
+#    site_v2/src/data/fixtures/1644170.json             |    41 +-
+#    site_v2/src/data/fixtures/1647178.json             |   175 +-
+#    .../data/fixtures/{1647382.json => 1647384.json}   |   437 +-
+#    .../data/fixtures/{1647383.json => 1647385.json}   |   522 +-
+#    .../data/fixtures/{1647381.json => 1647386.json}   |   481 +-
+#    site_v2/src/data/fixtures/1647671.json             |    26 +-
+#    site_v2/src/data/fixtures/1647672.json             |    20 +-
+#    site_v2/src/data/fixtures/1647673.json             |    18 +-
+#    site_v2/src/data/fixtures/1647674.json             |    26 +-
+#    site_v2/src/data/fixtures/1647675.json             |    22 +-
+#    site_v2/src/data/fixtures/1647676.json             |    26 +-
+#    site_v2/src/data/fixtures/1647677.json             |    54 +-
+#    site_v2/src/data/fixtures/1647678.json             |    24 +-
+#    site_v2/src/data/fixtures/1648351.json             |   318 +-
+#    site_v2/src/data/fixtures/1648352.json             |   304 +-
+#    site_v2/src/data/fixtures/1648353.json             |   302 +-
+#    site_v2/src/data/fixtures/1648354.json             |   298 +-
+#    site_v2/src/data/fixtures/1648355.json             |   294 +-
+#    site_v2/src/data/fixtures/1648356.json             |   302 +-
+#    site_v2/src/data/fixtures/1648357.json             |   300 +-
+#    site_v2/src/data/fixtures/1648358.json             |   304 +-
+#    site_v2/src/data/fixtures/1649497.json             |   561 +
+#    site_v2/src/data/fixtures/1649498.json             |   557 +
+#    site_v2/src/data/fixtures/1649499.json             |   575 +
+#    site_v2/src/data/fixtures/1649500.json             |   575 +
+#    site_v2/src/data/fixtures/1649501.json             |   627 +
+#    site_v2/src/data/fixtures/1649502.json             |   623 +
+#    site_v2/src/data/fixtures/1649503.json             |   575 +
+#    site_v2/src/data/fixtures/1649504.json             |   575 +
+#    site_v2/src/data/fixtures/1649564.json             |   510 -
+#    site_v2/src/data/fixtures/1649565.json             |    50 +-
+#    site_v2/src/data/fixtures/1649566.json             |   528 -
+#    site_v2/src/data/fixtures/1649567.json             |    30 +-
+#    site_v2/src/data/fixtures/1649568.json             |   487 -
+#    site_v2/src/data/fixtures/1649569.json             |   521 -
+#    site_v2/src/data/fixtures/1649570.json             |   460 -
+#    site_v2/src/data/fixtures/1649571.json             |   501 -
+#    site_v2/src/data/fixtures/1649672.json             |    12 +-
+#    site_v2/src/data/fixtures/1649673.json             |    16 +-
+#    site_v2/src/data/fixtures/1649674.json             |    12 +-
+#    site_v2/src/data/fixtures/1649675.json             |    10 +-
+#    site_v2/src/data/fixtures/1649676.json             |    10 +-
+#    site_v2/src/data/fixtures/1649677.json             |    16 +-
+#    site_v2/src/data/fixtures/1649678.json             |    10 +-
+#    site_v2/src/data/fixtures/1649679.json             |    10 +-
+#    site_v2/src/data/fixtures/1649680.json             |    18 +-
+#    site_v2/src/data/fixtures/1649681.json             |    18 +-
+#    site_v2/src/data/fixtures/1649682.json             |    10 +-
+#    site_v2/src/data/fixtures/1649683.json             |    10 +-
+#    site_v2/src/data/fixtures/1649684.json             |    10 +-
+#    site_v2/src/data/fixtures/1649685.json             |    10 +-
+#    site_v2/src/data/fixtures/1649686.json             |    16 +-
+#    site_v2/src/data/fixtures/1649687.json             |    10 +-
+#    site_v2/src/data/fixtures/1649688.json             |    10 +-
+#    site_v2/src/data/fixtures/1649689.json             |    18 +-
+#    site_v2/src/data/fixtures/1649690.json             |    10 +-
+#    site_v2/src/data/fixtures/1649691.json             |    12 +-
+#    site_v2/src/data/fixtures/1650260.json             |    10 +-
+#    site_v2/src/data/fixtures/1650261.json             |    10 +-
+#    site_v2/src/data/fixtures/1650262.json             |    10 +-
+#    site_v2/src/data/fixtures/1650263.json             |    12 +-
+#    site_v2/src/data/fixtures/1650264.json             |    14 +-
+#    site_v2/src/data/fixtures/1650265.json             |    10 +-
+#    site_v2/src/data/fixtures/1650266.json             |    14 +-
+#    site_v2/src/data/fixtures/1650267.json             |    12 +-
+#    site_v2/src/data/fixtures/1650268.json             |    12 +-
+#    site_v2/src/data/fixtures/1650269.json             |    10 +-
+#    site_v2/src/data/fixtures/1650270.json             |    10 +-
+#    site_v2/src/data/fixtures/1650271.json             |    12 +-
+#    site_v2/src/data/fixtures/1650272.json             |    12 +-
+#    site_v2/src/data/fixtures/1650273.json             |    14 +-
+#    site_v2/src/data/fixtures/1650274.json             |    12 +-
+#    site_v2/src/data/fixtures/1650275.json             |    12 +-
+#    site_v2/src/data/fixtures/1650276.json             |    14 +-
+#    site_v2/src/data/fixtures/1650277.json             |     8 +-
+#    site_v2/src/data/fixtures/1650278.json             |    12 +-
+#    site_v2/src/data/fixtures/1650279.json             |    14 +-
+#    site_v2/src/data/fixtures/1650280.json             |    10 +-
+#    site_v2/src/data/fixtures/1650281.json             |    10 +-
+#    site_v2/src/data/fixtures/1650282.json             |    12 +-
+#    site_v2/src/data/fixtures/1650283.json             |    12 +-
+#    site_v2/src/data/fixtures/1650284.json             |    12 +-
+#    site_v2/src/data/fixtures/1650285.json             |    14 +-
+#    site_v2/src/data/fixtures/1650286.json             |    12 +-
+#    site_v2/src/data/fixtures/1650287.json             |    10 +-
+#    site_v2/src/data/fixtures/1650288.json             |    12 +-
+#    site_v2/src/data/fixtures/1650289.json             |     8 +-
+#    site_v2/src/data/fixtures/1650290.json             |    10 +-
+#    site_v2/src/data/fixtures/1650291.json             |     8 +-
+#    site_v2/src/data/fixtures/1650292.json             |    14 +-
+#    site_v2/src/data/fixtures/1650293.json             |    10 +-
+#    site_v2/src/data/fixtures/1650294.json             |    14 +-
+#    site_v2/src/data/fixtures/1650295.json             |    10 +-
+#    site_v2/src/data/fixtures/1650296.json             |    12 +-
+#    site_v2/src/data/fixtures/1650297.json             |    10 +-
+#    site_v2/src/data/fixtures/1650298.json             |    10 +-
+#    site_v2/src/data/fixtures/1650299.json             |    14 +-
+#    site_v2/src/data/fixtures/1650300.json             |    12 +-
+#    site_v2/src/data/fixtures/1650301.json             |    12 +-
+#    site_v2/src/data/fixtures/1650302.json             |    10 +-
+#    site_v2/src/data/fixtures/1650303.json             |    14 +-
+#    site_v2/src/data/fixtures/1650304.json             |    14 +-
+#    site_v2/src/data/fixtures/1650305.json             |    12 +-
+#    site_v2/src/data/fixtures/1651045.json             |   354 +
+#    site_v2/src/data/fixtures/1651046.json             |   395 +
+#    site_v2/src/data/fixtures/1651047.json             |   498 +
+#    site_v2/src/data/fixtures/1651048.json             |   484 +
+#    site_v2/src/data/fixtures/1651049.json             |   498 +
+#    site_v2/src/data/fixtures/1651050.json             |   476 +
+#    .../data/fixtures/{1649492.json => 1651121.json}   |   580 +-
+#    .../data/fixtures/{1649491.json => 1651122.json}   |   566 +-
+#    site_v2/src/data/fixtures/93198.json               |    44 +-
+#    site_v2/src/data/landing.json                      | 10201 +++--
+#    site_v2/src/data/matches/2026-09-01.json           |    14 +-
+#    site_v2/src/data/matches/2026-09-02.json           |    14 +-
+#    site_v2/src/data/matches/2026-09-03.json           |    14 +-
+#    site_v2/src/data/matches/2026-09-15.json           |    14 +-
+#    site_v2/src/data/matches/2026-10-15.json           |     8 +-
+#    site_v2/src/data/matches/2026-10-16.json           |    22 +-
+#    site_v2/src/data/matches/2026-10-17.json           |    32 +-
+#    site_v2/src/data/matches/2026-10-18.json           |    50 +-
+#    site_v2/src/data/matches/2026-10-21.json           |    14 +-
+#    site_v2/src/data/matches/2026-10-22.json           |     8 +-
+#    site_v2/src/data/matches/2026-10-23.json           |    34 +-
+#    site_v2/src/data/matches/2026-10-24.json           |    32 +-
+#    site_v2/src/data/matches/2026-10-25.json           |    38 +-
+#    site_v2/src/data/matches/2026-10-27.json           |    50 +-
+#    site_v2/src/data/matches/2026-10-28.json           |    50 +-
+#    site_v2/src/data/matches/2026-10-29.json           |    20 +-
+#    site_v2/src/data/matches/2026-10-30.json           |    20 +-
+#    site_v2/src/data/matches/2026-10-31.json           |    30 +-
+#    site_v2/src/data/matches/2026-11-02.json           |    50 +-
+#    site_v2/src/data/matches/2026-11-03.json           |   128 +-
+#    site_v2/src/data/matches/2026-11-04.json           |    84 +-
+#    site_v2/src/data/matches/2026-11-05.json           |   323 +-
+#    site_v2/src/data/matches/2026-11-06.json           |   649 +-
+#    site_v2/src/data/matches/2026-11-07.json           |  3491 +-
+#    site_v2/src/data/matches/2026-11-08.json           |  2403 +-
+#    site_v2/src/data/matches/2026-11-09.json           |    81 +-
+#    site_v2/src/data/matches/2026-11-12.json           |    10 +-
+#    site_v2/src/data/matches/2026-11-13.json           |    70 +-
+#    site_v2/src/data/matches/2026-11-14.json           |   527 +-
+#    site_v2/src/data/matches/2026-11-15.json           |   295 +-
+#    site_v2/src/data/matches/2026-11-17.json           |    54 +
+#    site_v2/src/data/matches/2026-11-18.json           |   160 +-
+#    site_v2/src/data/matches/2026-11-19.json           |   145 -
+#    site_v2/src/data/matches/2026-11-20.json           |   361 +-
+#    site_v2/src/data/matches/2026-11-21.json           |  1253 +-
+#    site_v2/src/data/matches/2026-11-22.json           |  1022 +-
+#    site_v2/src/data/matches/2026-11-23.json           |   304 +-
+#    site_v2/src/data/matches/2026-11-24.json           |   206 +-
+#    site_v2/src/data/matches/2026-11-25.json           |   400 +-
+#    site_v2/src/data/matches/2026-11-26.json           |   374 +-
+#    site_v2/src/data/matches/2026-11-27.json           |   447 +-
+#    site_v2/src/data/matches/2026-11-28.json           |  2269 +-
+#    site_v2/src/data/matches/2026-11-29.json           |  1164 +-
+#    site_v2/src/data/matches/2026-11-30.json           |    14 +-
+#    site_v2/src/data/matches/2026-12-01.json           |    34 +-
+#    site_v2/src/data/matches/2026-12-02.json           |    34 +-
+#    site_v2/src/data/matches/2026-12-03.json           |     8 +-
+#    site_v2/src/data/matches/2026-12-05.json           |   122 +-
+#    site_v2/src/data/matches/2026-12-15.json           |     8 +-
+#    site_v2/src/data/matches/2026-12-16.json           |    87 +-
+#    site_v2/src/data/matches/2026-12-21.json           |    83 -
+#    site_v2/src/data/matches/2027-01-07.json           |    16 +-
+#    site_v2/src/data/matches/2027-01-08.json           |    14 +-
+#    site_v2/src/data/matches/2027-01-09.json           |    20 +-
+#    site_v2/src/data/matches/2027-01-10.json           |    20 +-
+#    site_v2/src/data/matches/2027-01-11.json           |    14 +-
+#    site_v2/src/data/matches/2027-01-12.json           |     8 +-
+#    site_v2/src/data/matches/2027-01-13.json           |     8 +-
+#    site_v2/src/data/matches/2027-01-26.json           |    10 +-
+#    site_v2/src/data/matches/2027-03-25.json           |    54 +
+#    site_v2/src/data/matches/2027-03-26.json           |   120 +
+#    site_v2/src/data/matches/2027-04-14.json           |    54 +
+#    site_v2/src/data/matches/2027-06-09.json           |    87 +
+#    site_v2/src/data/player_pages.json                 |    34 +-
+#    site_v2/src/data/player_peers/AFCON/2025/ATT.json  |     9 +
+#    site_v2/src/data/player_peers/AFCON/2025/CM.json   |   563 -
+#    site_v2/src/data/player_peers/BL1/2026/AM.json     |   792 +-
+#    site_v2/src/data/player_peers/BL1/2026/ATT.json    |   995 +-
+#    site_v2/src/data/player_peers/BL1/2026/CM.json     |  1571 +-
+#    site_v2/src/data/player_peers/BL1/2026/DEF.json    |  1708 +-
+#    site_v2/src/data/player_peers/BL1/2026/DM.json     |   404 +-
+#    site_v2/src/data/player_peers/BL1/2026/GK.json     |   202 +-
+#    site_v2/src/data/player_peers/ED/2026/AM.json      |  1033 +-
+#    site_v2/src/data/player_peers/ED/2026/ATT.json     |   931 -
+#    site_v2/src/data/player_peers/ED/2026/CM.json      |   930 +
+#    site_v2/src/data/player_peers/ED/2026/DEF.json     |  2316 +-
+#    site_v2/src/data/player_peers/L1/2026/ATT.json     |  1115 +-
+#    site_v2/src/data/player_peers/L1/2026/CM.json      |  1202 -
+#    site_v2/src/data/player_peers/L1/2026/DM.json      |   428 +
+#    site_v2/src/data/player_peers/LP/2026/AM.json      |     6 +
+#    site_v2/src/data/player_peers/LP/2026/ATT.json     |    11 +-
+#    site_v2/src/data/player_peers/LP/2026/DEF.json     |    16 +
+#    site_v2/src/data/player_peers/PD/2026/AM.json      |   826 +-
+#    site_v2/src/data/player_peers/PD/2026/ATT.json     |  1415 +-
+#    site_v2/src/data/player_peers/PD/2026/DEF.json     |  2103 +-
+#    site_v2/src/data/player_peers/PL/2026/AM.json      |  1376 +
+#    site_v2/src/data/player_peers/PL/2026/ATT.json     |   749 +-
+#    site_v2/src/data/player_peers/PL/2026/DEF.json     |  1956 +-
+#    site_v2/src/data/player_peers/PL/2026/DM.json      |   894 +-
+#    site_v2/src/data/player_peers/SA/2026/ATT.json     |  1365 +-
+#    site_v2/src/data/player_peers/SA/2026/CM.json      |  2002 +-
+#    site_v2/src/data/player_peers/SA/2026/DEF.json     |  2083 ++
+#    site_v2/src/data/player_peers/SA/2026/DM.json      |   259 +-
+#    site_v2/src/data/player_peers/UCL/2026/ATT.json    |     1 +
+#    site_v2/src/data/player_peers/UCL/2026/CM.json     |  1047 -
+#    site_v2/src/data/player_peers/UCL/2026/DEF.json    |     4 +
+#    site_v2/src/data/player_peers/UCL/2026/DM.json     |     1 +
+#    site_v2/src/data/player_peers/UECL/2026/ATT.json   |    12 +
+#    site_v2/src/data/player_peers/UECL/2026/CM.json    |    20 +-
+#    site_v2/src/data/player_peers/UNL/2026/AM.json     |    22 +-
+#    site_v2/src/data/player_peers/UNL/2026/ATT.json    |     4 +-
+#    site_v2/src/data/player_peers/UNL/2026/CM.json     |    28 +-
+#    site_v2/src/data/player_peers/UNL/2026/DEF.json    |    50 +-
+#    site_v2/src/data/player_peers/WC/2026/DEF.json     |  2634 --
+#    site_v2/src/data/player_peers/WCQEU/2024/ATT.json  |  1730 +
+#    site_v2/src/data/players/10500.json                |   123 +-
+#    site_v2/src/data/players/1100.json                 |   776 +-
+#    site_v2/src/data/players/1148.json                 |   772 +-
+#    site_v2/src/data/players/1149.json                 |   729 +-
+#    site_v2/src/data/players/1156.json                 |   697 +-
+#    site_v2/src/data/players/126951.json               |   672 +-
+#    site_v2/src/data/players/128384.json               |  1777 -
+#    site_v2/src/data/players/134.json                  |   919 -
+#    site_v2/src/data/players/1496.json                 |   644 +-
+#    site_v2/src/data/players/161939.json               |    76 +-
+#    site_v2/src/data/players/162219.json               |  1232 -
+#    site_v2/src/data/players/162265.json               |   999 +
+#    site_v2/src/data/players/162761.json               |   700 +-
+#    site_v2/src/data/players/163032.json               |   647 +-
+#    site_v2/src/data/players/163039.json               |   954 -
+#    site_v2/src/data/players/163078.json               |   630 +-
+#    site_v2/src/data/players/177452.json               |   760 +-
+#    site_v2/src/data/players/178768.json               |   132 +-
+#    site_v2/src/data/players/179400.json               |   114 +-
+#    site_v2/src/data/players/1798.json                 |   287 +
+#    site_v2/src/data/players/184.json                  |   749 +-
+#    site_v2/src/data/players/18964.json                |   100 +-
+#    site_v2/src/data/players/18970.json                |  1098 -
+#    site_v2/src/data/players/1910.json                 |   921 +
+#    site_v2/src/data/players/1922.json                 |   824 +-
+#    site_v2/src/data/players/1924.json                 |   150 +-
+#    site_v2/src/data/players/19617.json                |   753 +-
+#    site_v2/src/data/players/1972.json                 |   112 +-
+#    site_v2/src/data/players/202696.json               |   722 +-
+#    site_v2/src/data/players/203224.json               |  1568 +
+#    site_v2/src/data/players/21587.json                |   124 +-
+#    site_v2/src/data/players/24798.json                |  1078 +
+#    site_v2/src/data/players/249.json                  |  1272 +
+#    site_v2/src/data/players/25033.json                |   106 +-
+#    site_v2/src/data/players/25158.json                |   746 +-
+#    site_v2/src/data/players/25297.json                |   641 +-
+#    site_v2/src/data/players/25342.json                |  1518 +
+#    site_v2/src/data/players/25391.json                |   653 +-
+#    site_v2/src/data/players/25626.json                |   283 -
+#    site_v2/src/data/players/25915.json                |   606 +-
+#    site_v2/src/data/players/25926.json                |   660 +
+#    site_v2/src/data/players/26171.json                |   588 +-
+#    site_v2/src/data/players/26256.json                |    34 +-
+#    site_v2/src/data/players/269.json                  |   909 +
+#    site_v2/src/data/players/272.json                  |  1740 +
+#    site_v2/src/data/players/2897.json                 |  1415 -
+#    site_v2/src/data/players/291964.json               |   733 +-
+#    site_v2/src/data/players/2937.json                 |   779 +-
+#    site_v2/src/data/players/303679.json               |   528 +-
+#    site_v2/src/data/players/31043.json                |  1100 +
+#    site_v2/src/data/players/314511.json               |   756 +-
+#    site_v2/src/data/players/32011.json                |   593 +-
+#    site_v2/src/data/players/326067.json               |  1054 -
+#    site_v2/src/data/players/326102.json               |   958 +
+#    site_v2/src/data/players/327347.json               |   690 +-
+#    site_v2/src/data/players/328033.json               |   745 +-
+#    site_v2/src/data/players/328225.json               |   664 +-
+#    site_v2/src/data/players/329715.json               |  1975 +
+#    site_v2/src/data/players/336671.json               |   417 +-
+#    site_v2/src/data/players/340547.json               |   957 -
+#    site_v2/src/data/players/352730.json               |   773 -
+#    site_v2/src/data/players/353143.json               |   605 +-
+#    site_v2/src/data/players/362755.json               |    60 +-
+#    site_v2/src/data/players/363156.json               |   941 -
+#    site_v2/src/data/players/36798.json                |    96 +-
+#    site_v2/src/data/players/37438.json                |   764 +-
+#    site_v2/src/data/players/38124.json                |   954 +
+#    site_v2/src/data/players/383665.json               |   994 -
+#    site_v2/src/data/players/386305.json               |  1227 +
+#    site_v2/src/data/players/386828.json               |   668 +-
+#    site_v2/src/data/players/409190.json               |   275 +-
+#    site_v2/src/data/players/432310.json               |   721 +-
+#    site_v2/src/data/players/44814.json                |  1648 -
+#    site_v2/src/data/players/449509.json               |   351 -
+#    site_v2/src/data/players/46930.json                |  1711 -
+#    site_v2/src/data/players/47516.json                |   747 +-
+#    site_v2/src/data/players/478991.json               |    60 +-
+#    site_v2/src/data/players/48765.json                |   927 +
+#    site_v2/src/data/players/502.json                  |   751 +-
+#    site_v2/src/data/players/567.json                  |   736 +-
+#    site_v2/src/data/players/6231.json                 |  1763 -
+#    site_v2/src/data/players/7073.json                 |   547 +-
+#    site_v2/src/data/players/711.json                  |  1524 +
+#    site_v2/src/data/players/714.json                  |   588 +-
+#    site_v2/src/data/players/7327.json                 |   796 +-
+#    site_v2/src/data/players/794.json                  |  1019 +-
+#    site_v2/src/data/players/88140.json                |    34 +-
+#    site_v2/src/data/players/90617.json                |   596 +-
+#    site_v2/src/data/players/972.json                  |   753 +-
+#    site_v2/src/data/players/984.json                  |  1182 +
+#    site_v2/src/data/teams/{108.json => 106.json}      | 17015 +++++----
+#    site_v2/src/data/teams/157.json                    |  3454 +-
+#    site_v2/src/data/teams/160.json                    |  2820 +-
+#    site_v2/src/data/teams/162.json                    |  2608 +-
+#    site_v2/src/data/teams/163.json                    |  2634 +-
+#    site_v2/src/data/teams/164.json                    |  2658 +-
+#    site_v2/src/data/teams/165.json                    |  3000 +-
+#    site_v2/src/data/teams/1660.json                   |  2342 +-
+#    site_v2/src/data/teams/167.json                    |  2830 +-
+#    site_v2/src/data/teams/168.json                    |  2998 +-
+#    site_v2/src/data/teams/169.json                    |  2808 +-
+#    site_v2/src/data/teams/170.json                    |  2604 +-
+#    site_v2/src/data/teams/172.json                    |  2720 +-
+#    site_v2/src/data/teams/173.json                    |  2986 +-
+#    site_v2/src/data/teams/174.json                    |  2566 +-
+#    site_v2/src/data/teams/175.json                    |  2526 +-
+#    site_v2/src/data/teams/182.json                    |  2622 +-
+#    site_v2/src/data/teams/185.json                    |  2492 +-
+#    site_v2/src/data/teams/192.json                    |  2626 +-
+#    site_v2/src/data/teams/{209.json => 194.json}      | 35767 ++++++++++--------
+#    site_v2/src/data/teams/197.json                    |  2766 +-
+#    site_v2/src/data/teams/211.json                    |   871 +-
+#    site_v2/src/data/teams/212.json                    |   793 +-
+#    site_v2/src/data/teams/224.json                    |   505 +-
+#    site_v2/src/data/teams/228.json                    |   741 +-
+#    site_v2/src/data/teams/33.json                     |  2956 +-
+#    site_v2/src/data/teams/415.json                    | 19928 ++++++++++
+#    site_v2/src/data/teams/420.json                    |  2210 +-
+#    site_v2/src/data/teams/47.json                     |  2816 +-
+#    site_v2/src/data/teams/49.json                     |  2870 +-
+#    site_v2/src/data/teams/497.json                    |  2928 +-
+#    site_v2/src/data/teams/50.json                     |  2980 +-
+#    site_v2/src/data/teams/505.json                    |  2996 +-
+#    site_v2/src/data/teams/51.json                     |  2694 +-
+#    site_v2/src/data/teams/512.json                    |  2348 +-
+#    site_v2/src/data/teams/529.json                    |  2924 +-
+#    site_v2/src/data/teams/536.json                    |  2794 +-
+#    site_v2/src/data/teams/81.json                     | 37179 -------------------
+#    site_v2/src/data/teams/85.json                     |  2927 +-
+#    site_v2/src/data/teams/895.json                    |  2400 +-
+#    site_v2/src/data/teams_index.json                  |  2186 +-
+#    809 files changed, 248473 insertions(+), 263540 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/36-crest-sample/acceptance_evidence.md    |    9 +
+#    .../task/36-crest-sample/rendered_page_evidence.md |   38 +
+#    .claude/task/36-crest-sample/review.md             |   30 +
+#    .claude/task/36-crest-sample/review_input.patch    | 1363 ++++++++++++++++++++
+#    4 files changed, 1440 insertions(+)
+# ============================================================================
