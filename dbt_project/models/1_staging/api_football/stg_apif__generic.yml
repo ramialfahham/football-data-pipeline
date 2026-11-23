@@ -5,10 +5,13 @@ version: 2
 # tables hold one complete snapshot row per run), then faithfully flatten the payload 1:1.
 # No entity-grain deduplication, no aggregation/pivot, no cross-source unions/joins here —
 # all of that is business logic that belongs in base. See dbt_project/docs/layering.md §1_staging.
-# Test policy: not_null on grain columns; unique only where a single snapshot is already unique
-# at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) or on
-# transfers — they carry expected duplicates (multiple ingest snapshots, and for transfers the same
-# move fetched under both involved teams); entity dedup is in base.
+# Test policy: not_null on the ingest columns (league_code, raw_ingested_at) and on the columns no
+# base model drops; unique only where a single snapshot is already unique at that grain. A provider
+# key that is NULL is not tested here: base drops the row and tests its own key, except in
+# stg_apif__fixture_players, which keeps its own tests. No unique tests on
+# fixture_detail models (events, players, stats, lineups) beyond the order keys, or on transfers —
+# they carry expected duplicates (multiple ingest snapshots, and for transfers the same move fetched
+# under both involved teams); entity dedup is in base.
 #
 # INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS): their
 # loaders are skip-if-already-ingested (PR-a), so a run's snapshot holds only that run's NEW
@@ -34,7 +37,7 @@ models:
         tests: [not_null]
       - name: fixture_id
         description: "{{ doc('fixture_api_id') }}"
-        tests: [not_null, unique]
+        tests: [unique]
       - name: fixture_date
         description: "{{ doc('fixture_date') }}"
         tests: [not_null]
@@ -113,7 +116,6 @@ models:
         tests: [not_null]
       - name: season
         description: "{{ doc('season_api_year') }}"
-        tests: [not_null]
       - name: team_id
         description: "{{ doc('team_api_id') }}"
         # Faithful staging: old API-Football standings can carry team.name with a null team.id
@@ -178,7 +180,6 @@ models:
         description: "{{ doc('season_api_year') }}"
       - name: team_id
         description: "{{ doc('team_api_id') }}"
-        tests: [not_null]
       - name: team_name
         description: "{{ doc('team_name') }}"
         tests: [not_null]
@@ -241,10 +242,8 @@ models:
         tests: [not_null]
       - name: league_api_id
         description: "{{ doc('league_api_id') }}"
-        tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -307,10 +306,8 @@ models:
         tests: [not_null]
       - name: player_id
         description: "{{ doc('player_api_id') }}"
-        tests: [not_null]
       - name: team_id
         description: "{{ doc('team_api_id') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -349,7 +346,6 @@ models:
         tests: [not_null]
       - name: fixture_id
         description: "{{ doc('fixture_api_id') }}"
-        tests: [not_null]
       - name: event_index
         description: "The zero-based position of this event in the provider's $.events array for the fixture. API-Football does not assign event ids, so this position is the only stable identity for an event within a fixture."
         tests: [not_null]
@@ -486,10 +482,8 @@ models:
         tests: [not_null]
       - name: fixture_id
         description: "{{ doc('fixture_api_id') }}"
-        tests: [not_null]
       - name: team_id
         description: "{{ doc('team_api_id') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -515,10 +509,8 @@ models:
         tests: [not_null]
       - name: fixture_id
         description: "{{ doc('fixture_api_id') }}"
-        tests: [not_null]
       - name: team_id
         description: "{{ doc('team_api_id') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -572,10 +564,8 @@ models:
         tests: [not_null]
       - name: team_id
         description: "{{ doc('team_api_id') }}"
-        tests: [not_null]
       - name: player_id
         description: "{{ doc('player_api_id') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -603,7 +593,6 @@ models:
         tests: [not_null]
       - name: player_id
         description: "{{ doc('player_api_id') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -675,7 +664,6 @@ models:
         tests: [not_null]
       - name: coach_id
         description: "{{ doc('coach_api_id') }}"
-        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
@@ -710,7 +698,6 @@ models:
         tests: [not_null]
       - name: coach_id
         description: "{{ doc('coach_api_id') }}"
-        tests: [not_null]
       - name: team_id
         description: "{{ doc('team_api_id') }}"
         # provider-nullable (see description); base filters null team_id, so no staging not_null test

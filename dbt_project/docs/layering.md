@@ -158,7 +158,7 @@ Allowed:
 - JSON extraction, unnesting, and flattening (including `cross join`/`left join unnest(...)`
   to explode arrays) needed to expose one regular typed table per raw source.
 - Dropping rows that are missing a grain key (null id/date) — this is cleanup, not dedup.
-- Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields; `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
+- Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields, except a provider key that base drops when NULL (its `not_null` is in base; `stg_apif__fixture_players` keeps its own); `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
 
 Not allowed:
 - **Entity-grain deduplication** — any `qualify`/`row_number()`/`distinct` that collapses rows
