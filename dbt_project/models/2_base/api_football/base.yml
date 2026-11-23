@@ -500,6 +500,9 @@ models:
       - name: team_needs_research
         description: "{{ doc('team_needs_research') }}"
         tests: [not_null]
+      - name: player_team_needs_research
+        description: "{{ doc('player_team_needs_research') }}"
+        tests: [not_null]
 
   - name: base_apif__lineup_sheets
     description: >
@@ -787,6 +790,9 @@ models:
       - name: team_needs_research
         description: "{{ doc('team_needs_research') }}"
         tests: [not_null]
+      - name: player_team_needs_research
+        description: "{{ doc('player_team_needs_research') }}"
+        tests: [not_null]
 
   - name: base_apif__fixture_events_checked
     description: >
@@ -826,6 +832,9 @@ models:
         tests: [not_null]
       - name: team_needs_research
         description: "{{ doc('team_needs_research') }}"
+        tests: [not_null]
+      - name: player_team_needs_research
+        description: "{{ doc('player_team_needs_research') }}"
         tests: [not_null]
 
   - name: base_apif__player_team_season

@@ -58,8 +58,10 @@ match stats are good enough.
 - A player's team. Where his statistics row and his match events, own goals aside, name different
   teams of the match, the squad list for the season decides, and his other matches decide where it
   names both teams or neither; the side it contradicts, his row or his events, moves to the team
-  it names. Where nothing decides, both stay where the provider put them. Where a match's line-ups
-  are researched, the researched sheet decides a player's team, for his statistics and his events.
+  it names. Where nothing decides, his statistics row and his events of the match are withheld.
+  They stay out of the facts until a fixture_lineup_corrections row names his team. Where a
+  match's line-ups are researched, the researched sheet decides a player's team, for his
+  statistics and his events.
 - Accurate passes are a count in every match. Where a match's values add up to more than its
   passes, the provider sent a percentage, and it is converted once.
 - Positions. A player's position in a match is G, D, M or F. A position given in words takes its

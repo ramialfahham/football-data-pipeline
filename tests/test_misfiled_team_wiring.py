@@ -70,7 +70,11 @@ def test_an_event_is_flagged_when_its_team_is_not_one_of_the_match_teams():
     sql = render_model("base_apif__fixture_events_checked")
     assert re.fullmatch(PARTICIPANTS, _cte(sql, "participants").strip())
     assert re.search(_flag("events.team_id", "participants.home_team_id", "participants.away_team_id"), sql)
-    assert re.search(r"from events left join checked on .*? left join participants on events\.fixture_id = participants\.fixture_id$", sql)
+    assert re.search(
+        r"from events left join checked on .*? left join participants on events\.fixture_id = participants\.fixture_id "
+        r"left join disputed_players on ",
+        sql,
+    )
 
 
 def test_a_player_line_is_flagged_and_the_flag_reaches_the_output():
@@ -81,8 +85,9 @@ def test_a_player_line_is_flagged_and_the_flag_reaches_the_output():
         + _flag("players.team_id", "participants.home_team_id", "participants.away_team_id"),
         sql,
     )
-    assert re.search(r"left join participants on players\.fixture_id = participants\.fixture_id \)", sql)
-    assert sql.endswith("stat_corrections, team_needs_research from checked_players")
+    assert re.search(r"left join participants on players\.fixture_id = participants\.fixture_id left join disputed_players on ", sql)
+    assert " team_needs_research, player_team_needs_research from checked_players" in sql
+    assert re.search(r"stat_corrections, team_needs_research, player_team_needs_research from checked_players$", sql)
 
 
 def test_a_line_up_player_is_flagged_and_the_flag_reaches_the_output():
@@ -91,10 +96,12 @@ def test_a_line_up_player_is_flagged_and_the_flag_reaches_the_output():
     flagged = _cte(sql, "flagged")
     assert re.fullmatch(
         r"select c\.\*, " + _flag("c.team_id", "p.home_team", "p.away_team")
-        + r" from cleaned as c left join participants as p on c\.fixture_id = p\.participant_fixture_id",
+        + r", d\.fixture_id is not null as player_team_needs_research "
+        r"from cleaned as c left join participants as p on c\.fixture_id = p\.participant_fixture_id "
+        r"left join disputed_players as d on c\.fixture_id = d\.fixture_id and c\.player_id = d\.player_id",
         flagged.strip(),
     )
-    assert sql.endswith("raw_ingested_at, team_needs_research, goals_need_research from flagged")
+    assert sql.endswith("raw_ingested_at, team_needs_research, player_team_needs_research, goals_need_research from flagged")
 
 
 def test_a_match_with_a_misfiled_event_proves_no_cards_of_its_line_up_players():
@@ -121,7 +128,7 @@ def test_a_statistics_line_is_flagged_and_the_flag_reaches_the_output():
 
 @pytest.mark.parametrize("fact", ["fct_fixture_event", "fct_fixture_player_stats"])
 def test_a_fact_leaves_out_the_lines_that_are_flagged(fact):
-    assert render_model(fact).endswith("from src where not team_needs_research")
+    assert render_model(fact).endswith("from src where not team_needs_research and not player_team_needs_research")
 
 
 def test_the_research_list_holds_every_flagged_line_under_the_team_the_provider_filed_it_under():

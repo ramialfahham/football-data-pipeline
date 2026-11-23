@@ -17,6 +17,34 @@ with lines as (
     from {{ ref('fct_fixture_team_stats') }}
 ),
 
+participants as (
+    select
+        fixture_api_id as fixture_id,
+        home_team_api_id as home_team_id,
+        away_team_api_id as away_team_id
+    from {{ ref('fct_fixture') }}
+),
+
+-- A player whose stat line and events name the two teams of the match has no line in the fact, and
+-- his offsides still keep his team's blank count blank in base.
+disputed_players as (
+    select distinct
+        r.fixture_id,
+        r.player_id
+    from {{ ref('base_apif__fixture_players') }} as r
+    inner join {{ ref('base_apif__fixture_events') }} as e
+        on r.fixture_id = e.fixture_id and r.player_id = e.player_id
+    inner join participants as p
+        on r.fixture_id = p.fixture_id
+    where
+        e.team_id != r.team_id
+        and r.team_id in (p.home_team_id, p.away_team_id)
+        and e.team_id in (p.home_team_id, p.away_team_id)
+        and not (e.event_type = 'Goal' and e.event_detail = 'Own Goal')
+        and e.goal_correction_source is null
+        and e.card_correction_source is null
+),
+
 players_with_an_offside as (
     select
         fixture_sk,
@@ -24,6 +52,14 @@ players_with_an_offside as (
     from {{ ref('fct_fixture_player_stats') }}
     where offsides > 0
     group by fixture_sk, team_sk
+    union distinct
+    select
+        r.fixture_id as fixture_sk,
+        r.team_id as team_sk
+    from {{ ref('base_apif__fixture_players') }} as r
+    inner join disputed_players as d
+        on r.fixture_id = d.fixture_id and r.player_id = d.player_id
+    where r.offsides > 0
 ),
 
 full_line_blanks as (
