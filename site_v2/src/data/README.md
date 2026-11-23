@@ -56,10 +56,11 @@ their peer files.
   teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table. These 39 can
   be refreshed alone, from `fetch_team_payloads` written by `write_entity`. Every slug must stay the
   same, because the Home and Bundesliga pages link to them.
-- `players/*.json` and `player_pages.json` — **74** real exported players from the Home and
-  Bundesliga boards, and the list of players with a page. A link to a player exists only
-  when that player is in `player_pages.json`, so a board row without one stays plain text. Produced
-  verbatim by step 6 of the recipe below.
+- `players/*.json` and `player_pages.json` — **74** real exported players, every player on the Home
+  and Bundesliga boards, and the list of players with a page. A board row links to a player only
+  when that player is in `player_pages.json`. `check-built-pages` fails a board row that is not a
+  link, so the sample must hold every board player. Produced verbatim by step 6 of the recipe
+  below.
 - `player_peers/{league_code}/{season}/{position_group}.json` — every player's values for the Player
   page's comparison strips. One file per competition, season and position, for the committed
   players. Produced by the same run.
@@ -119,12 +120,15 @@ The full recipe, in order:
 5. Drop the ignored bulk before building (`git clean -fX site_v2/src/data`): a full export leaves
    thousands of payloads, `astro build` OOMs at that scale, and a local build resolves links that
    CI — which sees only the tracked set — cannot.
-6. `PYTHONPATH=. python scripts/export_site_data.py --entities players,metric_rows --sample 74 --out <the same folder>`
-   from the repo root. A sample takes the board players of that folder first.
-   It reads the landing file and every `competitions/*/*.json` in the folder.
-   Run it in a folder that holds only `landing.json` and `competitions/BL1/2026.json`.
-   The folder of step 1 holds every season of every competition, and its boards would win. Copy in `players/*.json`, `player_peers/`, `player_pages.json` and
-   `player_metric_rows.json`, and rewrite their `.gitignore` allowlist the same way.
+6. `PYTHONPATH=. python scripts/export_site_data.py --entities players,metric_rows --sample 74 --out <a second scratch folder>`
+   from the repo root. A sample takes the board players of that folder first. It reads the landing
+   file and every `competitions/*/*.json` in the folder. So the folder holds only `landing.json`
+   and `competitions/BL1/2026.json`, copied from step 1. The folder of step 1 holds every season of
+   every competition, and its boards would win.
+   `--sample` must be at least the number of distinct board players. With fewer, a board row has no
+   page and `check-built-pages` fails the build.
+   Copy in `players/*.json`, `player_peers/`, `player_pages.json` and `player_metric_rows.json`, and
+   rewrite their `.gitignore` allowlist the same way.
 
 ⚠ **Nothing enforces that today.** The allowlist is hand-maintained and the only thing that catches
 a mismatch is `audit-seo.mjs` in CI, after the fact.
