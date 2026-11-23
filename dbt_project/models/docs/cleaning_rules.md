@@ -43,7 +43,9 @@ match stats are good enough.
   the per-player count or the goal events, whichever adds up to the score.
   A result that fails a result check is withheld until sourced research stands in
   fixture_result_corrections. The match has no score, shoot-out or winner, is not played, and
-  counts in no form, record or cup round.
+  counts in no form, record or cup round. A match decided after extra time fails the check where
+  its score stopped at 90 minutes. Its goal events of the first 90 minutes then add up to its
+  score, and an open-play goal or an own goal comes later.
   A goal keeps the newest added minute any fetch carried. Its scorer and assister are on the pitch
   at its minute on the line-up; a goal or substitution at 45', 90', 105' or 120' with no added
   minute can fall in that period's added time. A scorer or assister who fails this is withheld

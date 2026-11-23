@@ -81,7 +81,7 @@ fixtures as (
         cast(away_team_id as int64) as away_team_id,
         goals_home,
         goals_away
-    from {{ ref('base_apif__fixtures_next') }}
+    from {{ ref('base_apif__fixtures_checked') }}
 ),
 
 events as (

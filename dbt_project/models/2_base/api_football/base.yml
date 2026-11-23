@@ -244,6 +244,32 @@ models:
       - name: round_order
         description: "{{ doc('round_order') }}"
 
+  - name: base_apif__fixtures_checked
+    description: >
+      The rows of base_apif__fixtures_next, with the score of a match decided after extra time
+      withheld where it stopped at 90 minutes: the match's goal events of the first 90 minutes add
+      up to its score while an open-play goal or an own goal comes after minute 90. The match then
+      has result_needs_research true and its goals, shoot-out and winner blank, until a row in
+      fixture_result_corrections settles it. Every model downstream of the match events that reads
+      a score reads it here. Grain: fixture_id.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+      - dbt_utils.equal_rowcount:
+          compare_model: ref('base_apif__fixtures_next')
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: result_needs_research
+        description: "{{ doc('result_needs_research') }}"
+        tests: [not_null]
+      - name: score_stops_at_90
+        description: "True where the match was decided after extra time and its score equals its goal events of the first 90 minutes while an open-play goal or an own goal comes after minute 90. Its goals, shoot-out and winner are then blank."
+        tests: [not_null]
+
   - name: base_apif__fixture_rounds
     description: >
       Every distinct round text of a competition-season in base_apif__fixtures_next, named the way

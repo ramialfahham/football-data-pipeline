@@ -261,7 +261,7 @@ Canonical fact inventory for this project:
 
 | Fact | Grain | Source staging model(s) | Notes |
 |------|-------|-------------------------|-------|
-| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_checked` (from `base_apif__fixtures_next` and `base_apif__fixture_events`) | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
 | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics`, `fct_fixture` | One row per team per fixture, every status. It carries the team's own stats, the opponent's, goals for and against, the result and the match status columns. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players_checked` (from `base_apif__fixture_players`), `base_apif__fixture_players_from_lineups` | `player_statistics_json[0]` flattened into measures; for a played team match without it, or a sheet player with a card and no stat line, the team sheet and match events. |
