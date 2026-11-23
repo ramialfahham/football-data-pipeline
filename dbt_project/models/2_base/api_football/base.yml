@@ -982,16 +982,17 @@ models:
 
   - name: base_apif__squads
     description: >
-      The provider's current squad lists, deduped from stg_apif__squads: which player a team lists
-      in a competition, on the latest snapshot. Grain: (league_code, team_api_id, player_api_id).
+      The provider's current squad list of each team, deduped from stg_apif__squads: the players the
+      team's newest fetch carried, whichever league's row that fetch was written under. A team whose
+      newest fetch found no player has none here. Grain: (team_api_id, player_api_id).
     config:
       tags: ["base", "api_football", "squads"]
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [league_code, team_api_id, player_api_id]
+          combination_of_columns: [team_api_id, player_api_id]
     columns:
       - name: league_code
-        description: "{{ doc('league_code') }}"
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"

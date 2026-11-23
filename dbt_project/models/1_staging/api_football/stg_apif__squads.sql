@@ -1,9 +1,10 @@
 with src as (
+    -- ACCUMULATION: a fetch writes only the teams it fetched (an in-season comp every run, a
+    -- finished comp's teams once), so no row is a complete snapshot of its league and the newest
+    -- row per league_code would drop every team it does not carry. All rows are read; base picks
+    -- the newest block of each team. See dbt_project/docs/layering.md §1_staging.
     select *
     from {{ source('api_football', 'raw_apif_squads') }}
-    -- Complete snapshot per run (/players/squads re-fetched every run per team), so select the
-    -- latest ingestion snapshot per league_code before flattening — same as stg_apif__players.
-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
 ),
 
 team_blocks as (
@@ -16,15 +17,17 @@ team_blocks as (
         unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as team_block
 ),
 
+-- The left joins keep a team block whose list is empty as one row with no player, so base can see
+-- that a newer fetch found the squad empty and not fall back to an older list.
 player_rows as (
     select
-        league_code,
-        raw_ingested_at,
-        team_id,
+        team_blocks.league_code,
+        team_blocks.raw_ingested_at,
+        team_blocks.team_id,
         player_el
-    from team_blocks,
-        unnest(json_query_array(json_query(team_block, '$.squad_payload'), '$')) as squad_el,
-        unnest(json_query_array(json_query(squad_el, '$.players'), '$')) as player_el
+    from team_blocks
+    left join unnest(json_query_array(json_query(team_blocks.team_block, '$.squad_payload'), '$')) as squad_el
+    left join unnest(json_query_array(json_query(squad_el, '$.players'), '$')) as player_el
 )
 
 select

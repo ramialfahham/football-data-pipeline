@@ -60,6 +60,7 @@ BASE_READERS = [
         ["fixture_id is not null", "team_id is not null"],
     ),
     ("base_apif__lineup_fetches.sql", "stg_apif__lineups", ["fixture_id is not null", "team_id is not null"]),
+    ("base_apif__squads.sql", "stg_apif__squads", ["team_id is not null"]),
     ("base_apif__squads.sql", "stg_apif__squads", ["team_id is not null", "player_id is not null"]),
     ("base_apif__standings.sql", "stg_apif__standings", ["team_id is not null", "season is not null"]),
     ("base_apif__coaches.sql", "stg_apif__coaches", ["stg.coach_id is not null"]),
@@ -269,6 +270,7 @@ TEST_EXEMPT = {
     "assert_sheet_and_stats_player_join_on_shirt.sql",
     "test_stg_fixture_statistics_non_empty.sql",
     "assert_null_key_lines_listed.sql",
+    "assert_squads_read_per_team.sql",
 }
 
 
@@ -291,6 +293,7 @@ READS = {
     "assert_sheet_and_stats_player_join_on_shirt.sql": 1,
     "test_stg_fixture_statistics_non_empty.sql": 1,
     "assert_null_key_lines_listed.sql": 5,
+    "assert_squads_read_per_team.sql": 3,
     "players_with_conflicting_bio.sql": 1,
 }
 

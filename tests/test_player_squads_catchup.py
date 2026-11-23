@@ -140,9 +140,9 @@ def test_captured_team_seasons_query_is_fully_qualified():
     assert "RAW_APIF_SQUADS" in ctx.client.last_sql
 
 
-# --- load_player_squads_batch: catch-up writes must be complete per competition ---
-# stg_apif__squads keeps only the latest snapshot per league_code and a finished comp is never
-# re-fetched whole, so a partial snapshot is discarded under require_complete.
+# --- load_player_squads_batch: a row holds the teams that fetch reached, and nothing more ---
+# stg_apif__squads reads every row and base takes each team's newest block, so a quota cut
+# part-way writes the teams already fetched and the rest are fetched on the next run.
 
 
 def _squad_ctx():
@@ -164,20 +164,33 @@ def _patch_quota_cut_after_first(monkeypatch):
 
     monkeypatch.setattr(ps, "squads_response_for_team", fake_squad)
     written = []
-    monkeypatch.setattr(ps, "load_json_to_bq", lambda *a, **k: written.append(k))
+    monkeypatch.setattr(ps, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
     return ps, written
 
 
-def test_catchup_discards_partial_when_require_complete(monkeypatch):
+def test_a_quota_cut_batch_writes_the_teams_it_fetched(monkeypatch):
     ps, written = _patch_quota_cut_after_first(monkeypatch)
     ctx = _squad_ctx()
-    ps.load_player_squads_batch(ctx, "PL", {10, 11, 12}, season=2025, require_complete=True)
-    assert written == []  # partial discarded, not persisted
-    assert any("partial discarded" in e for e in ctx.errors)
+    ps.load_player_squads_batch(ctx, "PL", {10, 11, 12}, season=2025)
+    assert len(written) == 1
+    assert [block["team_id"] for block in written[0]["response"]] == [10]
+    assert written[0]["season"] == 2025
 
 
-def test_inseason_writes_partial_when_not_require_complete(monkeypatch):
+def test_a_batch_cut_before_the_first_team_writes_nothing(monkeypatch):
+    from ingestion.api_football import quota as q
+
     ps, written = _patch_quota_cut_after_first(monkeypatch)
-    ctx = _squad_ctx()
-    ps.load_player_squads_batch(ctx, "PL", {10, 11, 12}, season=2025, require_complete=False)
-    assert len(written) == 1  # partial persisted (in-season behaviour, healed next run)
+    monkeypatch.setattr(q, "_http_quota_exhausted", True)
+    ps.load_player_squads_batch(_squad_ctx(), "PL", {10, 11}, season=2025)
+    assert written == []
+
+
+def test_the_catchup_runner_writes_the_teams_a_quota_cut_reached(monkeypatch):
+    from ingestion.api_football.loads import competition_runner as runner
+
+    ps, written = _patch_quota_cut_after_first(monkeypatch)
+    monkeypatch.setattr(runner, "captured_team_seasons", lambda ctx: set())
+    monkeypatch.setattr(runner, "_ingestion_phase", lambda *a, **k: None)
+    runner.run_player_squads_catchup(_squad_ctx(), [("PL", 2025, {10, 11, 12})], set())
+    assert [block["team_id"] for block in written[0]["response"]] == [10]
