@@ -15,7 +15,7 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
 Count what is tracked with `git ls-files site_v2/src/data`. Today: the nine root files below, the
-Bundesliga competition payload, 58 Matches page days, 540 fixtures, 39 teams and 72 players with
+Bundesliga competition payload, 61 Matches page days, 494 fixtures, 39 teams and 74 players with
 their peer files.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
@@ -34,7 +34,7 @@ their peer files.
   A nation it holds only in part builds its page from the rows it has. A row links only to a
   player in `player_pages.json`.
 - `fixtures/*.json` — real exported fixtures, produced verbatim by
-  `python scripts/export_site_data.py --entities fixtures`. The **529** are the unplayed rows a
+  `python scripts/export_site_data.py --entities fixtures`. The **483** are the unplayed rows a
   committed page links to. They cover each day of the Matches page, the Bundesliga sample's Matchdays
   tab and Home's Next matches. The build refuses a link to a page it did not emit. Refresh them
   together with `matches/*.json`, `competitions/BL1/2026.json` and `landing.json`, from one
@@ -48,7 +48,7 @@ their peer files.
   pins a payload that no rerun can ever update — which is exactly how the previous set came to
   serve column names that had been renamed two merge requests earlier.
 - `matches/*.json` — the Matches page's days (#160), one file per day in reach, produced verbatim
-  by `python scripts/export_site_data.py --entities matches` from `mart_match_days`: 58 days, 29
+  by `python scripts/export_site_data.py --entities matches` from `mart_match_days`: 61 days, 29
   competitions. The file flagged `is_opening_day` is the page at `/{locale}/{matches word}/`; every
   other day has its own dated page. Days drop off as rounds are played, so the whole directory is
   replaced on a refresh, never appended to.
@@ -56,7 +56,7 @@ their peer files.
   teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table. These 39 can
   be refreshed alone, from `fetch_team_payloads` written by `write_entity`. Every slug must stay the
   same, because the Home and Bundesliga pages link to them.
-- `players/*.json` and `player_pages.json` — **72** real exported players from the Home and
+- `players/*.json` and `player_pages.json` — **74** real exported players from the Home and
   Bundesliga boards, and the list of players with a page. A link to a player exists only
   when that player is in `player_pages.json`, so a board row without one stays plain text. Produced
   verbatim by step 6 of the recipe below.
@@ -68,7 +68,7 @@ their peer files.
 - `competitions/BL1/2026.json` — the one competition payload, the Bundesliga 2026/27 season, all
   three tabs of the competition page in one file (`standings`, `deserved`, `summary`, `fixtures`,
   `team_boards`, `player_boards`), produced verbatim by
-  `python scripts/export_site_data.py --entities competitions`, with nine matchdays played. Every
+  `python scripts/export_site_data.py --entities competitions`, with ten matchdays played. Every
   unplayed row of its Matchdays tab has its match payload in the `fixtures/` allowlist above.
 - `competitions.json` — `league_code → { name, slug }` for all **48** registry entries (the
   registry's authored slug; the frontend never generates slugs).
@@ -86,7 +86,7 @@ their peer files.
   `python scripts/export_site_data.py --entities landing` (#367). ⚠ It is NOT hand-reduced, and this
   line used to say it was — `shape_landing_payload` returns only the keys the built blocks need, so
   there is nothing left to trim, and the instruction three paragraphs down is never hand-edit a
-  payload. Real export output of one run: `type`, `upcoming` (**313** matches across **29**
+  payload. Real export output of one run: `type`, `upcoming` (**276** matches across **29**
   competitions, each competition's next matchday), `top_players` and `top_teams`.
   Every Next matches row is a match of a committed Matches page day, so its payload is in the
   `fixtures/` allowlist. Every team the Top teams boards link to is in the `teams/` allowlist.
@@ -119,8 +119,11 @@ The full recipe, in order:
 5. Drop the ignored bulk before building (`git clean -fX site_v2/src/data`): a full export leaves
    thousands of payloads, `astro build` OOMs at that scale, and a local build resolves links that
    CI — which sees only the tracked set — cannot.
-6. `PYTHONPATH=. python scripts/export_site_data.py --entities players,metric_rows --sample 72 --out <the same folder>`
-   from the repo root. A sample takes the board players of that folder first. Copy in `players/*.json`, `player_peers/`, `player_pages.json` and
+6. `PYTHONPATH=. python scripts/export_site_data.py --entities players,metric_rows --sample 74 --out <the same folder>`
+   from the repo root. A sample takes the board players of that folder first.
+   It reads the landing file and every `competitions/*/*.json` in the folder.
+   Run it in a folder that holds only `landing.json` and `competitions/BL1/2026.json`.
+   The folder of step 1 holds every season of every competition, and its boards would win. Copy in `players/*.json`, `player_peers/`, `player_pages.json` and
    `player_metric_rows.json`, and rewrite their `.gitignore` allowlist the same way.
 
 ⚠ **Nothing enforces that today.** The allowlist is hand-maintained and the only thing that catches

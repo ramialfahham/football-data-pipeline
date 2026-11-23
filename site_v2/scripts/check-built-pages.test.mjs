@@ -484,8 +484,9 @@ test("images are counted by kind across pages, with the first addresses of each 
   assert.deepEqual(counts.examples.playerPhoto, [`/de/ ${PROVIDER}/players/9.png`]);
 });
 
-test("the committed pins hold player photos and other hosts at 0", () => {
+test("the committed pins hold every kind of provider and foreign image at 0", () => {
   assert.equal(IMAGE_PINS.playerPhoto, 0);
+  assert.equal(IMAGE_PINS.providerImage, 0);
   assert.equal(IMAGE_PINS.foreign, 0);
 });
 

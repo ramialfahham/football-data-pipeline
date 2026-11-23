@@ -7,10 +7,175 @@
   "next_day": "2026-11-28",
   "competitions": [
     {
+      "league_code": "BL1",
+      "name": "Bundesliga",
+      "slug": "bundesliga",
+      "crest": "/crests/leagues/78-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1575237,
+          "slug": "2026-11-27-sv-werder-bremen-vs-borussia-monchengladbach",
+          "kickoff": "2026-11-27 19:30:00+00:00",
+          "kickoff_local": "2026-11-27 20:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 91,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 162,
+            "name": "SV Werder Bremen",
+            "slug": "sv-werder-bremen",
+            "crest": "/crests/teams/162-104.webp"
+          },
+          "away": {
+            "team_id": 163,
+            "name": "Borussia Mönchengladbach",
+            "slug": "borussia-monchengladbach",
+            "crest": "/crests/teams/163-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "BL2",
+      "name": "2. Bundesliga",
+      "slug": "2-bundesliga",
+      "crest": "/crests/leagues/79-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1576242,
+          "slug": "2026-11-27-vfl-bochum-vs-sv-darmstadt-98",
+          "kickoff": "2026-11-27 17:30:00+00:00",
+          "kickoff_local": "2026-11-27 18:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 109,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 176,
+            "name": "VfL Bochum",
+            "slug": "vfl-bochum",
+            "crest": "/crests/teams/176-104.webp"
+          },
+          "away": {
+            "team_id": 181,
+            "name": "SV Darmstadt 98",
+            "slug": "sv-darmstadt-98",
+            "crest": "/crests/teams/181-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1576245,
+          "slug": "2026-11-27-1-fc-heidenheim-vs-1-fc-nurnberg",
+          "kickoff": "2026-11-27 17:30:00+00:00",
+          "kickoff_local": "2026-11-27 18:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 110,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 180,
+            "name": "1. FC Heidenheim",
+            "slug": "1-fc-heidenheim",
+            "crest": "/crests/teams/180-104.webp"
+          },
+          "away": {
+            "team_id": 171,
+            "name": "1. FC Nürnberg",
+            "slug": "1-fc-nurnberg",
+            "crest": "/crests/teams/171-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        }
+      ]
+    },
+    {
+      "league_code": "BPL",
+      "name": "Belgian Pro League",
+      "slug": "belgian-pro-league",
+      "crest": "/crests/leagues/144-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1558692,
+          "slug": "2026-11-27-oh-leuven-vs-kortrijk",
+          "kickoff": "2026-11-27 19:45:00+00:00",
+          "kickoff_local": "2026-11-27 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 109,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 260,
+            "name": "OH Leuven",
+            "slug": "oh-leuven",
+            "crest": "/crests/teams/260-104.webp"
+          },
+          "away": {
+            "team_id": 734,
+            "name": "Kortrijk",
+            "slug": "kortrijk",
+            "crest": "/crests/teams/734-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
       "league_code": "CDF",
       "name": "Coupe de France",
       "slug": "coupe-de-france",
-      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "crest": "/crests/leagues/66-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,8 +184,10 @@
           "fixture_id": 1650265,
           "slug": "2026-11-27-cannes-vs-le-puy-foot",
           "kickoff": "2026-11-27 18:00:00+00:00",
+          "kickoff_local": "2026-11-27 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -35,13 +202,79 @@
             "team_id": 9932,
             "name": "Cannes",
             "slug": "cannes",
-            "crest": "https://media.api-sports.io/football/teams/9932.png"
+            "crest": "/crests/teams/9932-104.webp"
           },
           "away": {
             "team_id": 3069,
             "name": "Le Puy Foot",
             "slug": "le-puy-foot",
-            "crest": "https://media.api-sports.io/football/teams/3069.png"
+            "crest": "/crests/teams/3069-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650292,
+          "slug": "2026-11-27-saint-omer-vs-caen",
+          "kickoff": "2026-11-27 19:00:00+00:00",
+          "kickoff_local": "2026-11-27 20:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 94,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 3109,
+            "name": "Saint-Omer",
+            "slug": "saint-omer",
+            "crest": "/crests/teams/3109-104.webp"
+          },
+          "away": {
+            "team_id": 88,
+            "name": "Caen",
+            "slug": "caen",
+            "crest": "/crests/teams/88-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650303,
+          "slug": "2026-11-27-le-pays-du-valois-vs-valenciennes",
+          "kickoff": "2026-11-27 19:00:00+00:00",
+          "kickoff_local": "2026-11-27 20:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 95,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 20601,
+            "name": "Le Pays du Valois",
+            "slug": "le-pays-du-valois",
+            "crest": "/crests/teams/20601-104.webp"
+          },
+          "away": {
+            "team_id": 105,
+            "name": "Valenciennes",
+            "slug": "valenciennes",
+            "crest": "/crests/teams/105-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -49,10 +282,98 @@
       ]
     },
     {
+      "league_code": "ED",
+      "name": "Eredivisie",
+      "slug": "eredivisie",
+      "crest": "/crests/leagues/88-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1552238,
+          "slug": "2026-11-27-fc-groningen-vs-willem-ii",
+          "kickoff": "2026-11-27 19:00:00+00:00",
+          "kickoff_local": "2026-11-27 20:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 14",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 14,
+          "round_letter": null,
+          "round_order": 14,
+          "round_sequence": 14,
+          "fixture_order": 118,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 202,
+            "name": "FC Groningen",
+            "slug": "fc-groningen",
+            "crest": "/crests/teams/202-104.webp"
+          },
+          "away": {
+            "team_id": 195,
+            "name": "Willem II",
+            "slug": "willem-ii",
+            "crest": "/crests/teams/195-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "L1",
+      "name": "Ligue 1",
+      "slug": "ligue-1",
+      "crest": "/crests/leagues/61-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1552830,
+          "slug": "2026-11-27-stade-brestois-29-vs-paris-fc",
+          "kickoff": "2026-11-27 19:45:00+00:00",
+          "kickoff_local": "2026-11-27 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 100,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 106,
+            "name": "Stade Brestois 29",
+            "slug": "stade-brestois-29",
+            "crest": "/crests/teams/106-104.webp"
+          },
+          "away": {
+            "team_id": 114,
+            "name": "Paris FC",
+            "slug": "paris-fc",
+            "crest": "/crests/teams/114-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        }
+      ]
+    },
+    {
       "league_code": "LP",
       "name": "Liga Portugal",
       "slug": "liga-portugal",
-      "crest": "https://media.api-sports.io/football/leagues/94.png",
+      "crest": "/crests/leagues/94-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -61,6 +382,8 @@
           "fixture_id": 1575551,
           "slug": "2026-11-27-maritimo-vs-cd-nacional",
           "kickoff": "2026-11-27 20:15:00+00:00",
+          "kickoff_local": "2026-11-27 20:15:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 12,
@@ -77,13 +400,123 @@
             "team_id": 214,
             "name": "Maritimo",
             "slug": "maritimo",
-            "crest": "https://media.api-sports.io/football/teams/214.png"
+            "crest": "/crests/teams/214-104.webp"
           },
           "away": {
             "team_id": 225,
             "name": "CD Nacional",
             "slug": "cd-nacional",
-            "crest": "https://media.api-sports.io/football/teams/225.png"
+            "crest": "/crests/teams/225-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "SPL",
+      "name": "Saudi Pro League",
+      "slug": "saudi-pro-league",
+      "crest": "/crests/leagues/307-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1603087,
+          "slug": "2026-11-27-al-kholood-vs-al-khaleej-saihat",
+          "kickoff": "2026-11-27 12:15:00+00:00",
+          "kickoff_local": "2026-11-27 15:15:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 112,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 10509,
+            "name": "Al Kholood",
+            "slug": "al-kholood",
+            "crest": "/crests/teams/10509-104.webp"
+          },
+          "away": {
+            "team_id": 2928,
+            "name": "Al Khaleej Saihat",
+            "slug": "al-khaleej-saihat",
+            "crest": "/crests/teams/2928-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603088,
+          "slug": "2026-11-27-al-qadisiyah-fc-vs-al-fayha",
+          "kickoff": "2026-11-27 14:20:00+00:00",
+          "kickoff_local": "2026-11-27 17:20:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 113,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2933,
+            "name": "Al-Qadisiyah FC",
+            "slug": "al-qadisiyah-fc",
+            "crest": "/crests/teams/2933-104.webp"
+          },
+          "away": {
+            "team_id": 2944,
+            "name": "Al-Fayha",
+            "slug": "al-fayha",
+            "crest": "/crests/teams/2944-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603086,
+          "slug": "2026-11-27-al-ittihad-fc-vs-neom",
+          "kickoff": "2026-11-27 17:30:00+00:00",
+          "kickoff_local": "2026-11-27 20:30:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 114,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2938,
+            "name": "Al-Ittihad FC",
+            "slug": "al-ittihad-fc",
+            "crest": "/crests/teams/2938-104.webp"
+          },
+          "away": {
+            "team_id": 10513,
+            "name": "NEOM",
+            "slug": "neom",
+            "crest": "/crests/teams/10513-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false

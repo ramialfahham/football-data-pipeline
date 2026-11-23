@@ -4,13 +4,13 @@
   "day": "2026-12-16",
   "is_opening_day": false,
   "previous_day": "2026-12-15",
-  "next_day": "2026-12-21",
+  "next_day": "2027-01-07",
   "competitions": [
     {
       "league_code": "CIT",
       "name": "Coppa Italia",
       "slug": "coppa-italia",
-      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "crest": "/crests/leagues/137-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,6 +19,8 @@
           "fixture_id": 1639883,
           "slug": "2026-12-16-ssc-napoli-vs-acf-fiorentina",
           "kickoff": "2026-12-16 20:00:00+00:00",
+          "kickoff_local": "2026-12-16 21:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 16",
           "round_label_i18n_key": "roundOf16",
           "round_number": null,
@@ -35,13 +37,90 @@
             "team_id": 492,
             "name": "SSC Napoli",
             "slug": "ssc-napoli",
-            "crest": "https://media.api-sports.io/football/teams/492.png"
+            "crest": "/crests/teams/492-104.webp"
           },
           "away": {
             "team_id": 502,
             "name": "ACF Fiorentina",
             "slug": "acf-fiorentina",
-            "crest": "https://media.api-sports.io/football/teams/502.png"
+            "crest": "/crests/teams/502-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "J1",
+      "name": "J1 League",
+      "slug": "j1-league",
+      "crest": "/crests/leagues/98-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1556158,
+          "slug": "2026-12-16-gamba-osaka-vs-kashiwa-reysol",
+          "kickoff": "2026-12-16 10:00:00+00:00",
+          "kickoff_local": "2026-12-16 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 158,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 293,
+            "name": "Gamba Osaka",
+            "slug": "gamba-osaka",
+            "crest": "/crests/teams/293-104.webp"
+          },
+          "away": {
+            "team_id": 281,
+            "name": "Kashiwa Reysol",
+            "slug": "kashiwa-reysol",
+            "crest": "/crests/teams/281-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1556159,
+          "slug": "2026-12-16-kashima-vs-machida-zelvia",
+          "kickoff": "2026-12-16 10:00:00+00:00",
+          "kickoff_local": "2026-12-16 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 159,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 290,
+            "name": "Kashima",
+            "slug": "kashima",
+            "crest": "/crests/teams/290-104.webp"
+          },
+          "away": {
+            "team_id": 303,
+            "name": "Machida Zelvia",
+            "slug": "machida-zelvia",
+            "crest": "/crests/teams/303-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false

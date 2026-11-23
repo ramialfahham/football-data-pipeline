@@ -1,0 +1,591 @@
+{
+  "type": "fixture",
+  "fixture_id": 1552240,
+  "slug": "2026-11-28-psv-eindhoven-vs-go-ahead-eagles",
+  "kickoff": "2026-11-28 17:45:00+00:00",
+  "kickoff_local": "2026-11-28 18:45:00",
+  "kickoff_zone_label": "CET",
+  "status": "NS",
+  "unplayed_state": null,
+  "league_code": "ED",
+  "league_name": "Eredivisie",
+  "season": 2026,
+  "round": "Regular Season - 14",
+  "round_order": 14,
+  "is_next_round": true,
+  "venue": "Philips Stadion",
+  "home": {
+    "team_id": 197,
+    "name": "PSV Eindhoven",
+    "slug": "psv-eindhoven",
+    "crest": "/crests/teams/197-104.webp",
+    "country": "Netherlands",
+    "form": {
+      "league_code": "ED",
+      "entity_type": "club",
+      "season_api_year": 2026,
+      "window_type": "last_5",
+      "games_in_window": 5,
+      "games_expecting_team_stats": 5,
+      "games_with_team_stats": 5,
+      "contributing_competitions": [
+        "ED",
+        "UCL"
+      ],
+      "games_with_player_stats": 5,
+      "points_won": 10,
+      "clean_sheets": 1,
+      "goals_per_match": 3.6,
+      "goals_against_per_match": 1.2,
+      "shots_per_match": 19.4,
+      "shots_on_goal_pct": 0.36082474226804123,
+      "shots_inside_box_pct": 0.7216494845360825,
+      "shots_on_goal_per_match": 7.0,
+      "finishing_efficiency_pct": 0.45714285714285713,
+      "passes_per_match": 537.8,
+      "passes_accuracy_pct": 0.8341390851617702,
+      "corners_per_match": 5.8,
+      "corners_against_per_match": 3.4,
+      "saves_pct": 0.7272727272727273,
+      "passes_key_per_match": 14.6,
+      "tackles_per_match": 16.8,
+      "interceptions_per_match": 8.4,
+      "blocks_per_match": 4.2,
+      "defensive_actions_per_match": 29.4,
+      "duels_per_match": 89.6,
+      "duels_won_pct": 0.484375,
+      "shots_on_goal_against_per_match": 4.8,
+      "shots_off_target_per_match": 7.6,
+      "shots_blocked_per_match": 4.8,
+      "shots_inside_box_per_match": 14.0,
+      "passes_accurate_per_match": 448.6,
+      "passes_share_pct": 0.58801661928712,
+      "dribbles_attempts_per_match": 13.0,
+      "dribbles_success_per_match": 5.8,
+      "dribbles_success_pct": 0.4461538461538462,
+      "duels_won_per_match": 43.4,
+      "saves_per_match": 3.2,
+      "free_kicks_per_match": 7.8,
+      "fouls_per_match": 11.4,
+      "offsides_per_match": 1.0,
+      "cards_yellow_per_match": 1.8,
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 9,
+      "cards_red": 0
+    },
+    "standing": {
+      "group_name": "Eredivisie",
+      "is_knockout": false,
+      "league_rank": 1,
+      "standing_points": 29,
+      "standing_played": 13,
+      "standing_goals_diff": 28,
+      "standing_form": "WWWDL"
+    },
+    "form_window": [
+      {
+        "league_code": "ED",
+        "recency_rank": 1,
+        "played_fixture_sk": 1552229,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-11-21 15:30:00+00:00",
+        "played_round_name": "Regular Season - 13",
+        "home_away": "away",
+        "goals_for": 4,
+        "goals_against": 1,
+        "result": "W",
+        "opponent_team_sk": 413,
+        "opponent_name": "NEC Nijmegen",
+        "opponent_logo_url": "/crests/teams/413-104.webp",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 2,
+        "played_fixture_sk": 1552219,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-11-08 15:45:00+00:00",
+        "played_round_name": "Regular Season - 12",
+        "home_away": "away",
+        "goals_for": 5,
+        "goals_against": 2,
+        "result": "W",
+        "opponent_team_sk": 420,
+        "opponent_name": "Cambuur",
+        "opponent_logo_url": "/crests/teams/420-104.webp",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 3,
+        "played_fixture_sk": 1635707,
+        "played_league_code": "UCL",
+        "played_kickoff_datetime": "2026-11-04 20:00:00+00:00",
+        "played_round_name": "League Stage - 4",
+        "home_away": "home",
+        "goals_for": 1,
+        "goals_against": 2,
+        "result": "L",
+        "opponent_team_sk": 569,
+        "opponent_name": "Club Brugge KV",
+        "opponent_logo_url": "/crests/teams/569-104.webp",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 4,
+        "played_fixture_sk": 1552209,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-10-31 17:45:00+00:00",
+        "played_round_name": "Regular Season - 11",
+        "home_away": "home",
+        "goals_for": 7,
+        "goals_against": 0,
+        "result": "W",
+        "opponent_team_sk": 195,
+        "opponent_name": "Willem II",
+        "opponent_logo_url": "/crests/teams/195-104.webp",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 5,
+        "played_fixture_sk": 1552204,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-10-25 13:30:00+00:00",
+        "played_round_name": "Regular Season - 10",
+        "home_away": "home",
+        "goals_for": 1,
+        "goals_against": 1,
+        "result": "D",
+        "opponent_team_sk": 209,
+        "opponent_name": "Feyenoord",
+        "opponent_logo_url": "/crests/teams/209-104.webp",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      }
+    ],
+    "players_to_watch": {
+      "window_type": "season_to_date",
+      "boards": [
+        {
+          "metric_key": "scorer_points_player",
+          "label_i18n_key": "playerMetrics.scorerPoints.label",
+          "format": "integer",
+          "rows": [
+            {
+              "player_sk": 37438,
+              "player_name": "S. Mijnans",
+              "player_photo_url": "https://media.api-sports.io/football/players/37438.png",
+              "position_code": "M",
+              "value": 12
+            },
+            {
+              "player_sk": 36905,
+              "player_name": "G. Til",
+              "player_photo_url": "https://media.api-sports.io/football/players/36905.png",
+              "position_code": "M",
+              "value": 9
+            },
+            {
+              "player_sk": 365018,
+              "player_name": "R. van Bommel",
+              "player_photo_url": "https://media.api-sports.io/football/players/365018.png",
+              "position_code": "M",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "metric_key": "ball_actions_per90",
+          "label_i18n_key": "playerMetrics.ballActionsPer90.label",
+          "format": "decimal_1",
+          "rows": [
+            {
+              "player_sk": 233,
+              "player_name": "Mauro Júnior",
+              "player_photo_url": "https://media.api-sports.io/football/players/233.png",
+              "position_code": "D",
+              "value": 80.30097087378641
+            },
+            {
+              "player_sk": 37143,
+              "player_name": "L. Geertruida",
+              "player_photo_url": "https://media.api-sports.io/football/players/37143.png",
+              "position_code": "D",
+              "value": 76.39830508474576
+            },
+            {
+              "player_sk": 342054,
+              "player_name": "R. Flamingo",
+              "player_photo_url": "https://media.api-sports.io/football/players/342054.png",
+              "position_code": "D",
+              "value": 76.31178707224335
+            }
+          ]
+        }
+      ]
+    },
+    "next_match": {
+      "fixture_id": 1635715,
+      "slug": "2026-11-24-real-madrid-vs-psv-eindhoven",
+      "kickoff": "2026-11-24 20:00:00+00:00",
+      "kickoff_local": "2026-11-24 20:00:00",
+      "kickoff_zone_label": "UTC",
+      "round": "League Stage - 5",
+      "round_label_i18n_key": "roundLeaguePhaseMatchday",
+      "round_number": 5,
+      "round_letter": null,
+      "round_order": 5,
+      "round_sequence": 9,
+      "fixture_order": 170,
+      "status": "NS",
+      "unplayed_state": null,
+      "is_played": false,
+      "goals_home": null,
+      "goals_away": null,
+      "home": {
+        "team_id": 541,
+        "name": "Real Madrid",
+        "slug": "real-madrid",
+        "crest": "/crests/teams/541-104.webp"
+      },
+      "away": {
+        "team_id": 197,
+        "name": "PSV Eindhoven",
+        "slug": "psv-eindhoven",
+        "crest": "/crests/teams/197-104.webp"
+      },
+      "is_next_round": true,
+      "is_match_that_matters": false,
+      "league_code": "UCL"
+    }
+  },
+  "away": {
+    "team_id": 410,
+    "name": "GO Ahead Eagles",
+    "slug": "go-ahead-eagles",
+    "crest": "/crests/teams/410-104.webp",
+    "country": "Netherlands",
+    "form": {
+      "league_code": "ED",
+      "entity_type": "club",
+      "season_api_year": 2026,
+      "window_type": "last_5",
+      "games_in_window": 5,
+      "games_expecting_team_stats": 5,
+      "games_with_team_stats": 5,
+      "contributing_competitions": [
+        "ED"
+      ],
+      "games_with_player_stats": 5,
+      "points_won": 6,
+      "clean_sheets": 1,
+      "goals_per_match": 1.0,
+      "goals_against_per_match": 2.2,
+      "shots_per_match": 14.2,
+      "shots_on_goal_pct": 0.36619718309859156,
+      "shots_inside_box_pct": 0.6197183098591549,
+      "shots_on_goal_per_match": 5.2,
+      "finishing_efficiency_pct": 0.19230769230769232,
+      "passes_per_match": 478.0,
+      "passes_accuracy_pct": 0.8209205020920503,
+      "corners_per_match": 5.0,
+      "corners_against_per_match": 4.4,
+      "saves_pct": 0.47619047619047616,
+      "passes_key_per_match": 11.2,
+      "tackles_per_match": 11.4,
+      "interceptions_per_match": 7.4,
+      "blocks_per_match": 3.4,
+      "defensive_actions_per_match": 22.2,
+      "duels_per_match": 90.6,
+      "duels_won_pct": 0.4856512141280353,
+      "shots_on_goal_against_per_match": 4.6,
+      "shots_off_target_per_match": 5.6,
+      "shots_blocked_per_match": 3.4,
+      "shots_inside_box_per_match": 8.8,
+      "passes_accurate_per_match": 392.4,
+      "passes_share_pct": 0.5419501133786848,
+      "dribbles_attempts_per_match": 15.8,
+      "dribbles_success_per_match": 7.4,
+      "dribbles_success_pct": 0.46835443037974683,
+      "duels_won_per_match": 44.0,
+      "saves_per_match": 2.0,
+      "free_kicks_per_match": 9.0,
+      "fouls_per_match": 10.0,
+      "offsides_per_match": 1.8,
+      "cards_yellow_per_match": 1.0,
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 5,
+      "cards_red": 0
+    },
+    "standing": {
+      "group_name": "Eredivisie",
+      "is_knockout": false,
+      "league_rank": 9,
+      "standing_points": 17,
+      "standing_played": 13,
+      "standing_goals_diff": -4,
+      "standing_form": "LWLWL"
+    },
+    "form_window": [
+      {
+        "league_code": "ED",
+        "recency_rank": 1,
+        "played_fixture_sk": 1552227,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-11-22 15:45:00+00:00",
+        "played_round_name": "Regular Season - 13",
+        "home_away": "home",
+        "goals_for": 0,
+        "goals_against": 1,
+        "result": "L",
+        "opponent_team_sk": 205,
+        "opponent_name": "Fortuna Sittard",
+        "opponent_logo_url": "/crests/teams/205-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 2,
+        "played_fixture_sk": 1552218,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-11-07 20:00:00+00:00",
+        "played_round_name": "Regular Season - 12",
+        "home_away": "away",
+        "goals_for": 1,
+        "goals_against": 0,
+        "result": "W",
+        "opponent_team_sk": 196,
+        "opponent_name": "Excelsior",
+        "opponent_logo_url": "/crests/teams/196-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 3,
+        "played_fixture_sk": 1552211,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-10-31 20:00:00+00:00",
+        "played_round_name": "Regular Season - 11",
+        "home_away": "away",
+        "goals_for": 0,
+        "goals_against": 4,
+        "result": "L",
+        "opponent_team_sk": 420,
+        "opponent_name": "Cambuur",
+        "opponent_logo_url": "/crests/teams/420-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 4,
+        "played_fixture_sk": 1552198,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-10-23 18:00:00+00:00",
+        "played_round_name": "Regular Season - 10",
+        "home_away": "home",
+        "goals_for": 3,
+        "goals_against": 2,
+        "result": "W",
+        "opponent_team_sk": 427,
+        "opponent_name": "Telstar",
+        "opponent_logo_url": "/crests/teams/427-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "ED",
+        "recency_rank": 5,
+        "played_fixture_sk": 1552194,
+        "played_league_code": "ED",
+        "played_kickoff_datetime": "2026-10-18 10:15:00+00:00",
+        "played_round_name": "Regular Season - 9",
+        "home_away": "away",
+        "goals_for": 1,
+        "goals_against": 4,
+        "result": "L",
+        "opponent_team_sk": 193,
+        "opponent_name": "PEC Zwolle",
+        "opponent_logo_url": "/crests/teams/193-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      }
+    ],
+    "players_to_watch": {
+      "window_type": "season_to_date",
+      "boards": [
+        {
+          "metric_key": "scorer_points_player",
+          "label_i18n_key": "playerMetrics.scorerPoints.label",
+          "format": "integer",
+          "rows": [
+            {
+              "player_sk": 128765,
+              "player_name": "S. Tengstedt",
+              "player_photo_url": "https://media.api-sports.io/football/players/128765.png",
+              "position_code": "M",
+              "value": 11
+            },
+            {
+              "player_sk": 162762,
+              "player_name": "M. Suray",
+              "player_photo_url": "https://media.api-sports.io/football/players/162762.png",
+              "position_code": "M",
+              "value": 7
+            },
+            {
+              "player_sk": 133602,
+              "player_name": "S. Sigurðarson",
+              "player_photo_url": "https://media.api-sports.io/football/players/133602.png",
+              "position_code": "F",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "metric_key": "ball_actions_per90",
+          "label_i18n_key": "playerMetrics.ballActionsPer90.label",
+          "format": "decimal_1",
+          "rows": [
+            {
+              "player_sk": 36887,
+              "player_name": "J. Kramer",
+              "player_photo_url": "https://media.api-sports.io/football/players/36887.png",
+              "position_code": "D",
+              "value": 75.38461538461539
+            },
+            {
+              "player_sk": 162200,
+              "player_name": "J. Dirksen",
+              "player_photo_url": "https://media.api-sports.io/football/players/162200.png",
+              "position_code": "D",
+              "value": 68.18181818181819
+            },
+            {
+              "player_sk": 36865,
+              "player_name": "M. Meulensteen",
+              "player_photo_url": "https://media.api-sports.io/football/players/36865.png",
+              "position_code": "M",
+              "value": 67.34928229665071
+            }
+          ]
+        }
+      ]
+    },
+    "next_match": null
+  },
+  "head_to_head": {
+    "total_meetings": 8,
+    "wins": 7,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 22,
+    "goals_against": 7,
+    "meetings_last5": 5,
+    "wins_last5": 4,
+    "draws_last5": 0,
+    "losses_last5": 1,
+    "last_meeting_at": "2026-05-10 14:45:00+00:00",
+    "last_meeting_league_code": "ED",
+    "last_meeting_goals_for": 4,
+    "last_meeting_goals_against": 1,
+    "last_meeting_result": "W",
+    "recent_meetings": [
+      {
+        "fixture_api_id": 1381158,
+        "kickoff_datetime": "2026-05-10 14:45:00+00:00",
+        "league_code": "ED",
+        "home_away": "away",
+        "goals_for": 4,
+        "goals_against": 1,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 1380940,
+        "kickoff_datetime": "2025-10-18 16:45:00+00:00",
+        "league_code": "ED",
+        "home_away": "home",
+        "goals_for": 2,
+        "goals_against": 1,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 1213652,
+        "kickoff_datetime": "2025-03-01 17:45:00+00:00",
+        "league_code": "ED",
+        "home_away": "away",
+        "goals_for": 2,
+        "goals_against": 3,
+        "result": "L"
+      },
+      {
+        "fixture_api_id": 1213476,
+        "kickoff_datetime": "2024-09-01 14:45:00+00:00",
+        "league_code": "ED",
+        "home_away": "home",
+        "goals_for": 3,
+        "goals_against": 0,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 1055288,
+        "kickoff_datetime": "2024-03-08 19:00:00+00:00",
+        "league_code": "ED",
+        "home_away": "away",
+        "goals_for": 1,
+        "goals_against": 0,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 1055089,
+        "kickoff_datetime": "2023-09-27 16:45:00+00:00",
+        "league_code": "ED",
+        "home_away": "home",
+        "goals_for": 3,
+        "goals_against": 0,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 872387,
+        "kickoff_datetime": "2023-01-28 15:30:00+00:00",
+        "league_code": "ED",
+        "home_away": "home",
+        "goals_for": 2,
+        "goals_against": 0,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 872234,
+        "kickoff_datetime": "2022-08-13 16:45:00+00:00",
+        "league_code": "ED",
+        "home_away": "away",
+        "goals_for": 5,
+        "goals_against": 2,
+        "result": "W"
+      }
+    ],
+    "intro": {
+      "en": "PSV Eindhoven won 4 and GO Ahead Eagles 1 of the last 5 meetings.",
+      "de": "Von den letzten 5 Duellen gewann PSV Eindhoven 4 und GO Ahead Eagles 1.",
+      "fi": "5 edellisestä kohtaamisesta PSV Eindhoven voitti 4 ja GO Ahead Eagles 1."
+    }
+  }
+}

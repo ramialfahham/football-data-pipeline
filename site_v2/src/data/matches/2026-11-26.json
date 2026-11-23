@@ -7,10 +7,164 @@
   "next_day": "2026-11-27",
   "competitions": [
     {
+      "league_code": "APD",
+      "name": "Liga Profesional de Fútbol (Argentina)",
+      "slug": "liga-profesional-argentina",
+      "crest": "/crests/leagues/128-104.webp",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1649565,
+          "slug": "2026-11-26-boca-juniors-vs-independ-rivadavia",
+          "kickoff": "2026-11-26 00:00:00+00:00",
+          "kickoff_local": "2026-11-25 21:00:00",
+          "kickoff_zone_label": "ART",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 37,
+          "fixture_order": 503,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 451,
+            "name": "Boca Juniors",
+            "slug": "boca-juniors",
+            "crest": "/crests/teams/451-104.webp"
+          },
+          "away": {
+            "team_id": 473,
+            "name": "Independ. Rivadavia",
+            "slug": "independ-rivadavia",
+            "crest": "/crests/teams/473-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "SPL",
+      "name": "Saudi Pro League",
+      "slug": "saudi-pro-league",
+      "crest": "/crests/leagues/307-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1603084,
+          "slug": "2026-11-26-al-fateh-vs-al-riyadh",
+          "kickoff": "2026-11-26 14:25:00+00:00",
+          "kickoff_local": "2026-11-26 17:25:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 109,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2931,
+            "name": "Al-Fateh",
+            "slug": "al-fateh",
+            "crest": "/crests/teams/2931-104.webp"
+          },
+          "away": {
+            "team_id": 10511,
+            "name": "Al Riyadh",
+            "slug": "al-riyadh",
+            "crest": "/crests/teams/10511-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603080,
+          "slug": "2026-11-26-abha-vs-al-shabab",
+          "kickoff": "2026-11-26 15:05:00+00:00",
+          "kickoff_local": "2026-11-26 18:05:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 110,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2951,
+            "name": "Abha",
+            "slug": "abha",
+            "crest": "/crests/teams/2951-104.webp"
+          },
+          "away": {
+            "team_id": 2940,
+            "name": "Al Shabab",
+            "slug": "al-shabab",
+            "crest": "/crests/teams/2940-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603083,
+          "slug": "2026-11-26-al-faisaly-fc-vs-al-diriyah",
+          "kickoff": "2026-11-26 17:30:00+00:00",
+          "kickoff_local": "2026-11-26 20:30:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 111,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2930,
+            "name": "Al-Faisaly FC",
+            "slug": "al-faisaly-fc",
+            "crest": "/crests/teams/2930-104.webp"
+          },
+          "away": {
+            "team_id": 26738,
+            "name": "Al Diriyah",
+            "slug": "al-diriyah",
+            "crest": "/crests/teams/26738-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
       "league_code": "UECL",
       "name": "UEFA Conference League",
       "slug": "conference-league",
-      "crest": "https://media.api-sports.io/football/leagues/848.png",
+      "crest": "/crests/leagues/848-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,6 +173,8 @@
           "fixture_id": 1636435,
           "slug": "2026-11-26-kairat-almaty-vs-mjallby-aif",
           "kickoff": "2026-11-26 15:30:00+00:00",
+          "kickoff_local": "2026-11-26 15:30:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -35,13 +191,13 @@
             "team_id": 664,
             "name": "Kairat Almaty",
             "slug": "kairat-almaty",
-            "crest": "https://media.api-sports.io/football/teams/664.png"
+            "crest": "/crests/teams/664-104.webp"
           },
           "away": {
             "team_id": 2240,
             "name": "Mjallby AIF",
             "slug": "mjallby-aif",
-            "crest": "https://media.api-sports.io/football/teams/2240.png"
+            "crest": "/crests/teams/2240-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -50,6 +206,8 @@
           "fixture_id": 1636381,
           "slug": "2026-11-26-afc-ajax-vs-fc-thun",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -66,13 +224,13 @@
             "team_id": 194,
             "name": "AFC Ajax",
             "slug": "afc-ajax",
-            "crest": "https://media.api-sports.io/football/teams/194.png"
+            "crest": "/crests/teams/194-104.webp"
           },
           "away": {
             "team_id": 1012,
             "name": "FC Thun",
             "slug": "fc-thun",
-            "crest": "https://media.api-sports.io/football/teams/1012.png"
+            "crest": "/crests/teams/1012-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -81,6 +239,8 @@
           "fixture_id": 1636393,
           "slug": "2026-11-26-brann-vs-aarhus",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -97,13 +257,13 @@
             "team_id": 319,
             "name": "Brann",
             "slug": "brann",
-            "crest": "https://media.api-sports.io/football/teams/319.png"
+            "crest": "/crests/teams/319-104.webp"
           },
           "away": {
             "team_id": 406,
             "name": "Aarhus",
             "slug": "aarhus",
-            "crest": "https://media.api-sports.io/football/teams/406.png"
+            "crest": "/crests/teams/406-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -112,6 +272,8 @@
           "fixture_id": 1636395,
           "slug": "2026-11-26-brighton-hove-albion-fc-vs-universitatea-craiova",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -128,13 +290,13 @@
             "team_id": 51,
             "name": "Brighton & Hove Albion FC",
             "slug": "brighton-hove-albion-fc",
-            "crest": "https://media.api-sports.io/football/teams/51.png"
+            "crest": "/crests/teams/51-104.webp"
           },
           "away": {
             "team_id": 632,
             "name": "Universitatea Craiova",
             "slug": "universitatea-craiova",
-            "crest": "https://media.api-sports.io/football/teams/632.png"
+            "crest": "/crests/teams/632-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": true
@@ -143,6 +305,8 @@
           "fixture_id": 1636405,
           "slug": "2026-11-26-egnatia-rrogozhine-vs-lincoln-red-imps-fc",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -159,13 +323,13 @@
             "team_id": 3327,
             "name": "Egnatia Rrogozhinë",
             "slug": "egnatia-rrogozhine",
-            "crest": "https://media.api-sports.io/football/teams/3327.png"
+            "crest": "/crests/teams/3327-104.webp"
           },
           "away": {
             "team_id": 667,
             "name": "Lincoln Red Imps FC",
             "slug": "lincoln-red-imps-fc",
-            "crest": "https://media.api-sports.io/football/teams/667.png"
+            "crest": "/crests/teams/667-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -174,6 +338,8 @@
           "fixture_id": 1636421,
           "slug": "2026-11-26-heart-of-midlothian-vs-as-monaco-fc",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -190,13 +356,13 @@
             "team_id": 254,
             "name": "Heart Of Midlothian",
             "slug": "heart-of-midlothian",
-            "crest": "https://media.api-sports.io/football/teams/254.png"
+            "crest": "/crests/teams/254-104.webp"
           },
           "away": {
             "team_id": 91,
             "name": "AS Monaco FC",
             "slug": "as-monaco-fc",
-            "crest": "https://media.api-sports.io/football/teams/91.png"
+            "crest": "/crests/teams/91-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -205,6 +371,8 @@
           "fixture_id": 1636426,
           "slug": "2026-11-26-fc-iberia-1999-vs-getafe-cf",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -221,13 +389,13 @@
             "team_id": 3502,
             "name": "FC Iberia 1999",
             "slug": "fc-iberia-1999",
-            "crest": "https://media.api-sports.io/football/teams/3502.png"
+            "crest": "/crests/teams/3502-104.webp"
           },
           "away": {
             "team_id": 546,
             "name": "Getafe CF",
             "slug": "getafe-cf",
-            "crest": "https://media.api-sports.io/football/teams/546.png"
+            "crest": "/crests/teams/546-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -236,6 +404,8 @@
           "fixture_id": 1636431,
           "slug": "2026-11-26-fk-jablonec-vs-fc-lugano",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -252,13 +422,13 @@
             "team_id": 1122,
             "name": "FK Jablonec",
             "slug": "fk-jablonec",
-            "crest": "https://media.api-sports.io/football/teams/1122.png"
+            "crest": "/crests/teams/1122-104.webp"
           },
           "away": {
             "team_id": 606,
             "name": "FC Lugano",
             "slug": "fc-lugano",
-            "crest": "https://media.api-sports.io/football/teams/606.png"
+            "crest": "/crests/teams/606-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -267,6 +437,8 @@
           "fixture_id": 1636438,
           "slug": "2026-11-26-kauno-zalgiris-vs-riga",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -283,13 +455,13 @@
             "team_id": 3872,
             "name": "Kauno Žalgiris",
             "slug": "kauno-zalgiris",
-            "crest": "https://media.api-sports.io/football/teams/3872.png"
+            "crest": "/crests/teams/3872-104.webp"
           },
           "away": {
             "team_id": 10124,
             "name": "Riga",
             "slug": "riga",
-            "crest": "https://media.api-sports.io/football/teams/10124.png"
+            "crest": "/crests/teams/10124-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -298,6 +470,8 @@
           "fixture_id": 1636460,
           "slug": "2026-11-26-pafos-vs-fc-midtjylland",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -314,13 +488,13 @@
             "team_id": 3403,
             "name": "Pafos",
             "slug": "pafos",
-            "crest": "https://media.api-sports.io/football/teams/3403.png"
+            "crest": "/crests/teams/3403-104.webp"
           },
           "away": {
             "team_id": 397,
             "name": "FC Midtjylland",
             "slug": "fc-midtjylland",
-            "crest": "https://media.api-sports.io/football/teams/397.png"
+            "crest": "/crests/teams/397-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -329,6 +503,8 @@
           "fixture_id": 1636386,
           "slug": "2026-11-26-borac-banja-luka-vs-atalanta-bc",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -345,13 +521,13 @@
             "team_id": 3364,
             "name": "Borac Banja Luka",
             "slug": "borac-banja-luka",
-            "crest": "https://media.api-sports.io/football/teams/3364.png"
+            "crest": "/crests/teams/3364-104.webp"
           },
           "away": {
             "team_id": 499,
             "name": "Atalanta BC",
             "slug": "atalanta-bc",
-            "crest": "https://media.api-sports.io/football/teams/499.png"
+            "crest": "/crests/teams/499-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -360,6 +536,8 @@
           "fixture_id": 1636389,
           "slug": "2026-11-26-sc-braga-vs-kups",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -376,13 +554,13 @@
             "team_id": 217,
             "name": "SC Braga",
             "slug": "sc-braga",
-            "crest": "https://media.api-sports.io/football/teams/217.png"
+            "crest": "/crests/teams/217-104.webp"
           },
           "away": {
             "team_id": 1165,
             "name": "KuPS",
             "slug": "kups",
-            "crest": "https://media.api-sports.io/football/teams/1165.png"
+            "crest": "/crests/teams/1165-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -391,6 +569,8 @@
           "fixture_id": 1636402,
           "slug": "2026-11-26-cska-sofia-vs-trabzonspor",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -407,13 +587,13 @@
             "team_id": 853,
             "name": "CSKA Sofia",
             "slug": "cska-sofia",
-            "crest": "https://media.api-sports.io/football/teams/853.png"
+            "crest": "/crests/teams/853-104.webp"
           },
           "away": {
             "team_id": 998,
             "name": "Trabzonspor",
             "slug": "trabzonspor",
-            "crest": "https://media.api-sports.io/football/teams/998.png"
+            "crest": "/crests/teams/998-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -422,6 +602,8 @@
           "fixture_id": 1636410,
           "slug": "2026-11-26-sc-freiburg-vs-fc-twente",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -438,13 +620,13 @@
             "team_id": 160,
             "name": "SC Freiburg",
             "slug": "sc-freiburg",
-            "crest": "https://media.api-sports.io/football/teams/160.png"
+            "crest": "/crests/teams/160-104.webp"
           },
           "away": {
             "team_id": 415,
             "name": "FC Twente",
             "slug": "fc-twente",
-            "crest": "https://media.api-sports.io/football/teams/415.png"
+            "crest": "/crests/teams/415-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -453,6 +635,8 @@
           "fixture_id": 1636412,
           "slug": "2026-11-26-gent-vs-fk-crvena-zvezda",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -469,13 +653,13 @@
             "team_id": 631,
             "name": "Gent",
             "slug": "gent",
-            "crest": "https://media.api-sports.io/football/teams/631.png"
+            "crest": "/crests/teams/631-104.webp"
           },
           "away": {
             "team_id": 598,
             "name": "FK Crvena Zvezda",
             "slug": "fk-crvena-zvezda",
-            "crest": "https://media.api-sports.io/football/teams/598.png"
+            "crest": "/crests/teams/598-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -484,6 +668,8 @@
           "fixture_id": 1636420,
           "slug": "2026-11-26-hnk-hajduk-split-vs-st-truiden",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -500,13 +686,13 @@
             "team_id": 608,
             "name": "HNK Hajduk Split",
             "slug": "hnk-hajduk-split",
-            "crest": "https://media.api-sports.io/football/teams/608.png"
+            "crest": "/crests/teams/608-104.webp"
           },
           "away": {
             "team_id": 735,
             "name": "St. Truiden",
             "slug": "st-truiden",
-            "crest": "https://media.api-sports.io/football/teams/735.png"
+            "crest": "/crests/teams/735-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -515,6 +701,8 @@
           "fixture_id": 1636428,
           "slug": "2026-11-26-inter-club-descaldes-vs-fc-copenhagen",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -531,13 +719,13 @@
             "team_id": 3342,
             "name": "Inter Club d'Escaldes",
             "slug": "inter-club-descaldes",
-            "crest": "https://media.api-sports.io/football/teams/3342.png"
+            "crest": "/crests/teams/3342-104.webp"
           },
           "away": {
             "team_id": 400,
             "name": "FC Copenhagen",
             "slug": "fc-copenhagen",
-            "crest": "https://media.api-sports.io/football/teams/400.png"
+            "crest": "/crests/teams/400-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -546,6 +734,8 @@
           "fixture_id": 1636457,
           "slug": "2026-11-26-fc-nordsjaelland-vs-panathinaikos",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 4",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 4,
@@ -562,13 +752,13 @@
             "team_id": 398,
             "name": "FC Nordsjaelland",
             "slug": "fc-nordsjaelland",
-            "crest": "https://media.api-sports.io/football/teams/398.png"
+            "crest": "/crests/teams/398-104.webp"
           },
           "away": {
             "team_id": 617,
             "name": "Panathinaikos",
             "slug": "panathinaikos",
-            "crest": "https://media.api-sports.io/football/teams/617.png"
+            "crest": "/crests/teams/617-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -579,7 +769,7 @@
       "league_code": "UEL",
       "name": "UEFA Europa League",
       "slug": "europa-league",
-      "crest": "https://media.api-sports.io/football/leagues/3.png",
+      "crest": "/crests/leagues/3-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -588,6 +778,8 @@
           "fixture_id": 1636231,
           "slug": "2026-11-26-besiktas-vs-hapoel-beer-sheva",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -604,13 +796,13 @@
             "team_id": 549,
             "name": "Beşiktaş",
             "slug": "besiktas",
-            "crest": "https://media.api-sports.io/football/teams/549.png"
+            "crest": "/crests/teams/549-104.webp"
           },
           "away": {
             "team_id": 563,
             "name": "Hapoel Beer Sheva",
             "slug": "hapoel-beer-sheva",
-            "crest": "https://media.api-sports.io/football/teams/563.png"
+            "crest": "/crests/teams/563-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -619,6 +811,8 @@
           "fixture_id": 1636244,
           "slug": "2026-11-26-rc-celta-de-vigo-vs-afc-bournemouth",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -635,13 +829,13 @@
             "team_id": 538,
             "name": "RC Celta de Vigo",
             "slug": "rc-celta-de-vigo",
-            "crest": "https://media.api-sports.io/football/teams/538.png"
+            "crest": "/crests/teams/538-104.webp"
           },
           "away": {
             "team_id": 35,
             "name": "AFC Bournemouth",
             "slug": "afc-bournemouth",
-            "crest": "https://media.api-sports.io/football/teams/35.png"
+            "crest": "/crests/teams/35-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -650,6 +844,8 @@
           "fixture_id": 1636255,
           "slug": "2026-11-26-dinamo-zagreb-vs-bayer-04-leverkusen",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -666,13 +862,13 @@
             "team_id": 620,
             "name": "Dinamo Zagreb",
             "slug": "dinamo-zagreb",
-            "crest": "https://media.api-sports.io/football/teams/620.png"
+            "crest": "/crests/teams/620-104.webp"
           },
           "away": {
             "team_id": 168,
             "name": "Bayer 04 Leverkusen",
             "slug": "bayer-04-leverkusen",
-            "crest": "https://media.api-sports.io/football/teams/168.png"
+            "crest": "/crests/teams/168-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": true
@@ -681,6 +877,8 @@
           "fixture_id": 1636298,
           "slug": "2026-11-26-olympique-de-marseille-vs-levski-sofia",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -697,13 +895,13 @@
             "team_id": 81,
             "name": "Olympique de Marseille",
             "slug": "olympique-de-marseille",
-            "crest": "https://media.api-sports.io/football/teams/81.png"
+            "crest": "/crests/teams/81-104.webp"
           },
           "away": {
             "team_id": 646,
             "name": "Levski Sofia",
             "slug": "levski-sofia",
-            "crest": "https://media.api-sports.io/football/teams/646.png"
+            "crest": "/crests/teams/646-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -712,6 +910,8 @@
           "fixture_id": 1636307,
           "slug": "2026-11-26-olympiakos-piraeus-vs-ac-milan",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -728,13 +928,13 @@
             "team_id": 553,
             "name": "Olympiakos Piraeus",
             "slug": "olympiakos-piraeus",
-            "crest": "https://media.api-sports.io/football/teams/553.png"
+            "crest": "/crests/teams/553-104.webp"
           },
           "away": {
             "team_id": 489,
             "name": "AC Milan",
             "slug": "ac-milan",
-            "crest": "https://media.api-sports.io/football/teams/489.png"
+            "crest": "/crests/teams/489-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -743,6 +943,8 @@
           "fixture_id": 1636315,
           "slug": "2026-11-26-plzen-vs-sl-benfica",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -759,13 +961,13 @@
             "team_id": 567,
             "name": "Plzen",
             "slug": "plzen",
-            "crest": "https://media.api-sports.io/football/teams/567.png"
+            "crest": "/crests/teams/567-104.webp"
           },
           "away": {
             "team_id": 211,
             "name": "SL Benfica",
             "slug": "sl-benfica",
-            "crest": "https://media.api-sports.io/football/teams/211.png"
+            "crest": "/crests/teams/211-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -774,6 +976,8 @@
           "fixture_id": 1636329,
           "slug": "2026-11-26-union-st-gilloise-vs-lech-poznan",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -790,13 +994,13 @@
             "team_id": 1393,
             "name": "Union St. Gilloise",
             "slug": "union-st-gilloise",
-            "crest": "https://media.api-sports.io/football/teams/1393.png"
+            "crest": "/crests/teams/1393-104.webp"
           },
           "away": {
             "team_id": 347,
             "name": "Lech Poznan",
             "slug": "lech-poznan",
-            "crest": "https://media.api-sports.io/football/teams/347.png"
+            "crest": "/crests/teams/347-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -805,6 +1009,8 @@
           "fixture_id": 1636334,
           "slug": "2026-11-26-red-bull-salzburg-vs-ararat-armenia",
           "kickoff": "2026-11-26 17:45:00+00:00",
+          "kickoff_local": "2026-11-26 17:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -821,13 +1027,13 @@
             "team_id": 571,
             "name": "Red Bull Salzburg",
             "slug": "red-bull-salzburg",
-            "crest": "https://media.api-sports.io/football/teams/571.png"
+            "crest": "/crests/teams/571-104.webp"
           },
           "away": {
             "team_id": 3683,
             "name": "Ararat-Armenia",
             "slug": "ararat-armenia",
-            "crest": "https://media.api-sports.io/football/teams/3683.png"
+            "crest": "/crests/teams/3683-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -836,6 +1042,8 @@
           "fixture_id": 1636252,
           "slug": "2026-11-26-crystal-palace-fc-vs-real-sociedad",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -852,13 +1060,13 @@
             "team_id": 52,
             "name": "Crystal Palace FC",
             "slug": "crystal-palace-fc",
-            "crest": "https://media.api-sports.io/football/teams/52.png"
+            "crest": "/crests/teams/52-104.webp"
           },
           "away": {
             "team_id": 548,
             "name": "Real Sociedad",
             "slug": "real-sociedad",
-            "crest": "https://media.api-sports.io/football/teams/548.png"
+            "crest": "/crests/teams/548-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -867,6 +1075,8 @@
           "fixture_id": 1636261,
           "slug": "2026-11-26-ferencvarosi-tc-vs-celje",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -883,13 +1093,13 @@
             "team_id": 651,
             "name": "Ferencvarosi TC",
             "slug": "ferencvarosi-tc",
-            "crest": "https://media.api-sports.io/football/teams/651.png"
+            "crest": "/crests/teams/651-104.webp"
           },
           "away": {
             "team_id": 4360,
             "name": "Celje",
             "slug": "celje",
-            "crest": "https://media.api-sports.io/football/teams/4360.png"
+            "crest": "/crests/teams/4360-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -898,6 +1108,8 @@
           "fixture_id": 1636270,
           "slug": "2026-11-26-tsg-1899-hoffenheim-vs-sturm-graz",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -914,13 +1126,13 @@
             "team_id": 167,
             "name": "TSG 1899 Hoffenheim",
             "slug": "tsg-1899-hoffenheim",
-            "crest": "https://media.api-sports.io/football/teams/167.png"
+            "crest": "/crests/teams/167-104.webp"
           },
           "away": {
             "team_id": 637,
             "name": "Sturm Graz",
             "slug": "sturm-graz",
-            "crest": "https://media.api-sports.io/football/teams/637.png"
+            "crest": "/crests/teams/637-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -929,6 +1141,8 @@
           "fixture_id": 1636277,
           "slug": "2026-11-26-juventus-fc-vs-omonia-nicosia",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -945,13 +1159,13 @@
             "team_id": 496,
             "name": "Juventus FC",
             "slug": "juventus-fc",
-            "crest": "https://media.api-sports.io/football/teams/496.png"
+            "crest": "/crests/teams/496-104.webp"
           },
           "away": {
             "team_id": 3402,
             "name": "Omonia Nicosia",
             "slug": "omonia-nicosia",
-            "crest": "https://media.api-sports.io/football/teams/3402.png"
+            "crest": "/crests/teams/3402-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -960,6 +1174,8 @@
           "fixture_id": 1636294,
           "slug": "2026-11-26-olympique-lyonnais-vs-lillestrom",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -976,13 +1192,13 @@
             "team_id": 80,
             "name": "Olympique Lyonnais",
             "slug": "olympique-lyonnais",
-            "crest": "https://media.api-sports.io/football/teams/80.png"
+            "crest": "/crests/teams/80-104.webp"
           },
           "away": {
             "team_id": 321,
             "name": "Lillestrom",
             "slug": "lillestrom",
-            "crest": "https://media.api-sports.io/football/teams/321.png"
+            "crest": "/crests/teams/321-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -991,6 +1207,8 @@
           "fixture_id": 1636301,
           "slug": "2026-11-26-nec-nijmegen-vs-stade-rennais-fc",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -1007,13 +1225,13 @@
             "team_id": 413,
             "name": "NEC Nijmegen",
             "slug": "nec-nijmegen",
-            "crest": "https://media.api-sports.io/football/teams/413.png"
+            "crest": "/crests/teams/413-104.webp"
           },
           "away": {
             "team_id": 94,
             "name": "Stade Rennais FC",
             "slug": "stade-rennais-fc",
-            "crest": "https://media.api-sports.io/football/teams/94.png"
+            "crest": "/crests/teams/94-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1022,6 +1240,8 @@
           "fixture_id": 1636305,
           "slug": "2026-11-26-ofi-vs-anderlecht",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -1038,13 +1258,13 @@
             "team_id": 1124,
             "name": "OFI",
             "slug": "ofi",
-            "crest": "https://media.api-sports.io/football/teams/1124.png"
+            "crest": "/crests/teams/1124-104.webp"
           },
           "away": {
             "team_id": 554,
             "name": "Anderlecht",
             "slug": "anderlecht",
-            "crest": "https://media.api-sports.io/football/teams/554.png"
+            "crest": "/crests/teams/554-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1053,6 +1273,8 @@
           "fixture_id": 1636336,
           "slug": "2026-11-26-sparta-praha-vs-az-alkmaar",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -1069,13 +1291,13 @@
             "team_id": 628,
             "name": "Sparta Praha",
             "slug": "sparta-praha",
-            "crest": "https://media.api-sports.io/football/teams/628.png"
+            "crest": "/crests/teams/628-104.webp"
           },
           "away": {
             "team_id": 201,
             "name": "AZ Alkmaar",
             "slug": "az-alkmaar",
-            "crest": "https://media.api-sports.io/football/teams/201.png"
+            "crest": "/crests/teams/201-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1084,6 +1306,8 @@
           "fixture_id": 1636343,
           "slug": "2026-11-26-sunderland-afc-vs-jagiellonia",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -1100,13 +1324,13 @@
             "team_id": 746,
             "name": "Sunderland AFC",
             "slug": "sunderland-afc",
-            "crest": "https://media.api-sports.io/football/teams/746.png"
+            "crest": "/crests/teams/746-104.webp"
           },
           "away": {
             "team_id": 336,
             "name": "Jagiellonia",
             "slug": "jagiellonia",
-            "crest": "https://media.api-sports.io/football/teams/336.png"
+            "crest": "/crests/teams/336-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1115,6 +1339,8 @@
           "fixture_id": 1636349,
           "slug": "2026-11-26-torreense-vs-celtic",
           "kickoff": "2026-11-26 20:00:00+00:00",
+          "kickoff_local": "2026-11-26 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Stage - 5",
           "round_label_i18n_key": "roundLeaguePhaseMatchday",
           "round_number": 5,
@@ -1131,13 +1357,13 @@
             "team_id": 4799,
             "name": "Torreense",
             "slug": "torreense",
-            "crest": "https://media.api-sports.io/football/teams/4799.png"
+            "crest": "/crests/teams/4799-104.webp"
           },
           "away": {
             "team_id": 247,
             "name": "Celtic",
             "slug": "celtic",
-            "crest": "https://media.api-sports.io/football/teams/247.png"
+            "crest": "/crests/teams/247-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false

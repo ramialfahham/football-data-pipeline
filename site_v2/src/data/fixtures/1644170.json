@@ -88,7 +88,7 @@
     "team_id": 7759,
     "name": "Wingate & Finchley",
     "slug": "wingate-finchley",
-    "crest": "https://media.api-sports.io/football/teams/7759.png",
+    "crest": "/crests/teams/7759-104.webp",
     "formation": null,
     "has_team_stats": true,
     "has_player_stats": false,
@@ -140,7 +140,9 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": 0.0,
-      "cards_red_per_match": 0.0
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 0,
+      "cards_red": 0
     },
     "lineup": [],
     "next_match": null
@@ -149,7 +151,7 @@
     "team_id": 7616,
     "name": "Bedford Town",
     "slug": "bedford-town",
-    "crest": "https://media.api-sports.io/football/teams/7616.png",
+    "crest": "/crests/teams/7616-104.webp",
     "formation": null,
     "has_team_stats": true,
     "has_player_stats": false,
@@ -201,36 +203,11 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": 2.0,
-      "cards_red_per_match": 0.0
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 2,
+      "cards_red": 0
     },
     "lineup": [],
-    "next_match": {
-      "fixture_id": 1645116,
-      "slug": "2026-10-17-bedford-town-vs-cray-wanderers",
-      "kickoff": "2026-10-17 14:00:00+00:00",
-      "round": "4th Round Qualifying",
-      "round_order": null,
-      "round_sequence": 7,
-      "fixture_order": 312,
-      "status": "NS",
-      "is_played": false,
-      "goals_home": null,
-      "goals_away": null,
-      "home": {
-        "team_id": 7616,
-        "name": "Bedford Town",
-        "slug": "bedford-town",
-        "crest": "https://media.api-sports.io/football/teams/7616.png"
-      },
-      "away": {
-        "team_id": 7711,
-        "name": "Cray Wanderers",
-        "slug": "cray-wanderers",
-        "crest": "https://media.api-sports.io/football/teams/7711.png"
-      },
-      "is_next_round": true,
-      "is_match_that_matters": false,
-      "league_code": "FAC"
-    }
+    "next_match": null
   }
 }

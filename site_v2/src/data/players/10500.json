@@ -13,7 +13,7 @@
   "club": {
     "team_id": 212,
     "name": "FC Porto",
-    "crest": "https://media.api-sports.io/football/teams/212.png",
+    "crest": "/crests/teams/212-104.webp",
     "slug": "fc-porto"
   },
   "tabs": [
@@ -22,16 +22,16 @@
       "team": {
         "team_id": 212,
         "name": "FC Porto",
-        "crest": "https://media.api-sports.io/football/teams/212.png",
+        "crest": "/crests/teams/212-104.webp",
         "slug": "fc-porto"
       },
       "cards": {
-        "appearances": 15.0,
-        "minutes_per_appearance": 84.86666666666666,
-        "goals_player": 0.0,
         "assists_player": 7.0,
+        "goals_player": 0.0,
+        "cards_red_player": 0.0,
         "cards_yellow_player": 1.0,
-        "cards_red_player": 0.0
+        "minutes_per_appearance": 84.86666666666666,
+        "appearances": 15.0
       },
       "next_matches": [
         {
@@ -39,9 +39,11 @@
           "league_code": "UCL",
           "upcoming_rank": 1,
           "opponent_name": "Feyenoord",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/209.png",
+          "opponent_logo_url": "/crests/teams/209-104.webp",
           "is_home": false,
           "kickoff_datetime": "2026-11-24 20:00:00+00:00",
+          "kickoff_local": "2026-11-24 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round_name": "League Stage - 5",
           "goals_for": null,
           "goals_against": null,
@@ -53,9 +55,11 @@
           "league_code": "LP",
           "upcoming_rank": 1,
           "opponent_name": "Sporting CP",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/228.png",
+          "opponent_logo_url": "/crests/teams/228-104.webp",
           "is_home": true,
           "kickoff_datetime": "2026-11-29 20:30:00+00:00",
+          "kickoff_local": "2026-11-29 20:30:00",
+          "kickoff_zone_label": "WET",
           "round_name": "Regular Season - 12",
           "goals_for": null,
           "goals_against": null,
@@ -136,6 +140,12 @@
               "value": 0.5806451612903226,
               "rank": 5,
               "median": 0.2073732718894009
+            },
+            {
+              "metric_key": "offsides_per90",
+              "value": 0.5806451612903226,
+              "rank": 32,
+              "median": 0.345489443378119
             },
             {
               "metric_key": "passes_accuracy_player_pct",
@@ -263,7 +273,7 @@
             {
               "metric_key": "offsides_per90",
               "value": 0.7871720116618076,
-              "rank": 25,
+              "rank": 26,
               "median": 0.5613305613305614
             },
             {
@@ -321,7 +331,7 @@
         "team": {
           "team_id": 212,
           "name": "FC Porto",
-          "crest": "https://media.api-sports.io/football/teams/212.png",
+          "crest": "/crests/teams/212-104.webp",
           "slug": "fc-porto"
         },
         "player_count": 13,
@@ -564,6 +574,26 @@
             ]
           },
           {
+            "metric_key": "offsides_per90",
+            "value": 0.6362922230950511,
+            "rank": 2,
+            "median": 0.0818926296633303,
+            "others": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.07792207792207792,
+              0.0818926296633303,
+              0.08964143426294821,
+              0.22556390977443608,
+              0.3047404063205418,
+              0.6112054329371817,
+              2.2537562604340566
+            ]
+          },
+          {
             "metric_key": "passes_accuracy_player_pct",
             "value": 0.7763157894736842,
             "rank": 11,
@@ -790,8 +820,8 @@
           },
           {
             "metric_key": "offsides_per90",
-            "value": null,
-            "value_prev": null
+            "value": 0.6362922230950511,
+            "value_prev": 0.28401122019635344
           },
           {
             "metric_key": "passes_accuracy_player_pct",
@@ -845,7 +875,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "Vitória SC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/224.png",
+          "opponent_logo_url": "/crests/teams/224-104.webp",
           "minutes": 89,
           "goals": 0,
           "assists": 1,
@@ -861,7 +891,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "SSC Napoli",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/492.png",
+          "opponent_logo_url": "/crests/teams/492-104.webp",
           "minutes": 78,
           "goals": 0,
           "assists": 0,
@@ -877,7 +907,7 @@
           "goals_against": 0,
           "result": "W",
           "opponent_name": "GD Estoril Praia",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/230.png",
+          "opponent_logo_url": "/crests/teams/230-104.webp",
           "minutes": 78,
           "goals": 0,
           "assists": 1,
@@ -893,7 +923,7 @@
           "goals_against": 0,
           "result": "W",
           "opponent_name": "Gil Vicente FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/762.png",
+          "opponent_logo_url": "/crests/teams/762-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -909,7 +939,7 @@
           "goals_against": 1,
           "result": "L",
           "opponent_name": "PSV Eindhoven",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/197.png",
+          "opponent_logo_url": "/crests/teams/197-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -925,7 +955,7 @@
           "goals_against": 3,
           "result": "L",
           "opponent_name": "Real Betis",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/543.png",
+          "opponent_logo_url": "/crests/teams/543-104.webp",
           "minutes": 85,
           "goals": 0,
           "assists": 1,
@@ -941,7 +971,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "Maritimo",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/214.png",
+          "opponent_logo_url": "/crests/teams/214-104.webp",
           "minutes": 79,
           "goals": 0,
           "assists": 0,
@@ -957,7 +987,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "SL Benfica",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/211.png",
+          "opponent_logo_url": "/crests/teams/211-104.webp",
           "minutes": 85,
           "goals": 0,
           "assists": 1,
@@ -973,7 +1003,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "Casa Pia AC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/4716.png",
+          "opponent_logo_url": "/crests/teams/4716-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -989,7 +1019,7 @@
           "goals_against": 2,
           "result": "L",
           "opponent_name": "Manchester City FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/50.png",
+          "opponent_logo_url": "/crests/teams/50-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -1005,7 +1035,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "Moreirense FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/215.png",
+          "opponent_logo_url": "/crests/teams/215-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 1,
@@ -1021,7 +1051,7 @@
           "goals_against": 0,
           "result": "W",
           "opponent_name": "Academico Viseu",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/238.png",
+          "opponent_logo_url": "/crests/teams/238-104.webp",
           "minutes": 60,
           "goals": 0,
           "assists": 1,
@@ -1037,7 +1067,7 @@
           "goals_against": 0,
           "result": "W",
           "opponent_name": "FC Arouca",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/240.png",
+          "opponent_logo_url": "/crests/teams/240-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 1,
@@ -1053,7 +1083,7 @@
           "goals_against": 0,
           "result": "W",
           "opponent_name": "Rio Ave FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/226.png",
+          "opponent_logo_url": "/crests/teams/226-104.webp",
           "minutes": 89,
           "goals": 0,
           "assists": 0,
@@ -1069,11 +1099,50 @@
           "goals_against": 0,
           "result": "W",
           "opponent_name": "FC Alverca",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/4724.png",
+          "opponent_logo_url": "/crests/teams/4724-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
           "ball_actions": 32,
+          "on_bench": false
+        }
+      ]
+    },
+    {
+      "tab": "national_team",
+      "team": {
+        "team_id": 6,
+        "name": "Brazil",
+        "crest": "/crests/teams/6-104.webp",
+        "slug": "brazil"
+      },
+      "cards": {
+        "cards_yellow_player": 1.0,
+        "goals_player": 0.0,
+        "appearances": 1.0,
+        "assists_player": 0.0,
+        "cards_red_player": 0.0,
+        "minutes_per_appearance": 9.0
+      },
+      "next_matches": [],
+      "competitions": [],
+      "squad": null,
+      "last_season": null,
+      "recent_matches": [
+        {
+          "played_fixture_sk": 1100255,
+          "played_league_code": "WCQSA",
+          "played_kickoff_datetime": "2023-11-17 00:00:00+00:00",
+          "home_away": "away",
+          "goals_for": 1,
+          "goals_against": 2,
+          "result": "L",
+          "opponent_name": "Colombia",
+          "opponent_logo_url": "/crests/teams/8-104.webp",
+          "minutes": 9,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 7,
           "on_bench": false
         }
       ]

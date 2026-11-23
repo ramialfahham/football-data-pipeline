@@ -7,18 +7,482 @@
   "next_day": "2026-11-29",
   "competitions": [
     {
+      "league_code": "BL1",
+      "name": "Bundesliga",
+      "slug": "bundesliga",
+      "crest": "/crests/leagues/78-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1575234,
+          "slug": "2026-11-28-1-fsv-mainz-05-vs-1-fc-union-berlin",
+          "kickoff": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 92,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 164,
+            "name": "1. FSV Mainz 05",
+            "slug": "1-fsv-mainz-05",
+            "crest": "/crests/teams/164-104.webp"
+          },
+          "away": {
+            "team_id": 182,
+            "name": "1. FC Union Berlin",
+            "slug": "1-fc-union-berlin",
+            "crest": "/crests/teams/182-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1575235,
+          "slug": "2026-11-28-hamburger-sv-vs-bayern-munchen",
+          "kickoff": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 93,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 175,
+            "name": "Hamburger SV",
+            "slug": "hamburger-sv",
+            "crest": "/crests/teams/175-104.webp"
+          },
+          "away": {
+            "team_id": 157,
+            "name": "Bayern München",
+            "slug": "bayern-munchen",
+            "crest": "/crests/teams/157-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1575236,
+          "slug": "2026-11-28-1-fc-koln-vs-sv-elversberg",
+          "kickoff": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 94,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 192,
+            "name": "1. FC Köln",
+            "slug": "1-fc-koln",
+            "crest": "/crests/teams/192-104.webp"
+          },
+          "away": {
+            "team_id": 1660,
+            "name": "SV Elversberg",
+            "slug": "sv-elversberg",
+            "crest": "/crests/teams/1660-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1575238,
+          "slug": "2026-11-28-sc-paderborn-07-vs-fc-schalke-04",
+          "kickoff": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 95,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 185,
+            "name": "SC Paderborn 07",
+            "slug": "sc-paderborn-07",
+            "crest": "/crests/teams/185-104.webp"
+          },
+          "away": {
+            "team_id": 174,
+            "name": "FC Schalke 04",
+            "slug": "fc-schalke-04",
+            "crest": "/crests/teams/174-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1575231,
+          "slug": "2026-11-28-vfb-stuttgart-vs-eintracht-frankfurt",
+          "kickoff": "2026-11-28 17:30:00+00:00",
+          "kickoff_local": "2026-11-28 18:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 11",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 11,
+          "round_letter": null,
+          "round_order": 11,
+          "round_sequence": 11,
+          "fixture_order": 96,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 172,
+            "name": "VfB Stuttgart",
+            "slug": "vfb-stuttgart",
+            "crest": "/crests/teams/172-104.webp"
+          },
+          "away": {
+            "team_id": 169,
+            "name": "Eintracht Frankfurt",
+            "slug": "eintracht-frankfurt",
+            "crest": "/crests/teams/169-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "BL2",
+      "name": "2. Bundesliga",
+      "slug": "2-bundesliga",
+      "crest": "/crests/leagues/79-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1576246,
+          "slug": "2026-11-28-hertha-bsc-vs-karlsruher-sc",
+          "kickoff": "2026-11-28 12:00:00+00:00",
+          "kickoff_local": "2026-11-28 13:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 111,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 159,
+            "name": "Hertha BSC",
+            "slug": "hertha-bsc",
+            "crest": "/crests/teams/159-104.webp"
+          },
+          "away": {
+            "team_id": 785,
+            "name": "Karlsruher SC",
+            "slug": "karlsruher-sc",
+            "crest": "/crests/teams/785-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1576247,
+          "slug": "2026-11-28-holstein-kiel-vs-1-fc-kaiserslautern",
+          "kickoff": "2026-11-28 12:00:00+00:00",
+          "kickoff_local": "2026-11-28 13:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 112,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 191,
+            "name": "Holstein Kiel",
+            "slug": "holstein-kiel",
+            "crest": "/crests/teams/191-104.webp"
+          },
+          "away": {
+            "team_id": 745,
+            "name": "1. FC Kaiserslautern",
+            "slug": "1-fc-kaiserslautern",
+            "crest": "/crests/teams/745-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1576249,
+          "slug": "2026-11-28-dynamo-dresden-vs-fc-st-pauli",
+          "kickoff": "2026-11-28 12:00:00+00:00",
+          "kickoff_local": "2026-11-28 13:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 113,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 183,
+            "name": "Dynamo Dresden",
+            "slug": "dynamo-dresden",
+            "crest": "/crests/teams/183-104.webp"
+          },
+          "away": {
+            "team_id": 186,
+            "name": "FC St. Pauli",
+            "slug": "fc-st-pauli",
+            "crest": "/crests/teams/186-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1576250,
+          "slug": "2026-11-28-vfl-osnabruck-vs-hannover-96",
+          "kickoff": "2026-11-28 19:30:00+00:00",
+          "kickoff_local": "2026-11-28 20:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 114,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1324,
+            "name": "VfL Osnabrück",
+            "slug": "vfl-osnabruck",
+            "crest": "/crests/teams/1324-104.webp"
+          },
+          "away": {
+            "team_id": 166,
+            "name": "Hannover 96",
+            "slug": "hannover-96",
+            "crest": "/crests/teams/166-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "BPL",
+      "name": "Belgian Pro League",
+      "slug": "belgian-pro-league",
+      "crest": "/crests/leagues/144-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1558697,
+          "slug": "2026-11-28-kvc-westerlo-vs-raal-la-louviere",
+          "kickoff": "2026-11-28 15:00:00+00:00",
+          "kickoff_local": "2026-11-28 16:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 110,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 261,
+            "name": "KVC Westerlo",
+            "slug": "kvc-westerlo",
+            "crest": "/crests/teams/261-104.webp"
+          },
+          "away": {
+            "team_id": 5902,
+            "name": "RAAL La Louvière",
+            "slug": "raal-la-louviere",
+            "crest": "/crests/teams/5902-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1558690,
+          "slug": "2026-11-28-cercle-brugge-vs-kv-mechelen",
+          "kickoff": "2026-11-28 17:15:00+00:00",
+          "kickoff_local": "2026-11-28 18:15:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 111,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 741,
+            "name": "Cercle Brugge",
+            "slug": "cercle-brugge",
+            "crest": "/crests/teams/741-104.webp"
+          },
+          "away": {
+            "team_id": 266,
+            "name": "KV Mechelen",
+            "slug": "kv-mechelen",
+            "crest": "/crests/teams/266-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1558691,
+          "slug": "2026-11-28-charleroi-vs-sk-beveren",
+          "kickoff": "2026-11-28 19:45:00+00:00",
+          "kickoff_local": "2026-11-28 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 112,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 736,
+            "name": "Charleroi",
+            "slug": "charleroi",
+            "crest": "/crests/teams/736-104.webp"
+          },
+          "away": {
+            "team_id": 738,
+            "name": "SK Beveren",
+            "slug": "sk-beveren",
+            "crest": "/crests/teams/738-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1558693,
+          "slug": "2026-11-28-lommel-united-vs-zulte-waregem",
+          "kickoff": "2026-11-28 19:45:00+00:00",
+          "kickoff_local": "2026-11-28 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 113,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 259,
+            "name": "Lommel United",
+            "slug": "lommel-united",
+            "crest": "/crests/teams/259-104.webp"
+          },
+          "away": {
+            "team_id": 600,
+            "name": "Zulte Waregem",
+            "slug": "zulte-waregem",
+            "crest": "/crests/teams/600-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
       "league_code": "CAFCL",
       "name": "CAF Champions League",
       "slug": "caf-champions-league",
-      "crest": "https://media.api-sports.io/football/leagues/12.png",
+      "crest": "/crests/leagues/12-104.webp",
       "entity_type": "club",
       "confederation": "CAF",
       "region_rank": 6,
       "fixtures": [
         {
-          "fixture_id": 1647671,
-          "slug": "2026-11-28-al-hilal-omdurman-vs-horoya",
-          "kickoff": "2026-11-28 16:00:00+00:00",
+          "fixture_id": 1647677,
+          "slug": "2026-11-28-young-africans-vs-mc-alger",
+          "kickoff": "2026-11-28 13:00:00+00:00",
+          "kickoff_local": "2026-11-28 13:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "Regular season - 1",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 1,
@@ -32,24 +496,26 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 5237,
-            "name": "Al Hilal Omdurman",
-            "slug": "al-hilal-omdurman",
-            "crest": "https://media.api-sports.io/football/teams/5237.png"
+            "team_id": 5370,
+            "name": "Young Africans",
+            "slug": "young-africans",
+            "crest": "/crests/teams/5370-104.webp"
           },
           "away": {
-            "team_id": 4417,
-            "name": "Horoya",
-            "slug": "horoya",
-            "crest": "https://media.api-sports.io/football/teams/4417.png"
+            "team_id": 906,
+            "name": "MC Alger",
+            "slug": "mc-alger",
+            "crest": "/crests/teams/906-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1647672,
-          "slug": "2026-11-28-renaissance-berkane-vs-colombe",
+          "fixture_id": 1647673,
+          "slug": "2026-11-28-es-tunis-vs-wiliete",
           "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 16:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "Regular season - 1",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 1,
@@ -63,24 +529,26 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 962,
-            "name": "Renaissance Berkane",
-            "slug": "renaissance-berkane",
-            "crest": "https://media.api-sports.io/football/teams/962.png"
+            "team_id": 980,
+            "name": "ES Tunis",
+            "slug": "es-tunis",
+            "crest": "/crests/teams/980-104.webp"
           },
           "away": {
-            "team_id": 5400,
-            "name": "Colombe",
-            "slug": "colombe",
-            "crest": "https://media.api-sports.io/football/teams/5400.png"
+            "team_id": 6383,
+            "name": "Wiliete",
+            "slug": "wiliete",
+            "crest": "/crests/teams/6383-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1647673,
-          "slug": "2026-11-28-es-tunis-vs-wiliete",
+          "fixture_id": 1647675,
+          "slug": "2026-11-28-pyramids-fc-vs-maghreb-fes",
           "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 16:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "Regular season - 1",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 1,
@@ -94,24 +562,26 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 980,
-            "name": "ES Tunis",
-            "slug": "es-tunis",
-            "crest": "https://media.api-sports.io/football/teams/980.png"
+            "team_id": 1036,
+            "name": "Pyramids FC",
+            "slug": "pyramids-fc",
+            "crest": "/crests/teams/1036-104.webp"
           },
           "away": {
-            "team_id": 6383,
-            "name": "Wiliete",
-            "slug": "wiliete",
-            "crest": "https://media.api-sports.io/football/teams/6383.png"
+            "team_id": 3453,
+            "name": "Maghreb Fès",
+            "slug": "maghreb-fes",
+            "crest": "/crests/teams/3453-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1647674,
-          "slug": "2026-11-28-petro-de-luanda-vs-nouadhibou",
+          "fixture_id": 1647678,
+          "slug": "2026-11-28-zamalek-sc-vs-club-africain",
           "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 16:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "Regular season - 1",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 1,
@@ -125,24 +595,26 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 4922,
-            "name": "Petro de Luanda",
-            "slug": "petro-de-luanda",
-            "crest": "https://media.api-sports.io/football/teams/4922.png"
+            "team_id": 1040,
+            "name": "Zamalek SC",
+            "slug": "zamalek-sc",
+            "crest": "/crests/teams/1040-104.webp"
           },
           "away": {
-            "team_id": 6427,
-            "name": "Nouadhibou",
-            "slug": "nouadhibou",
-            "crest": "https://media.api-sports.io/football/teams/6427.png"
+            "team_id": 988,
+            "name": "Club Africain",
+            "slug": "club-africain",
+            "crest": "/crests/teams/988-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1647675,
-          "slug": "2026-11-28-pyramids-fc-vs-maghreb-fes",
-          "kickoff": "2026-11-28 16:00:00+00:00",
+          "fixture_id": 1647672,
+          "slug": "2026-11-28-renaissance-berkane-vs-colombe",
+          "kickoff": "2026-11-28 19:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "Regular season - 1",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 1,
@@ -156,109 +628,16 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 1036,
-            "name": "Pyramids FC",
-            "slug": "pyramids-fc",
-            "crest": "https://media.api-sports.io/football/teams/1036.png"
+            "team_id": 962,
+            "name": "Renaissance Berkane",
+            "slug": "renaissance-berkane",
+            "crest": "/crests/teams/962-104.webp"
           },
           "away": {
-            "team_id": 3453,
-            "name": "Maghreb Fès",
-            "slug": "maghreb-fes",
-            "crest": "https://media.api-sports.io/football/teams/3453.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1647676,
-          "slug": "2026-11-28-simba-vs-orlando-pirates",
-          "kickoff": "2026-11-28 16:00:00+00:00",
-          "round": "Regular season - 1",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 1,
-          "round_letter": null,
-          "round_order": 1,
-          "round_sequence": 3,
-          "fixture_order": 96,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 6432,
-            "name": "Simba",
-            "slug": "simba",
-            "crest": "https://media.api-sports.io/football/teams/6432.png"
-          },
-          "away": {
-            "team_id": 2700,
-            "name": "Orlando Pirates",
-            "slug": "orlando-pirates",
-            "crest": "https://media.api-sports.io/football/teams/2700.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1647677,
-          "slug": "2026-11-28-young-africans-vs-mc-alger",
-          "kickoff": "2026-11-28 16:00:00+00:00",
-          "round": "Regular season - 1",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 1,
-          "round_letter": null,
-          "round_order": 1,
-          "round_sequence": 3,
-          "fixture_order": 97,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 5370,
-            "name": "Young Africans",
-            "slug": "young-africans",
-            "crest": "https://media.api-sports.io/football/teams/5370.png"
-          },
-          "away": {
-            "team_id": 906,
-            "name": "MC Alger",
-            "slug": "mc-alger",
-            "crest": "https://media.api-sports.io/football/teams/906.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1647678,
-          "slug": "2026-11-28-zamalek-sc-vs-club-africain",
-          "kickoff": "2026-11-28 16:00:00+00:00",
-          "round": "Regular season - 1",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 1,
-          "round_letter": null,
-          "round_order": 1,
-          "round_sequence": 3,
-          "fixture_order": 98,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 1040,
-            "name": "Zamalek SC",
-            "slug": "zamalek-sc",
-            "crest": "https://media.api-sports.io/football/teams/1040.png"
-          },
-          "away": {
-            "team_id": 988,
-            "name": "Club Africain",
-            "slug": "club-africain",
-            "crest": "https://media.api-sports.io/football/teams/988.png"
+            "team_id": 5400,
+            "name": "Colombe",
+            "slug": "colombe",
+            "crest": "/crests/teams/5400-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -269,79 +648,19 @@
       "league_code": "CDF",
       "name": "Coupe de France",
       "slug": "coupe-de-france",
-      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "crest": "/crests/leagues/66-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
       "fixtures": [
         {
-          "fixture_id": 1650263,
-          "slug": "2026-11-28-bourg-en-bresse-01-vs-thionville-lusitanos",
-          "kickoff": "2026-11-28 12:30:00+00:00",
-          "round": "Round of 128",
-          "round_label_i18n_key": null,
-          "round_number": null,
-          "round_letter": null,
-          "round_order": 128,
-          "round_sequence": 2,
-          "fixture_order": 94,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 430,
-            "name": "Bourg-en-bresse 01",
-            "slug": "bourg-en-bresse-01",
-            "crest": "https://media.api-sports.io/football/teams/430.png"
-          },
-          "away": {
-            "team_id": 22039,
-            "name": "Thionville Lusitanos",
-            "slug": "thionville-lusitanos",
-            "crest": "https://media.api-sports.io/football/teams/22039.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1650268,
-          "slug": "2026-11-28-epinal-vs-amiens",
-          "kickoff": "2026-11-28 12:30:00+00:00",
-          "round": "Round of 128",
-          "round_label_i18n_key": null,
-          "round_number": null,
-          "round_letter": null,
-          "round_order": 128,
-          "round_sequence": 2,
-          "fixture_order": 95,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 1309,
-            "name": "Epinal",
-            "slug": "epinal",
-            "crest": "https://media.api-sports.io/football/teams/1309.png"
-          },
-          "away": {
-            "team_id": 87,
-            "name": "Amiens",
-            "slug": "amiens",
-            "crest": "https://media.api-sports.io/football/teams/87.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        },
-        {
           "fixture_id": 1650270,
           "slug": "2026-11-28-fc-2-rives-82-vs-versailles",
           "kickoff": "2026-11-28 12:30:00+00:00",
+          "kickoff_local": "2026-11-28 13:30:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -356,23 +675,25 @@
             "team_id": 27026,
             "name": "FC 2 Rives 82",
             "slug": "fc-2-rives-82",
-            "crest": "https://media.api-sports.io/football/teams/27026.png"
+            "crest": "/crests/teams/27026-104.webp"
           },
           "away": {
             "team_id": 3131,
             "name": "Versailles",
             "slug": "versailles",
-            "crest": "https://media.api-sports.io/football/teams/3131.png"
+            "crest": "/crests/teams/3131-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650271,
-          "slug": "2026-11-28-feurs-vs-annecy",
+          "fixture_id": 1650286,
+          "slug": "2026-11-28-ocpam-vs-reims",
           "kickoff": "2026-11-28 12:30:00+00:00",
+          "kickoff_local": "2026-11-28 13:30:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -384,26 +705,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3177,
-            "name": "Feurs",
-            "slug": "feurs",
-            "crest": "https://media.api-sports.io/football/teams/3177.png"
+            "team_id": 24546,
+            "name": "OCPAM",
+            "slug": "ocpam",
+            "crest": "/crests/teams/24546-104.webp"
           },
           "away": {
-            "team_id": 3012,
-            "name": "Annecy",
-            "slug": "annecy",
-            "crest": "https://media.api-sports.io/football/teams/3012.png"
+            "team_id": 93,
+            "name": "Reims",
+            "slug": "reims",
+            "crest": "/crests/teams/93-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650272,
-          "slug": "2026-11-28-furiani-agliani-vs-nancy",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650301,
+          "slug": "2026-11-28-tremblay-vs-red-star-fc-93",
+          "kickoff": "2026-11-28 13:00:00+00:00",
+          "kickoff_local": "2026-11-28 14:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -415,26 +738,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3181,
-            "name": "Furiani-Agliani",
-            "slug": "furiani-agliani",
-            "crest": "https://media.api-sports.io/football/teams/3181.png"
+            "team_id": 13714,
+            "name": "Tremblay",
+            "slug": "tremblay",
+            "crest": "/crests/teams/13714-104.webp"
           },
           "away": {
-            "team_id": 102,
-            "name": "Nancy",
-            "slug": "nancy",
-            "crest": "https://media.api-sports.io/football/teams/102.png"
+            "team_id": 104,
+            "name": "RED Star FC 93",
+            "slug": "red-star-fc-93",
+            "crest": "/crests/teams/104-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650273,
-          "slug": "2026-11-28-kellermann-vs-sochaux",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650268,
+          "slug": "2026-11-28-epinal-vs-amiens",
+          "kickoff": "2026-11-28 14:00:00+00:00",
+          "kickoff_local": "2026-11-28 15:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -446,26 +771,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 28628,
-            "name": "Kellermann",
-            "slug": "kellermann",
-            "crest": "https://media.api-sports.io/football/teams/28628.png"
+            "team_id": 1309,
+            "name": "Epinal",
+            "slug": "epinal",
+            "crest": "/crests/teams/1309-104.webp"
           },
           "away": {
-            "team_id": 115,
-            "name": "Sochaux",
-            "slug": "sochaux",
-            "crest": "https://media.api-sports.io/football/teams/115.png"
+            "team_id": 87,
+            "name": "Amiens",
+            "slug": "amiens",
+            "crest": "/crests/teams/87-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650274,
-          "slug": "2026-11-28-lannion-vs-laval",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650287,
+          "slug": "2026-11-28-pontarlier-vs-siroco-les-abymes",
+          "kickoff": "2026-11-28 14:00:00+00:00",
+          "kickoff_local": "2026-11-28 15:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -477,26 +804,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3067,
-            "name": "Lannion",
-            "slug": "lannion",
-            "crest": "https://media.api-sports.io/football/teams/3067.png"
+            "team_id": 3214,
+            "name": "Pontarlier",
+            "slug": "pontarlier",
+            "crest": "/crests/teams/3214-104.webp"
           },
           "away": {
-            "team_id": 433,
-            "name": "Laval",
-            "slug": "laval",
-            "crest": "https://media.api-sports.io/football/teams/433.png"
+            "team_id": 4397,
+            "name": "Siroco Les Abymes",
+            "slug": "siroco-les-abymes",
+            "crest": "/crests/teams/4397-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650275,
-          "slug": "2026-11-28-la-roche-vf-vs-chateaubriant",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650269,
+          "slug": "2026-11-28-etoile-matoury-vs-fleury-91",
+          "kickoff": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -508,26 +837,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 9915,
-            "name": "La Roche VF",
-            "slug": "la-roche-vf",
-            "crest": "https://media.api-sports.io/football/teams/9915.png"
+            "team_id": 3048,
+            "name": "Etoile Matoury",
+            "slug": "etoile-matoury",
+            "crest": "/crests/teams/3048-104.webp"
           },
           "away": {
-            "team_id": 9272,
-            "name": "Châteaubriant",
-            "slug": "chateaubriant",
-            "crest": "https://media.api-sports.io/football/teams/9272.png"
+            "team_id": 3179,
+            "name": "Fleury 91",
+            "slug": "fleury-91",
+            "crest": "/crests/teams/3179-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650281,
-          "slug": "2026-11-28-massay-vs-orleans",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650261,
+          "slug": "2026-11-28-bayonne-vs-club-franciscain",
+          "kickoff": "2026-11-28 15:00:00+00:00",
+          "kickoff_local": "2026-11-28 16:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -539,26 +870,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 28638,
-            "name": "Massay",
-            "slug": "massay",
-            "crest": "https://media.api-sports.io/football/teams/28638.png"
+            "team_id": 10166,
+            "name": "Bayonne",
+            "slug": "bayonne",
+            "crest": "/crests/teams/10166-104.webp"
           },
           "away": {
-            "team_id": 103,
-            "name": "Orleans",
-            "slug": "orleans",
-            "crest": "https://media.api-sports.io/football/teams/103.png"
+            "team_id": 3258,
+            "name": "Club Franciscain",
+            "slug": "club-franciscain",
+            "crest": "/crests/teams/3258-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650283,
-          "slug": "2026-11-28-montlucon-vs-clermont-foot",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650262,
+          "slug": "2026-11-28-biesheim-vs-racing-besancon",
+          "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -570,26 +903,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3083,
-            "name": "Montluçon",
-            "slug": "montlucon",
-            "crest": "https://media.api-sports.io/football/teams/3083.png"
+            "team_id": 3025,
+            "name": "Biesheim",
+            "slug": "biesheim",
+            "crest": "/crests/teams/3025-104.webp"
           },
           "away": {
-            "team_id": 99,
-            "name": "Clermont Foot",
-            "slug": "clermont-foot",
-            "crest": "https://media.api-sports.io/football/teams/99.png"
+            "team_id": 9974,
+            "name": "Racing Besançon",
+            "slug": "racing-besancon",
+            "crest": "/crests/teams/9974-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650284,
-          "slug": "2026-11-28-nimes-vs-grenoble",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650267,
+          "slug": "2026-11-28-union-cosnoise-vs-sedan",
+          "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -601,26 +936,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 92,
-            "name": "Nimes",
-            "slug": "nimes",
-            "crest": "https://media.api-sports.io/football/teams/92.png"
+            "team_id": 16417,
+            "name": "Union Cosnoise",
+            "slug": "union-cosnoise",
+            "crest": "/crests/teams/16417-104.webp"
           },
           "away": {
-            "team_id": 101,
-            "name": "Grenoble",
-            "slug": "grenoble",
-            "crest": "https://media.api-sports.io/football/teams/101.png"
+            "team_id": 1310,
+            "name": "Sedan",
+            "slug": "sedan",
+            "crest": "/crests/teams/1310-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650285,
-          "slug": "2026-11-28-nueillaubiers-vs-fc-nantes",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650271,
+          "slug": "2026-11-28-feurs-vs-annecy",
+          "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -632,26 +969,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 9297,
-            "name": "Nueillaubiers",
-            "slug": "nueillaubiers",
-            "crest": "https://media.api-sports.io/football/teams/9297.png"
+            "team_id": 3177,
+            "name": "Feurs",
+            "slug": "feurs",
+            "crest": "/crests/teams/3177-104.webp"
           },
           "away": {
-            "team_id": 83,
-            "name": "FC Nantes",
-            "slug": "fc-nantes",
-            "crest": "https://media.api-sports.io/football/teams/83.png"
+            "team_id": 3012,
+            "name": "Annecy",
+            "slug": "annecy",
+            "crest": "/crests/teams/3012-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650287,
-          "slug": "2026-11-28-pontarlier-vs-siroco-les-abymes",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650275,
+          "slug": "2026-11-28-la-roche-vf-vs-chateaubriant",
+          "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -663,26 +1002,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3214,
-            "name": "Pontarlier",
-            "slug": "pontarlier",
-            "crest": "https://media.api-sports.io/football/teams/3214.png"
+            "team_id": 9915,
+            "name": "La Roche VF",
+            "slug": "la-roche-vf",
+            "crest": "/crests/teams/9915-104.webp"
           },
           "away": {
-            "team_id": 4397,
-            "name": "Siroco Les Abymes",
-            "slug": "siroco-les-abymes",
-            "crest": "https://media.api-sports.io/football/teams/4397.png"
+            "team_id": 9272,
+            "name": "Châteaubriant",
+            "slug": "chateaubriant",
+            "crest": "/crests/teams/9272-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650288,
-          "slug": "2026-11-28-puissalicon-vs-riviera",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650279,
+          "slug": "2026-11-28-loon-plage-vs-racing-colombes-92",
+          "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -694,26 +1035,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 28641,
-            "name": "Puissalicon",
-            "slug": "puissalicon",
-            "crest": "https://media.api-sports.io/football/teams/28641.png"
+            "team_id": 13654,
+            "name": "Loon-Plage",
+            "slug": "loon-plage",
+            "crest": "/crests/teams/13654-104.webp"
           },
           "away": {
-            "team_id": 28647,
-            "name": "Riviera",
-            "slug": "riviera",
-            "crest": "https://media.api-sports.io/football/teams/28647.png"
+            "team_id": 3218,
+            "name": "Racing Colombes 92",
+            "slug": "racing-colombes-92",
+            "crest": "/crests/teams/3218-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650292,
-          "slug": "2026-11-28-saint-omer-vs-caen",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650290,
+          "slug": "2026-11-28-reipertswiller-vs-sundhoffen",
+          "kickoff": "2026-11-28 16:00:00+00:00",
+          "kickoff_local": "2026-11-28 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -725,26 +1068,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3109,
-            "name": "Saint-Omer",
-            "slug": "saint-omer",
-            "crest": "https://media.api-sports.io/football/teams/3109.png"
+            "team_id": 3101,
+            "name": "Reipertswiller",
+            "slug": "reipertswiller",
+            "crest": "/crests/teams/3101-104.webp"
           },
           "away": {
-            "team_id": 88,
-            "name": "Caen",
-            "slug": "caen",
-            "crest": "https://media.api-sports.io/football/teams/88.png"
+            "team_id": 9312,
+            "name": "Sundhoffen",
+            "slug": "sundhoffen",
+            "crest": "/crests/teams/9312-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650295,
-          "slug": "2026-11-28-sottevillais-vs-quevilly",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650263,
+          "slug": "2026-11-28-bourg-en-bresse-01-vs-thionville-lusitanos",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -756,26 +1101,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 28637,
-            "name": "Sottevillais",
-            "slug": "sottevillais",
-            "crest": "https://media.api-sports.io/football/teams/28637.png"
+            "team_id": 430,
+            "name": "Bourg-en-bresse 01",
+            "slug": "bourg-en-bresse-01",
+            "crest": "/crests/teams/430-104.webp"
           },
           "away": {
-            "team_id": 431,
-            "name": "Quevilly",
-            "slug": "quevilly",
-            "crest": "https://media.api-sports.io/football/teams/431.png"
+            "team_id": 22039,
+            "name": "Thionville Lusitanos",
+            "slug": "thionville-lusitanos",
+            "crest": "/crests/teams/22039-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650296,
-          "slug": "2026-11-28-saint-etienne-vs-villefranche",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650266,
+          "slug": "2026-11-28-chambly-thelle-fc-vs-avranches",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -787,26 +1134,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 1063,
-            "name": "Saint Etienne",
-            "slug": "saint-etienne",
-            "crest": "https://media.api-sports.io/football/teams/1063.png"
+            "team_id": 1291,
+            "name": "Chambly Thelle FC",
+            "slug": "chambly-thelle-fc",
+            "crest": "/crests/teams/1291-104.webp"
           },
           "away": {
-            "team_id": 1302,
-            "name": "Villefranche",
-            "slug": "villefranche",
-            "crest": "https://media.api-sports.io/football/teams/1302.png"
+            "team_id": 1303,
+            "name": "Avranches",
+            "slug": "avranches",
+            "crest": "/crests/teams/1303-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650299,
-          "slug": "2026-11-28-la-tamponnaise-vs-angouleme",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650276,
+          "slug": "2026-11-28-le-poire-sur-vie-vs-sable",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -818,26 +1167,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 20573,
-            "name": "La Tamponnaise",
-            "slug": "la-tamponnaise",
-            "crest": "https://media.api-sports.io/football/teams/20573.png"
+            "team_id": 3068,
+            "name": "Le Poiré sur Vie",
+            "slug": "le-poire-sur-vie",
+            "crest": "/crests/teams/3068-104.webp"
           },
           "away": {
-            "team_id": 3011,
-            "name": "Angoulême",
-            "slug": "angouleme",
-            "crest": "https://media.api-sports.io/football/teams/3011.png"
+            "team_id": 9304,
+            "name": "Sablé",
+            "slug": "sable",
+            "crest": "/crests/teams/9304-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650300,
-          "slug": "2026-11-28-ta-rennes-vs-rouen",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650282,
+          "slug": "2026-11-28-saint-pierre-milizac-vs-stade-pontivy",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -849,26 +1200,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3310,
-            "name": "TA Rennes",
-            "slug": "ta-rennes",
-            "crest": "https://media.api-sports.io/football/teams/3310.png"
+            "team_id": 9309,
+            "name": "Saint-Pierre Milizac",
+            "slug": "saint-pierre-milizac",
+            "crest": "/crests/teams/9309-104.webp"
           },
           "away": {
-            "team_id": 3221,
-            "name": "Rouen",
-            "slug": "rouen",
-            "crest": "https://media.api-sports.io/football/teams/3221.png"
+            "team_id": 3119,
+            "name": "Stade Pontivy",
+            "slug": "stade-pontivy",
+            "crest": "/crests/teams/3119-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650301,
-          "slug": "2026-11-28-tremblay-vs-red-star-fc-93",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650284,
+          "slug": "2026-11-28-nimes-vs-grenoble",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -880,26 +1233,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 13714,
-            "name": "Tremblay",
-            "slug": "tremblay",
-            "crest": "https://media.api-sports.io/football/teams/13714.png"
+            "team_id": 92,
+            "name": "Nimes",
+            "slug": "nimes",
+            "crest": "/crests/teams/92-104.webp"
           },
           "away": {
-            "team_id": 104,
-            "name": "RED Star FC 93",
-            "slug": "red-star-fc-93",
-            "crest": "https://media.api-sports.io/football/teams/104.png"
+            "team_id": 101,
+            "name": "Grenoble",
+            "slug": "grenoble",
+            "crest": "/crests/teams/101-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650302,
-          "slug": "2026-11-28-castanet-vs-pau",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650294,
+          "slug": "2026-11-28-st-pryve-st-hilaire-vs-selongey",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -911,26 +1266,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 15115,
-            "name": "Castanet",
-            "slug": "castanet",
-            "crest": "https://media.api-sports.io/football/teams/15115.png"
+            "team_id": 3117,
+            "name": "St-Pryvé St-Hilaire",
+            "slug": "st-pryve-st-hilaire",
+            "crest": "/crests/teams/3117-104.webp"
           },
           "away": {
-            "team_id": 1297,
-            "name": "PAU",
-            "slug": "pau",
-            "crest": "https://media.api-sports.io/football/teams/1297.png"
+            "team_id": 3300,
+            "name": "Selongey",
+            "slug": "selongey",
+            "crest": "/crests/teams/3300-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650303,
-          "slug": "2026-11-28-le-pays-du-valois-vs-valenciennes",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650295,
+          "slug": "2026-11-28-sottevillais-vs-quevilly",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -942,26 +1299,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 20601,
-            "name": "Le Pays du Valois",
-            "slug": "le-pays-du-valois",
-            "crest": "https://media.api-sports.io/football/teams/20601.png"
+            "team_id": 28637,
+            "name": "Sottevillais",
+            "slug": "sottevillais",
+            "crest": "/crests/teams/28637-104.webp"
           },
           "away": {
-            "team_id": 105,
-            "name": "Valenciennes",
-            "slug": "valenciennes",
-            "crest": "https://media.api-sports.io/football/teams/105.png"
+            "team_id": 431,
+            "name": "Quevilly",
+            "slug": "quevilly",
+            "crest": "/crests/teams/431-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650305,
-          "slug": "2026-11-28-vannes-vs-concarneau",
-          "kickoff": "2026-11-28 12:30:00+00:00",
+          "fixture_id": 1650297,
+          "slug": "2026-11-28-st-ouen-laumone-vs-rc-calais",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -973,26 +1332,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3129,
-            "name": "Vannes",
-            "slug": "vannes",
-            "crest": "https://media.api-sports.io/football/teams/3129.png"
+            "team_id": 13630,
+            "name": "St Ouen l'Aumône",
+            "slug": "st-ouen-laumone",
+            "crest": "/crests/teams/13630-104.webp"
           },
           "away": {
-            "team_id": 1300,
-            "name": "Concarneau",
-            "slug": "concarneau",
-            "crest": "https://media.api-sports.io/football/teams/1300.png"
+            "team_id": 22744,
+            "name": "RC Calais",
+            "slug": "rc-calais",
+            "crest": "/crests/teams/22744-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650286,
-          "slug": "2026-11-28-ocpam-vs-reims",
-          "kickoff": "2026-11-28 13:00:00+00:00",
+          "fixture_id": 1650304,
+          "slug": "2026-11-28-us-vermelles-vs-thaon",
+          "kickoff": "2026-11-28 17:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1004,26 +1365,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 24546,
-            "name": "OCPAM",
-            "slug": "ocpam",
-            "crest": "https://media.api-sports.io/football/teams/24546.png"
+            "team_id": 28631,
+            "name": "US Vermelles",
+            "slug": "us-vermelles",
+            "crest": "/crests/teams/28631-104.webp"
           },
           "away": {
-            "team_id": 93,
-            "name": "Reims",
-            "slug": "reims",
-            "crest": "https://media.api-sports.io/football/teams/93.png"
+            "team_id": 3123,
+            "name": "Thaon",
+            "slug": "thaon",
+            "crest": "/crests/teams/3123-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650269,
-          "slug": "2026-11-28-etoile-matoury-vs-fleury-91",
-          "kickoff": "2026-11-28 14:30:00+00:00",
+          "fixture_id": 1650260,
+          "slug": "2026-11-28-avenir-foot-lozere-vs-montpellier",
+          "kickoff": "2026-11-28 17:30:00+00:00",
+          "kickoff_local": "2026-11-28 18:30:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1035,26 +1398,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3048,
-            "name": "Etoile Matoury",
-            "slug": "etoile-matoury",
-            "crest": "https://media.api-sports.io/football/teams/3048.png"
+            "team_id": 3016,
+            "name": "Avenir Foot Lozère",
+            "slug": "avenir-foot-lozere",
+            "crest": "/crests/teams/3016-104.webp"
           },
           "away": {
-            "team_id": 3179,
-            "name": "Fleury 91",
-            "slug": "fleury-91",
-            "crest": "https://media.api-sports.io/football/teams/3179.png"
+            "team_id": 82,
+            "name": "Montpellier",
+            "slug": "montpellier",
+            "crest": "/crests/teams/82-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650261,
-          "slug": "2026-11-28-bayonne-vs-club-franciscain",
-          "kickoff": "2026-11-28 15:00:00+00:00",
+          "fixture_id": 1650302,
+          "slug": "2026-11-28-castanet-vs-pau",
+          "kickoff": "2026-11-28 17:30:00+00:00",
+          "kickoff_local": "2026-11-28 18:30:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1066,26 +1431,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 10166,
-            "name": "Bayonne",
-            "slug": "bayonne",
-            "crest": "https://media.api-sports.io/football/teams/10166.png"
+            "team_id": 15115,
+            "name": "Castanet",
+            "slug": "castanet",
+            "crest": "/crests/teams/15115-104.webp"
           },
           "away": {
-            "team_id": 3258,
-            "name": "Club Franciscain",
-            "slug": "club-franciscain",
-            "crest": "https://media.api-sports.io/football/teams/3258.png"
+            "team_id": 1297,
+            "name": "PAU",
+            "slug": "pau",
+            "crest": "/crests/teams/1297-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650262,
-          "slug": "2026-11-28-biesheim-vs-racing-besancon",
-          "kickoff": "2026-11-28 16:00:00+00:00",
+          "fixture_id": 1650264,
+          "slug": "2026-11-28-bressuire-vs-la-baule-le-pouliguen",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1097,26 +1464,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3025,
-            "name": "Biesheim",
-            "slug": "biesheim",
-            "crest": "https://media.api-sports.io/football/teams/3025.png"
+            "team_id": 3155,
+            "name": "Bressuire",
+            "slug": "bressuire",
+            "crest": "/crests/teams/3155-104.webp"
           },
           "away": {
-            "team_id": 9974,
-            "name": "Racing Besançon",
-            "slug": "racing-besancon",
-            "crest": "https://media.api-sports.io/football/teams/9974.png"
+            "team_id": 9283,
+            "name": "La Baule-Le Pouliguen",
+            "slug": "la-baule-le-pouliguen",
+            "crest": "/crests/teams/9283-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650290,
-          "slug": "2026-11-28-reipertswiller-vs-sundhoffen",
-          "kickoff": "2026-11-28 16:00:00+00:00",
+          "fixture_id": 1650272,
+          "slug": "2026-11-28-furiani-agliani-vs-nancy",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1128,26 +1497,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3101,
-            "name": "Reipertswiller",
-            "slug": "reipertswiller",
-            "crest": "https://media.api-sports.io/football/teams/3101.png"
+            "team_id": 3181,
+            "name": "Furiani-Agliani",
+            "slug": "furiani-agliani",
+            "crest": "/crests/teams/3181-104.webp"
           },
           "away": {
-            "team_id": 9312,
-            "name": "Sundhoffen",
-            "slug": "sundhoffen",
-            "crest": "https://media.api-sports.io/football/teams/9312.png"
+            "team_id": 102,
+            "name": "Nancy",
+            "slug": "nancy",
+            "crest": "/crests/teams/102-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650297,
-          "slug": "2026-11-28-st-ouen-laumone-vs-rc-calais",
-          "kickoff": "2026-11-28 17:00:00+00:00",
+          "fixture_id": 1650274,
+          "slug": "2026-11-28-lannion-vs-laval",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1159,26 +1530,28 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 13630,
-            "name": "St Ouen l'Aumône",
-            "slug": "st-ouen-laumone",
-            "crest": "https://media.api-sports.io/football/teams/13630.png"
+            "team_id": 3067,
+            "name": "Lannion",
+            "slug": "lannion",
+            "crest": "/crests/teams/3067-104.webp"
           },
           "away": {
-            "team_id": 22744,
-            "name": "RC Calais",
-            "slug": "rc-calais",
-            "crest": "https://media.api-sports.io/football/teams/22744.png"
+            "team_id": 433,
+            "name": "Laval",
+            "slug": "laval",
+            "crest": "/crests/teams/433-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1650260,
-          "slug": "2026-11-28-avenir-foot-lozere-vs-montpellier",
-          "kickoff": "2026-11-28 17:30:00+00:00",
+          "fixture_id": 1650281,
+          "slug": "2026-11-28-massay-vs-orleans",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Round of 128",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundEighthRound",
           "round_number": null,
           "round_letter": null,
           "round_order": 128,
@@ -1190,16 +1563,511 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 3016,
-            "name": "Avenir Foot Lozère",
-            "slug": "avenir-foot-lozere",
-            "crest": "https://media.api-sports.io/football/teams/3016.png"
+            "team_id": 28638,
+            "name": "Massay",
+            "slug": "massay",
+            "crest": "/crests/teams/28638-104.webp"
           },
           "away": {
-            "team_id": 82,
-            "name": "Montpellier",
-            "slug": "montpellier",
-            "crest": "https://media.api-sports.io/football/teams/82.png"
+            "team_id": 103,
+            "name": "Orleans",
+            "slug": "orleans",
+            "crest": "/crests/teams/103-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650283,
+          "slug": "2026-11-28-montlucon-vs-clermont-foot",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 124,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 3083,
+            "name": "Montluçon",
+            "slug": "montlucon",
+            "crest": "/crests/teams/3083-104.webp"
+          },
+          "away": {
+            "team_id": 99,
+            "name": "Clermont Foot",
+            "slug": "clermont-foot",
+            "crest": "/crests/teams/99-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650288,
+          "slug": "2026-11-28-puissalicon-vs-riviera",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 125,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 28641,
+            "name": "Puissalicon",
+            "slug": "puissalicon",
+            "crest": "/crests/teams/28641-104.webp"
+          },
+          "away": {
+            "team_id": 28647,
+            "name": "Riviera",
+            "slug": "riviera",
+            "crest": "/crests/teams/28647-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650296,
+          "slug": "2026-11-28-saint-etienne-vs-villefranche",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 126,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1063,
+            "name": "Saint Etienne",
+            "slug": "saint-etienne",
+            "crest": "/crests/teams/1063-104.webp"
+          },
+          "away": {
+            "team_id": 1302,
+            "name": "Villefranche",
+            "slug": "villefranche",
+            "crest": "/crests/teams/1302-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650300,
+          "slug": "2026-11-28-ta-rennes-vs-rouen",
+          "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 19:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 127,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 3310,
+            "name": "TA Rennes",
+            "slug": "ta-rennes",
+            "crest": "/crests/teams/3310-104.webp"
+          },
+          "away": {
+            "team_id": 3221,
+            "name": "Rouen",
+            "slug": "rouen",
+            "crest": "/crests/teams/3221-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1650305,
+          "slug": "2026-11-28-vannes-vs-concarneau",
+          "kickoff": "2026-11-28 19:00:00+00:00",
+          "kickoff_local": "2026-11-28 20:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Round of 128",
+          "round_label_i18n_key": "roundEighthRound",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 128,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 3129,
+            "name": "Vannes",
+            "slug": "vannes",
+            "crest": "/crests/teams/3129-104.webp"
+          },
+          "away": {
+            "team_id": 1300,
+            "name": "Concarneau",
+            "slug": "concarneau",
+            "crest": "/crests/teams/1300-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "ED",
+      "name": "Eredivisie",
+      "slug": "eredivisie",
+      "crest": "/crests/leagues/88-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1552236,
+          "slug": "2026-11-28-excelsior-vs-telstar",
+          "kickoff": "2026-11-28 15:30:00+00:00",
+          "kickoff_local": "2026-11-28 16:30:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 14",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 14,
+          "round_letter": null,
+          "round_order": 14,
+          "round_sequence": 14,
+          "fixture_order": 119,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 196,
+            "name": "Excelsior",
+            "slug": "excelsior",
+            "crest": "/crests/teams/196-104.webp"
+          },
+          "away": {
+            "team_id": 427,
+            "name": "Telstar",
+            "slug": "telstar",
+            "crest": "/crests/teams/427-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1552240,
+          "slug": "2026-11-28-psv-eindhoven-vs-go-ahead-eagles",
+          "kickoff": "2026-11-28 17:45:00+00:00",
+          "kickoff_local": "2026-11-28 18:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 14",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 14,
+          "round_letter": null,
+          "round_order": 14,
+          "round_sequence": 14,
+          "fixture_order": 120,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 197,
+            "name": "PSV Eindhoven",
+            "slug": "psv-eindhoven",
+            "crest": "/crests/teams/197-104.webp"
+          },
+          "away": {
+            "team_id": 410,
+            "name": "GO Ahead Eagles",
+            "slug": "go-ahead-eagles",
+            "crest": "/crests/teams/410-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1552234,
+          "slug": "2026-11-28-cambuur-vs-sparta-rotterdam",
+          "kickoff": "2026-11-28 20:00:00+00:00",
+          "kickoff_local": "2026-11-28 21:00:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 14",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 14,
+          "round_letter": null,
+          "round_order": 14,
+          "round_sequence": 14,
+          "fixture_order": 121,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 420,
+            "name": "Cambuur",
+            "slug": "cambuur",
+            "crest": "/crests/teams/420-104.webp"
+          },
+          "away": {
+            "team_id": 426,
+            "name": "Sparta Rotterdam",
+            "slug": "sparta-rotterdam",
+            "crest": "/crests/teams/426-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "KL1",
+      "name": "K League 1",
+      "slug": "k-league-1",
+      "crest": "/crests/leagues/292-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1647384,
+          "slug": "2026-11-28-fc-seoul-vs-daejeon-citizen",
+          "kickoff": "2026-11-28 05:00:00+00:00",
+          "kickoff_local": "2026-11-28 14:00:00",
+          "kickoff_zone_label": "KST",
+          "round": "Championship Group - 37",
+          "round_label_i18n_key": "roundVlChampionshipMatchday",
+          "round_number": 37,
+          "round_letter": null,
+          "round_order": 37,
+          "round_sequence": 40,
+          "fixture_order": 217,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2766,
+            "name": "FC Seoul",
+            "slug": "fc-seoul",
+            "crest": "/crests/teams/2766-104.webp"
+          },
+          "away": {
+            "team_id": 2750,
+            "name": "Daejeon Citizen",
+            "slug": "daejeon-citizen",
+            "crest": "/crests/teams/2750-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "L1",
+      "name": "Ligue 1",
+      "slug": "ligue-1",
+      "crest": "/crests/leagues/61-104.webp",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1552828,
+          "slug": "2026-11-28-angers-sco-vs-rc-lens",
+          "kickoff": "2026-11-28 16:15:00+00:00",
+          "kickoff_local": "2026-11-28 17:15:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 101,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 77,
+            "name": "Angers SCO",
+            "slug": "angers-sco",
+            "crest": "/crests/teams/77-104.webp"
+          },
+          "away": {
+            "team_id": 116,
+            "name": "RC Lens",
+            "slug": "rc-lens",
+            "crest": "/crests/teams/116-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1552831,
+          "slug": "2026-11-28-le-havre-ac-vs-rc-strasbourg-alsace",
+          "kickoff": "2026-11-28 19:45:00+00:00",
+          "kickoff_local": "2026-11-28 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 102,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 111,
+            "name": "Le Havre AC",
+            "slug": "le-havre-ac",
+            "crest": "/crests/teams/111-104.webp"
+          },
+          "away": {
+            "team_id": 95,
+            "name": "RC Strasbourg Alsace",
+            "slug": "rc-strasbourg-alsace",
+            "crest": "/crests/teams/95-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1552832,
+          "slug": "2026-11-28-le-mans-vs-lille-osc",
+          "kickoff": "2026-11-28 19:45:00+00:00",
+          "kickoff_local": "2026-11-28 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 103,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1298,
+            "name": "Le Mans",
+            "slug": "le-mans",
+            "crest": "/crests/teams/1298-104.webp"
+          },
+          "away": {
+            "team_id": 79,
+            "name": "Lille OSC",
+            "slug": "lille-osc",
+            "crest": "/crests/teams/79-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1552834,
+          "slug": "2026-11-28-ogc-nice-vs-estac-troyes",
+          "kickoff": "2026-11-28 19:45:00+00:00",
+          "kickoff_local": "2026-11-28 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 104,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 84,
+            "name": "OGC Nice",
+            "slug": "ogc-nice",
+            "crest": "/crests/teams/84-104.webp"
+          },
+          "away": {
+            "team_id": 110,
+            "name": "Estac Troyes",
+            "slug": "estac-troyes",
+            "crest": "/crests/teams/110-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1552835,
+          "slug": "2026-11-28-paris-saint-germain-fc-vs-fc-lorient",
+          "kickoff": "2026-11-28 19:45:00+00:00",
+          "kickoff_local": "2026-11-28 20:45:00",
+          "kickoff_zone_label": "CET",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 105,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 85,
+            "name": "Paris Saint-Germain FC",
+            "slug": "paris-saint-germain-fc",
+            "crest": "/crests/teams/85-104.webp"
+          },
+          "away": {
+            "team_id": 97,
+            "name": "FC Lorient",
+            "slug": "fc-lorient",
+            "crest": "/crests/teams/97-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1210,7 +2078,7 @@
       "league_code": "LIBER",
       "name": "Copa Libertadores",
       "slug": "copa-libertadores",
-      "crest": "https://media.api-sports.io/football/leagues/13.png",
+      "crest": "/crests/leagues/13-104.webp",
       "entity_type": "club",
       "confederation": "CONMEBOL",
       "region_rank": 3,
@@ -1219,6 +2087,8 @@
           "fixture_id": 1647178,
           "slug": "2026-11-28-palmeiras-vs-estudiantes-l-p",
           "kickoff": "2026-11-28 20:00:00+00:00",
+          "kickoff_local": "2026-11-28 20:00:00",
+          "kickoff_zone_label": "UTC",
           "round": "Final",
           "round_label_i18n_key": "roundFinal",
           "round_number": null,
@@ -1235,13 +2105,13 @@
             "team_id": 121,
             "name": "Palmeiras",
             "slug": "palmeiras",
-            "crest": "https://media.api-sports.io/football/teams/121.png"
+            "crest": "/crests/teams/121-104.webp"
           },
           "away": {
             "team_id": 450,
             "name": "Estudiantes L.P.",
             "slug": "estudiantes-l-p",
-            "crest": "https://media.api-sports.io/football/teams/450.png"
+            "crest": "/crests/teams/450-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": true
@@ -1252,7 +2122,7 @@
       "league_code": "LP",
       "name": "Liga Portugal",
       "slug": "liga-portugal",
-      "crest": "https://media.api-sports.io/football/leagues/94.png",
+      "crest": "/crests/leagues/94-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -1261,6 +2131,8 @@
           "fixture_id": 1575546,
           "slug": "2026-11-28-fc-arouca-vs-rio-ave-fc",
           "kickoff": "2026-11-28 15:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 12,
@@ -1277,13 +2149,13 @@
             "team_id": 240,
             "name": "FC Arouca",
             "slug": "fc-arouca",
-            "crest": "https://media.api-sports.io/football/teams/240.png"
+            "crest": "/crests/teams/240-104.webp"
           },
           "away": {
             "team_id": 226,
             "name": "Rio Ave FC",
             "slug": "rio-ave-fc",
-            "crest": "https://media.api-sports.io/football/teams/226.png"
+            "crest": "/crests/teams/226-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1292,6 +2164,8 @@
           "fixture_id": 1575552,
           "slug": "2026-11-28-moreirense-fc-vs-cd-santa-clara",
           "kickoff": "2026-11-28 15:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 12,
@@ -1308,13 +2182,13 @@
             "team_id": 215,
             "name": "Moreirense FC",
             "slug": "moreirense-fc",
-            "crest": "https://media.api-sports.io/football/teams/215.png"
+            "crest": "/crests/teams/215-104.webp"
           },
           "away": {
             "team_id": 227,
             "name": "CD Santa Clara",
             "slug": "cd-santa-clara",
-            "crest": "https://media.api-sports.io/football/teams/227.png"
+            "crest": "/crests/teams/227-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1323,6 +2197,8 @@
           "fixture_id": 1575545,
           "slug": "2026-11-28-academico-viseu-vs-fc-alverca",
           "kickoff": "2026-11-28 18:00:00+00:00",
+          "kickoff_local": "2026-11-28 18:00:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 12,
@@ -1339,13 +2215,13 @@
             "team_id": 238,
             "name": "Academico Viseu",
             "slug": "academico-viseu",
-            "crest": "https://media.api-sports.io/football/teams/238.png"
+            "crest": "/crests/teams/238-104.webp"
           },
           "away": {
             "team_id": 4724,
             "name": "FC Alverca",
             "slug": "fc-alverca",
-            "crest": "https://media.api-sports.io/football/teams/4724.png"
+            "crest": "/crests/teams/4724-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -1354,6 +2230,8 @@
           "fixture_id": 1575553,
           "slug": "2026-11-28-vitoria-sc-vs-cf-estrela-da-amadora",
           "kickoff": "2026-11-28 20:30:00+00:00",
+          "kickoff_local": "2026-11-28 20:30:00",
+          "kickoff_zone_label": "WET",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 12,
@@ -1370,13 +2248,332 @@
             "team_id": 224,
             "name": "Vitória SC",
             "slug": "vitoria-sc",
-            "crest": "https://media.api-sports.io/football/teams/224.png"
+            "crest": "/crests/teams/224-104.webp"
           },
           "away": {
             "team_id": 15130,
             "name": "CF Estrela da Amadora",
             "slug": "cf-estrela-da-amadora",
-            "crest": "https://media.api-sports.io/football/teams/15130.png"
+            "crest": "/crests/teams/15130-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "MLS",
+      "name": "Major League Soccer",
+      "slug": "mls",
+      "crest": "/crests/leagues/253-104.webp",
+      "entity_type": "club",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1649500,
+          "slug": "2026-11-28-columbus-crew-vs-inter-miami",
+          "kickoff": "2026-11-28 01:00:00+00:00",
+          "kickoff_local": "2026-11-28 01:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 521,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1613,
+            "name": "Columbus Crew",
+            "slug": "columbus-crew",
+            "crest": "/crests/teams/1613-104.webp"
+          },
+          "away": {
+            "team_id": 9568,
+            "name": "Inter Miami",
+            "slug": "inter-miami",
+            "crest": "/crests/teams/9568-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1651121,
+          "slug": "2026-11-28-real-salt-lake-vs-vancouver-whitecaps",
+          "kickoff": "2026-11-28 03:00:00+00:00",
+          "kickoff_local": "2026-11-28 03:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 522,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1606,
+            "name": "Real Salt Lake",
+            "slug": "real-salt-lake",
+            "crest": "/crests/teams/1606-104.webp"
+          },
+          "away": {
+            "team_id": 1603,
+            "name": "Vancouver Whitecaps",
+            "slug": "vancouver-whitecaps",
+            "crest": "/crests/teams/1603-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1649499,
+          "slug": "2026-11-28-charlotte-vs-chicago-fire",
+          "kickoff": "2026-11-28 17:30:00+00:00",
+          "kickoff_local": "2026-11-28 17:30:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 523,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 18310,
+            "name": "Charlotte",
+            "slug": "charlotte",
+            "crest": "/crests/teams/18310-104.webp"
+          },
+          "away": {
+            "team_id": 1607,
+            "name": "Chicago Fire",
+            "slug": "chicago-fire",
+            "crest": "/crests/teams/1607-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1649501,
+          "slug": "2026-11-28-houston-dynamo-vs-san-jose-earthquakes",
+          "kickoff": "2026-11-28 19:30:00+00:00",
+          "kickoff_local": "2026-11-28 19:30:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 524,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1600,
+            "name": "Houston Dynamo",
+            "slug": "houston-dynamo",
+            "crest": "/crests/teams/1600-104.webp"
+          },
+          "away": {
+            "team_id": 1596,
+            "name": "San Jose Earthquakes",
+            "slug": "san-jose-earthquakes",
+            "crest": "/crests/teams/1596-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1649503,
+          "slug": "2026-11-28-philadelphia-union-vs-new-england-revolution",
+          "kickoff": "2026-11-28 21:30:00+00:00",
+          "kickoff_local": "2026-11-28 21:30:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 525,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1599,
+            "name": "Philadelphia Union",
+            "slug": "philadelphia-union",
+            "crest": "/crests/teams/1599-104.webp"
+          },
+          "away": {
+            "team_id": 1609,
+            "name": "New England Revolution",
+            "slug": "new-england-revolution",
+            "crest": "/crests/teams/1609-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1651122,
+          "slug": "2026-11-28-fc-cincinnati-vs-nashville-sc",
+          "kickoff": "2026-11-28 23:30:00+00:00",
+          "kickoff_local": "2026-11-28 23:30:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 526,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2242,
+            "name": "FC Cincinnati",
+            "slug": "fc-cincinnati",
+            "crest": "/crests/teams/2242-104.webp"
+          },
+          "away": {
+            "team_id": 9569,
+            "name": "Nashville SC",
+            "slug": "nashville-sc",
+            "crest": "/crests/teams/9569-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "SPL",
+      "name": "Saudi Pro League",
+      "slug": "saudi-pro-league",
+      "crest": "/crests/leagues/307-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1603085,
+          "slug": "2026-11-28-al-hazm-vs-al-nassr",
+          "kickoff": "2026-11-28 12:15:00+00:00",
+          "kickoff_local": "2026-11-28 15:15:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 115,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2945,
+            "name": "Al-Hazm",
+            "slug": "al-hazm",
+            "crest": "/crests/teams/2945-104.webp"
+          },
+          "away": {
+            "team_id": 2939,
+            "name": "Al-Nassr",
+            "slug": "al-nassr",
+            "crest": "/crests/teams/2939-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603082,
+          "slug": "2026-11-28-al-ettifaq-vs-al-hilal-saudi-fc",
+          "kickoff": "2026-11-28 14:20:00+00:00",
+          "kickoff_local": "2026-11-28 17:20:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 116,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2934,
+            "name": "Al-Ettifaq",
+            "slug": "al-ettifaq",
+            "crest": "/crests/teams/2934-104.webp"
+          },
+          "away": {
+            "team_id": 2932,
+            "name": "Al-Hilal Saudi FC",
+            "slug": "al-hilal-saudi-fc",
+            "crest": "/crests/teams/2932-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        },
+        {
+          "fixture_id": 1603081,
+          "slug": "2026-11-28-al-ahli-jeddah-vs-al-taawon",
+          "kickoff": "2026-11-28 17:30:00+00:00",
+          "kickoff_local": "2026-11-28 20:30:00",
+          "kickoff_zone_label": "AST",
+          "round": "Regular Season - 13",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 13,
+          "round_letter": null,
+          "round_order": 13,
+          "round_sequence": 13,
+          "fixture_order": 117,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2929,
+            "name": "Al-Ahli Jeddah",
+            "slug": "al-ahli-jeddah",
+            "crest": "/crests/teams/2929-104.webp"
+          },
+          "away": {
+            "team_id": 2936,
+            "name": "Al Taawon",
+            "slug": "al-taawon",
+            "crest": "/crests/teams/2936-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false

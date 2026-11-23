@@ -1,0 +1,54 @@
+{
+  "type": "match_day",
+  "slug": "2027-04-14",
+  "day": "2027-04-14",
+  "is_opening_day": false,
+  "previous_day": "2027-03-26",
+  "next_day": "2027-06-09",
+  "competitions": [
+    {
+      "league_code": "J1",
+      "name": "J1 League",
+      "slug": "j1-league",
+      "crest": "/crests/leagues/98-104.webp",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1556160,
+          "slug": "2027-04-14-kyoto-sanga-vs-vissel-kobe",
+          "kickoff": "2027-04-14 10:00:00+00:00",
+          "kickoff_local": "2027-04-14 19:00:00",
+          "kickoff_zone_label": "JST",
+          "round": "Regular Season - 16",
+          "round_label_i18n_key": "roundMatchweek",
+          "round_number": 16,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 16,
+          "fixture_order": 160,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 302,
+            "name": "Kyoto Sanga",
+            "slug": "kyoto-sanga",
+            "crest": "/crests/teams/302-104.webp"
+          },
+          "away": {
+            "team_id": 289,
+            "name": "Vissel Kobe",
+            "slug": "vissel-kobe",
+            "crest": "/crests/teams/289-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

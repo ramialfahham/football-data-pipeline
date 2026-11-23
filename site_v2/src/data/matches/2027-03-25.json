@@ -1,0 +1,54 @@
+{
+  "type": "match_day",
+  "slug": "2027-03-25",
+  "day": "2027-03-25",
+  "is_opening_day": false,
+  "previous_day": "2027-01-26",
+  "next_day": "2027-03-26",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "/crests/leagues/536-104.webp",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1651045,
+          "slug": "2027-03-25-canada-vs-panama",
+          "kickoff": "2027-03-25 23:00:00+00:00",
+          "kickoff_local": "2027-03-25 23:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Semi-finals",
+          "round_label_i18n_key": "roundSemiFinals",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 12,
+          "fixture_order": 107,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 5529,
+            "name": "Canada",
+            "slug": "canada",
+            "crest": "/crests/teams/5529-104.webp"
+          },
+          "away": {
+            "team_id": 11,
+            "name": "Panama",
+            "slug": "panama",
+            "crest": "/crests/teams/11-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

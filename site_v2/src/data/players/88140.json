@@ -13,7 +13,7 @@
   "club": {
     "team_id": 174,
     "name": "FC Schalke 04",
-    "crest": "https://media.api-sports.io/football/teams/174.png",
+    "crest": "/crests/teams/174-104.webp",
     "slug": "fc-schalke-04"
   },
   "tabs": [
@@ -22,27 +22,29 @@
       "team": {
         "team_id": 174,
         "name": "FC Schalke 04",
-        "crest": "https://media.api-sports.io/football/teams/174.png",
+        "crest": "/crests/teams/174-104.webp",
         "slug": "fc-schalke-04"
       },
       "cards": {
         "minutes_per_appearance": 53.75,
-        "goals_player": 0.0,
-        "cards_yellow_player": 0.0,
+        "cards_red_player": 1.0,
         "appearances": 4.0,
+        "goals_player": 0.0,
         "assists_player": 0.0,
-        "cards_red_player": 1.0
+        "cards_yellow_player": 0.0
       },
       "next_matches": [
         {
-          "fixture_id": 1575228,
+          "fixture_id": 1575238,
           "league_code": "BL1",
           "upcoming_rank": 1,
-          "opponent_name": "VfB Stuttgart",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/172.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-11-21 17:30:00+00:00",
-          "round_name": "Regular Season - 10",
+          "opponent_name": "SC Paderborn 07",
+          "opponent_logo_url": "/crests/teams/185-104.webp",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
+          "round_name": "Regular Season - 11",
           "goals_for": null,
           "goals_against": null,
           "result": null,
@@ -118,7 +120,7 @@
           {
             "metric_key": "offsides_per90",
             "value": 0.0,
-            "value_prev": null
+            "value_prev": 0.0
           },
           {
             "metric_key": "passes_accuracy_player_pct",
@@ -172,7 +174,7 @@
           "goals_against": 2,
           "result": "L",
           "opponent_name": "SC Freiburg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/160.png",
+          "opponent_logo_url": "/crests/teams/160-104.webp",
           "minutes": 21,
           "goals": 0,
           "assists": 0,
@@ -188,7 +190,7 @@
           "goals_against": 0,
           "result": "D",
           "opponent_name": "SV Elversberg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
+          "opponent_logo_url": "/crests/teams/1660-104.webp",
           "minutes": 12,
           "goals": 0,
           "assists": 0,
@@ -204,7 +206,7 @@
           "goals_against": 3,
           "result": "L",
           "opponent_name": "FC Augsburg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
+          "opponent_logo_url": "/crests/teams/170-104.webp",
           "minutes": 62,
           "goals": 0,
           "assists": 0,
@@ -220,7 +222,7 @@
           "goals_against": 2,
           "result": "W",
           "opponent_name": "Hallescher FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1316.png",
+          "opponent_logo_url": "/crests/teams/1316-104.webp",
           "minutes": 120,
           "goals": 0,
           "assists": 0,

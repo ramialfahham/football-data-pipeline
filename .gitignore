@@ -290,9 +290,8 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/49.json
 !site_v2/src/data/teams/50.json
 !site_v2/src/data/teams/51.json
-!site_v2/src/data/teams/81.json
 !site_v2/src/data/teams/85.json
-!site_v2/src/data/teams/108.json
+!site_v2/src/data/teams/106.json
 !site_v2/src/data/teams/157.json
 !site_v2/src/data/teams/160.json
 !site_v2/src/data/teams/162.json
@@ -310,12 +309,13 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/182.json
 !site_v2/src/data/teams/185.json
 !site_v2/src/data/teams/192.json
+!site_v2/src/data/teams/194.json
 !site_v2/src/data/teams/197.json
-!site_v2/src/data/teams/209.json
 !site_v2/src/data/teams/211.json
 !site_v2/src/data/teams/212.json
 !site_v2/src/data/teams/224.json
 !site_v2/src/data/teams/228.json
+!site_v2/src/data/teams/415.json
 !site_v2/src/data/teams/420.json
 !site_v2/src/data/teams/497.json
 !site_v2/src/data/teams/505.json
@@ -331,7 +331,7 @@ site_v2/src/data/fixtures/*.json
 # Every fixture an unplayed row of a committed page links to, from one export: every day of the
 # Matches page (matches/*.json, the next matchday of every competition), every unplayed Bundesliga
 # fixture of competitions/BL1/2026.json's Matchdays tab, and so every Home Next matches row.
-# 540 ids (529 unplayed and the 11 played samples), one pattern per run of ids.
+# The unplayed ids of those pages and the played samples, one pattern per run of ids.
 # ⛔ Replace, never add. The export emits UPCOMING fixtures only (`status_short in ('NS', 'TBD')
 # and fixture_date >= current_date()` in `fetch_fixture_payloads`), so a past id can never be
 # re-exported and a stale entry would pin a payload no rerun updates. Refresh the day files, the
@@ -341,31 +341,25 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1318799.json
 !site_v2/src/data/fixtures/1388000.json
 !site_v2/src/data/fixtures/1478037.json
-!site_v2/src/data/fixtures/149245[7-9].json
+!site_v2/src/data/fixtures/149246[1379].json
 !site_v2/src/data/fixtures/154595[89].json
 !site_v2/src/data/fixtures/154596[0-8].json
 !site_v2/src/data/fixtures/1549407.json
-!site_v2/src/data/fixtures/155019[7-9].json
-!site_v2/src/data/fixtures/155020[0-6].json
+!site_v2/src/data/fixtures/1550203.json
 !site_v2/src/data/fixtures/1550684.json
 !site_v2/src/data/fixtures/1550700.json
-!site_v2/src/data/fixtures/155103[89].json
-!site_v2/src/data/fixtures/155104[0-6].json
-!site_v2/src/data/fixtures/155222[5-9].json
-!site_v2/src/data/fixtures/155223[0-3].json
-!site_v2/src/data/fixtures/1552819.json
-!site_v2/src/data/fixtures/155282[0-7].json
-!site_v2/src/data/fixtures/155322[7-9].json
-!site_v2/src/data/fixtures/155323[0-5].json
-!site_v2/src/data/fixtures/155614[1-9].json
-!site_v2/src/data/fixtures/1556150.json
-!site_v2/src/data/fixtures/155746[7-9].json
-!site_v2/src/data/fixtures/155747[0-6].json
-!site_v2/src/data/fixtures/155868[0-8].json
-!site_v2/src/data/fixtures/157045[3-9].json
-!site_v2/src/data/fixtures/157046[0-2].json
+!site_v2/src/data/fixtures/155223[4-9].json
+!site_v2/src/data/fixtures/155224[0-2].json
+!site_v2/src/data/fixtures/155282[89].json
+!site_v2/src/data/fixtures/155283[0-6].json
+!site_v2/src/data/fixtures/1553233.json
+!site_v2/src/data/fixtures/155615[1-9].json
+!site_v2/src/data/fixtures/1556160.json
+!site_v2/src/data/fixtures/1557469.json
+!site_v2/src/data/fixtures/1558689.json
+!site_v2/src/data/fixtures/155869[0-7].json
+!site_v2/src/data/fixtures/1570457.json
 !site_v2/src/data/fixtures/1575150.json
-!site_v2/src/data/fixtures/157522[1-9].json
 !site_v2/src/data/fixtures/157523[0-9].json
 !site_v2/src/data/fixtures/157524[0-9].json
 !site_v2/src/data/fixtures/157525[0-9].json
@@ -390,12 +384,10 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/157544[0-5].json
 !site_v2/src/data/fixtures/157554[5-9].json
 !site_v2/src/data/fixtures/157555[0-3].json
-!site_v2/src/data/fixtures/157623[3-9].json
-!site_v2/src/data/fixtures/157624[01].json
-!site_v2/src/data/fixtures/158446[6-9].json
-!site_v2/src/data/fixtures/158447[0-4].json
-!site_v2/src/data/fixtures/160304[48].json
-!site_v2/src/data/fixtures/1603051.json
+!site_v2/src/data/fixtures/157624[2-9].json
+!site_v2/src/data/fixtures/1576250.json
+!site_v2/src/data/fixtures/1584467.json
+!site_v2/src/data/fixtures/160308[0-8].json
 !site_v2/src/data/fixtures/162997[5-9].json
 !site_v2/src/data/fixtures/162998[0-9].json
 !site_v2/src/data/fixtures/1629990.json
@@ -437,12 +429,12 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1640760.json
 !site_v2/src/data/fixtures/1644170.json
 !site_v2/src/data/fixtures/1647178.json
-!site_v2/src/data/fixtures/164738[1-3].json
+!site_v2/src/data/fixtures/164738[4-6].json
 !site_v2/src/data/fixtures/164767[1-8].json
 !site_v2/src/data/fixtures/164835[1-8].json
-!site_v2/src/data/fixtures/164949[12].json
-!site_v2/src/data/fixtures/164956[4-9].json
-!site_v2/src/data/fixtures/164957[01].json
+!site_v2/src/data/fixtures/164949[7-9].json
+!site_v2/src/data/fixtures/164950[0-4].json
+!site_v2/src/data/fixtures/164956[57].json
 !site_v2/src/data/fixtures/164967[2-9].json
 !site_v2/src/data/fixtures/164968[0-9].json
 !site_v2/src/data/fixtures/164969[01].json
@@ -451,89 +443,92 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/165028[0-9].json
 !site_v2/src/data/fixtures/165029[0-9].json
 !site_v2/src/data/fixtures/165030[0-5].json
-# The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
-# matchdays. Every competition the index lists gets a page; only this one carries content in the
+!site_v2/src/data/fixtures/165104[5-9].json
+!site_v2/src/data/fixtures/1651050.json
+!site_v2/src/data/fixtures/165112[12].json
+# The competition page's sample: one competition-season, the Bundesliga 2026/27. Every competition the index lists gets a page; only this one carries content in the
 # committed build, and the teams and fixtures above are what it links to.
 site_v2/src/data/competitions/**/*.json
 !site_v2/src/data/competitions/BL1/2026.json
 # The Player page's sample: the players the Home and Bundesliga boards link to, and their peer
 # files. Replace as a set, from one export, like the teams above (src/data/README.md).
 site_v2/src/data/players/*.json
-!site_v2/src/data/players/134.json
 !site_v2/src/data/players/184.json
+!site_v2/src/data/players/249.json
+!site_v2/src/data/players/269.json
+!site_v2/src/data/players/272.json
 !site_v2/src/data/players/502.json
 !site_v2/src/data/players/567.json
+!site_v2/src/data/players/711.json
 !site_v2/src/data/players/714.json
 !site_v2/src/data/players/794.json
 !site_v2/src/data/players/972.json
+!site_v2/src/data/players/984.json
 !site_v2/src/data/players/1100.json
 !site_v2/src/data/players/1148.json
 !site_v2/src/data/players/1149.json
 !site_v2/src/data/players/1156.json
 !site_v2/src/data/players/1496.json
+!site_v2/src/data/players/1798.json
+!site_v2/src/data/players/1910.json
 !site_v2/src/data/players/1922.json
 !site_v2/src/data/players/1924.json
 !site_v2/src/data/players/1972.json
-!site_v2/src/data/players/2897.json
 !site_v2/src/data/players/2937.json
-!site_v2/src/data/players/6231.json
 !site_v2/src/data/players/7073.json
 !site_v2/src/data/players/7327.json
 !site_v2/src/data/players/10500.json
 !site_v2/src/data/players/18964.json
-!site_v2/src/data/players/18970.json
 !site_v2/src/data/players/19617.json
 !site_v2/src/data/players/21587.json
+!site_v2/src/data/players/24798.json
 !site_v2/src/data/players/25033.json
 !site_v2/src/data/players/25158.json
 !site_v2/src/data/players/25297.json
+!site_v2/src/data/players/25342.json
 !site_v2/src/data/players/25391.json
-!site_v2/src/data/players/25626.json
 !site_v2/src/data/players/25915.json
+!site_v2/src/data/players/25926.json
 !site_v2/src/data/players/26171.json
 !site_v2/src/data/players/26256.json
+!site_v2/src/data/players/31043.json
 !site_v2/src/data/players/32011.json
 !site_v2/src/data/players/36798.json
 !site_v2/src/data/players/37438.json
-!site_v2/src/data/players/44814.json
-!site_v2/src/data/players/46930.json
+!site_v2/src/data/players/38124.json
 !site_v2/src/data/players/47516.json
+!site_v2/src/data/players/48765.json
 !site_v2/src/data/players/88140.json
 !site_v2/src/data/players/90617.json
 !site_v2/src/data/players/126951.json
-!site_v2/src/data/players/128384.json
 !site_v2/src/data/players/161939.json
-!site_v2/src/data/players/162219.json
+!site_v2/src/data/players/162265.json
 !site_v2/src/data/players/162761.json
 !site_v2/src/data/players/163032.json
-!site_v2/src/data/players/163039.json
 !site_v2/src/data/players/163078.json
 !site_v2/src/data/players/177452.json
 !site_v2/src/data/players/178768.json
 !site_v2/src/data/players/179400.json
 !site_v2/src/data/players/202696.json
+!site_v2/src/data/players/203224.json
 !site_v2/src/data/players/291964.json
 !site_v2/src/data/players/303679.json
 !site_v2/src/data/players/314511.json
-!site_v2/src/data/players/326067.json
+!site_v2/src/data/players/326102.json
 !site_v2/src/data/players/327347.json
 !site_v2/src/data/players/328033.json
 !site_v2/src/data/players/328225.json
+!site_v2/src/data/players/329715.json
 !site_v2/src/data/players/336671.json
-!site_v2/src/data/players/340547.json
-!site_v2/src/data/players/352730.json
 !site_v2/src/data/players/353143.json
 !site_v2/src/data/players/362755.json
-!site_v2/src/data/players/363156.json
-!site_v2/src/data/players/383665.json
+!site_v2/src/data/players/386305.json
 !site_v2/src/data/players/386828.json
 !site_v2/src/data/players/409190.json
 !site_v2/src/data/players/432310.json
-!site_v2/src/data/players/449509.json
 !site_v2/src/data/players/478991.json
 site_v2/src/data/player_peers/**/*.json
 !site_v2/src/data/player_peers/AFCON/2025/ATT.json
-!site_v2/src/data/player_peers/AFCON/2025/CM.json
 !site_v2/src/data/player_peers/BL1/2026/AM.json
 !site_v2/src/data/player_peers/BL1/2026/ATT.json
 !site_v2/src/data/player_peers/BL1/2026/CM.json
@@ -541,24 +536,25 @@ site_v2/src/data/player_peers/**/*.json
 !site_v2/src/data/player_peers/BL1/2026/DM.json
 !site_v2/src/data/player_peers/BL1/2026/GK.json
 !site_v2/src/data/player_peers/ED/2026/AM.json
-!site_v2/src/data/player_peers/ED/2026/ATT.json
+!site_v2/src/data/player_peers/ED/2026/CM.json
 !site_v2/src/data/player_peers/ED/2026/DEF.json
 !site_v2/src/data/player_peers/L1/2026/ATT.json
-!site_v2/src/data/player_peers/L1/2026/CM.json
+!site_v2/src/data/player_peers/L1/2026/DM.json
 !site_v2/src/data/player_peers/LP/2026/AM.json
 !site_v2/src/data/player_peers/LP/2026/ATT.json
 !site_v2/src/data/player_peers/LP/2026/DEF.json
 !site_v2/src/data/player_peers/PD/2026/AM.json
 !site_v2/src/data/player_peers/PD/2026/ATT.json
 !site_v2/src/data/player_peers/PD/2026/DEF.json
+!site_v2/src/data/player_peers/PL/2026/AM.json
 !site_v2/src/data/player_peers/PL/2026/ATT.json
 !site_v2/src/data/player_peers/PL/2026/DEF.json
 !site_v2/src/data/player_peers/PL/2026/DM.json
 !site_v2/src/data/player_peers/SA/2026/ATT.json
 !site_v2/src/data/player_peers/SA/2026/CM.json
+!site_v2/src/data/player_peers/SA/2026/DEF.json
 !site_v2/src/data/player_peers/SA/2026/DM.json
 !site_v2/src/data/player_peers/UCL/2026/ATT.json
-!site_v2/src/data/player_peers/UCL/2026/CM.json
 !site_v2/src/data/player_peers/UCL/2026/DEF.json
 !site_v2/src/data/player_peers/UCL/2026/DM.json
 !site_v2/src/data/player_peers/UCL/2026/GK.json
@@ -572,7 +568,7 @@ site_v2/src/data/player_peers/**/*.json
 !site_v2/src/data/player_peers/UNL/2026/CM.json
 !site_v2/src/data/player_peers/UNL/2026/DEF.json
 !site_v2/src/data/player_peers/UNL/2026/DM.json
-!site_v2/src/data/player_peers/WC/2026/DEF.json
+!site_v2/src/data/player_peers/WCQEU/2024/ATT.json
 
 # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
 # Not project source, so not committed -- and not deleted either: the contract and stop gates flag

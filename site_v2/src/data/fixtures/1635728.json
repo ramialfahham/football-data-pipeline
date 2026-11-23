@@ -3,6 +3,8 @@
   "fixture_id": 1635728,
   "slug": "2026-11-25-slavia-praha-vs-villarreal-cf",
   "kickoff": "2026-11-25 17:45:00+00:00",
+  "kickoff_local": "2026-11-25 17:45:00",
+  "kickoff_zone_label": "UTC",
   "status": "NS",
   "unplayed_state": null,
   "league_code": "UCL",
@@ -16,7 +18,7 @@
     "team_id": 560,
     "name": "Slavia Praha",
     "slug": "slavia-praha",
-    "crest": "https://media.api-sports.io/football/teams/560.png",
+    "crest": "/crests/teams/560-104.webp",
     "country": "Czechia",
     "form": {
       "league_code": "UCL",
@@ -93,7 +95,7 @@
         "result": "L",
         "opponent_team_sk": 42,
         "opponent_name": "Arsenal FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/42.png",
+        "opponent_logo_url": "/crests/teams/42-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -111,7 +113,7 @@
         "result": "D",
         "opponent_team_sk": 611,
         "opponent_name": "Fenerbahçe",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/611.png",
+        "opponent_logo_url": "/crests/teams/611-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -129,7 +131,7 @@
         "result": "L",
         "opponent_team_sk": 13976,
         "opponent_name": "Sabah FA",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/13976.png",
+        "opponent_logo_url": "/crests/teams/13976-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -147,7 +149,7 @@
         "result": "L",
         "opponent_team_sk": 116,
         "opponent_name": "RC Lens",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/116.png",
+        "opponent_logo_url": "/crests/teams/116-104.webp",
         "is_home": true,
         "has_team_stats": true,
         "has_player_stats": true
@@ -220,7 +222,7 @@
     "team_id": 533,
     "name": "Villarreal CF",
     "slug": "villarreal-cf",
-    "crest": "https://media.api-sports.io/football/teams/533.png",
+    "crest": "/crests/teams/533-104.webp",
     "country": "Spain",
     "form": {
       "league_code": "UCL",
@@ -236,10 +238,10 @@
         "UCL"
       ],
       "games_with_player_stats": 4,
-      "points_won": 9,
+      "points_won": 6,
       "clean_sheets": 2,
       "goals_per_match": 1.8,
-      "goals_against_per_match": 1.6,
+      "goals_against_per_match": 2.0,
       "shots_per_match": null,
       "shots_on_goal_pct": null,
       "shots_inside_box_pct": null,
@@ -289,6 +291,24 @@
       {
         "league_code": "UCL",
         "recency_rank": 1,
+        "played_fixture_sk": 1570455,
+        "played_league_code": "PD",
+        "played_kickoff_datetime": "2026-11-22 13:00:00+00:00",
+        "played_round_name": "Regular Season - 13",
+        "home_away": "away",
+        "goals_for": 2,
+        "goals_against": 3,
+        "result": "L",
+        "opponent_team_sk": 529,
+        "opponent_name": "FC Barcelona",
+        "opponent_logo_url": "/crests/teams/529-104.webp",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "UCL",
+        "recency_rank": 2,
         "played_fixture_sk": 1570452,
         "played_league_code": "PD",
         "played_kickoff_datetime": "2026-11-08 17:30:00+00:00",
@@ -299,14 +319,14 @@
         "result": "W",
         "opponent_team_sk": 546,
         "opponent_name": "Getafe CF",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/546.png",
+        "opponent_logo_url": "/crests/teams/546-104.webp",
         "is_home": false,
         "has_team_stats": true,
         "has_player_stats": true
       },
       {
         "league_code": "UCL",
-        "recency_rank": 2,
+        "recency_rank": 3,
         "played_fixture_sk": 1635746,
         "played_league_code": "UCL",
         "played_kickoff_datetime": "2026-11-03 20:00:00+00:00",
@@ -317,14 +337,14 @@
         "result": "L",
         "opponent_team_sk": 85,
         "opponent_name": "Paris Saint-Germain FC",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/85.png",
+        "opponent_logo_url": "/crests/teams/85-104.webp",
         "is_home": false,
         "has_team_stats": true,
         "has_player_stats": true
       },
       {
         "league_code": "UCL",
-        "recency_rank": 3,
+        "recency_rank": 4,
         "played_fixture_sk": 1570442,
         "played_league_code": "PD",
         "played_kickoff_datetime": "2026-10-30 20:00:00+00:00",
@@ -335,14 +355,14 @@
         "result": "L",
         "opponent_team_sk": 540,
         "opponent_name": "RCD Espanyol",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/540.png",
+        "opponent_logo_url": "/crests/teams/540-104.webp",
         "is_home": false,
         "has_team_stats": true,
         "has_player_stats": true
       },
       {
         "league_code": "UCL",
-        "recency_rank": 4,
+        "recency_rank": 5,
         "played_fixture_sk": 1644360,
         "played_league_code": "CDR",
         "played_kickoff_datetime": "2026-10-27 20:00:00+00:00",
@@ -353,28 +373,10 @@
         "result": "W",
         "opponent_team_sk": 9784,
         "opponent_name": "Manacor",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/9784.png",
+        "opponent_logo_url": "/crests/teams/9784-104.webp",
         "is_home": false,
         "has_team_stats": false,
         "has_player_stats": false
-      },
-      {
-        "league_code": "UCL",
-        "recency_rank": 5,
-        "played_fixture_sk": 1570432,
-        "played_league_code": "PD",
-        "played_kickoff_datetime": "2026-10-24 16:30:00+00:00",
-        "played_round_name": "Regular Season - 10",
-        "home_away": "away",
-        "goals_for": 2,
-        "goals_against": 1,
-        "result": "W",
-        "opponent_team_sk": 532,
-        "opponent_name": "Valencia CF",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/532.png",
-        "is_home": false,
-        "has_team_stats": true,
-        "has_player_stats": true
       }
     ],
     "players_to_watch": {
@@ -438,38 +440,7 @@
         }
       ]
     },
-    "next_match": {
-      "fixture_id": 1570455,
-      "slug": "2026-11-22-fc-barcelona-vs-villarreal-cf",
-      "kickoff": "2026-11-22 13:00:00+00:00",
-      "round": "Regular Season - 13",
-      "round_label_i18n_key": "compFactMatchday",
-      "round_number": 13,
-      "round_letter": null,
-      "round_order": 13,
-      "round_sequence": 13,
-      "fixture_order": 126,
-      "status": "NS",
-      "unplayed_state": null,
-      "is_played": false,
-      "goals_home": null,
-      "goals_away": null,
-      "home": {
-        "team_id": 529,
-        "name": "FC Barcelona",
-        "slug": "fc-barcelona",
-        "crest": "https://media.api-sports.io/football/teams/529.png"
-      },
-      "away": {
-        "team_id": 533,
-        "name": "Villarreal CF",
-        "slug": "villarreal-cf",
-        "crest": "https://media.api-sports.io/football/teams/533.png"
-      },
-      "is_next_round": true,
-      "is_match_that_matters": true,
-      "league_code": "PD"
-    }
+    "next_match": null
   },
   "head_to_head": {
     "total_meetings": 2,
