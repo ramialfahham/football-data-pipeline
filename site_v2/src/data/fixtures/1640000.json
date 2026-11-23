@@ -111,125 +111,12 @@
     }
   ],
   "lineup_state": "confirmed",
-  "leaders": [
-    {
-      "metric_key": "shots_player",
-      "label_i18n_key": "playerMetrics.shots.label",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 2.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "passes_player",
-      "label_i18n_key": "playerMetrics.passAccuracy.total",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 102.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "passes_key_player",
-      "label_i18n_key": "playerMetrics.keyPasses.label",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 7.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "dribbles_attempts_player",
-      "label_i18n_key": "playerMetrics.dribbles.attempts",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 4.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "duels_won_player",
-      "label_i18n_key": "playerMetrics.duels.won",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 5.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "defensive_actions_player",
-      "label_i18n_key": "playerMetrics.defensiveActions.label",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 1.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "fouls_player",
-      "label_i18n_key": "playerMetrics.fouls.label",
-      "format": "integer",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 1.0,
-          "player_id": 190929,
-          "name": "Y. Montantin",
-          "club": "Saint Martin",
-          "club_slug": "saint-martin",
-          "crest": "https://media.api-sports.io/football/teams/10984.png"
-        }
-      ]
-    }
-  ],
+  "leaders": [],
   "home": {
     "team_id": 10984,
     "name": "Saint Martin",
     "slug": "saint-martin",
-    "crest": "https://media.api-sports.io/football/teams/10984.png",
+    "crest": "/crests/teams/10984-104.webp",
     "formation": "4-3-3",
     "has_team_stats": true,
     "has_player_stats": true,
@@ -281,7 +168,9 @@
       "fouls_per_match": 14.0,
       "offsides_per_match": 2.0,
       "cards_yellow_per_match": 1.0,
-      "cards_red_per_match": 0.0
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 1,
+      "cards_red": 0
     },
     "lineup": [
       {
@@ -300,7 +189,7 @@
       {
         "player_id": 683471,
         "name": "M. Denis",
-        "photo": null,
+        "photo": "https://media.api-sports.io/football/players/683471.png",
         "position_code": "D",
         "is_starter": true,
         "minute_on": null,
@@ -443,7 +332,7 @@
       {
         "player_id": 683451,
         "name": "K. Lebroussa",
-        "photo": null,
+        "photo": "https://media.api-sports.io/football/players/683451.png",
         "position_code": "D",
         "is_starter": false,
         "minute_on": 46,
@@ -467,22 +356,9 @@
         "minutes": null
       },
       {
-        "player_id": 683453,
-        "name": "D. Zephir",
-        "photo": null,
-        "position_code": "D",
-        "is_starter": false,
-        "minute_on": 73,
-        "minute_on_extra": null,
-        "minute_off": null,
-        "minute_off_extra": null,
-        "replaced_player_name": "S. Varsovie",
-        "minutes": null
-      },
-      {
         "player_id": 683473,
         "name": "A. Cordero",
-        "photo": null,
+        "photo": "https://media.api-sports.io/football/players/683473.png",
         "position_code": "M",
         "is_starter": false,
         "minute_on": 73,
@@ -491,15 +367,61 @@
         "minute_off_extra": null,
         "replaced_player_name": "J. Alexandre",
         "minutes": null
+      },
+      {
+        "player_id": 683453,
+        "name": "D. Zephir",
+        "photo": "https://media.api-sports.io/football/players/683453.png",
+        "position_code": "D",
+        "is_starter": false,
+        "minute_on": 73,
+        "minute_on_extra": null,
+        "minute_off": null,
+        "minute_off_extra": null,
+        "replaced_player_name": "S. Varsovie",
+        "minutes": null
       }
     ],
-    "next_match": null
+    "next_match": {
+      "fixture_id": 1651050,
+      "slug": "2027-06-09-saint-martin-vs-antigua-and-barbuda",
+      "kickoff": "2027-06-09 20:00:00+00:00",
+      "kickoff_local": "2027-06-09 20:00:00",
+      "kickoff_zone_label": "UTC",
+      "round": "Semi-finals",
+      "round_label_i18n_key": "roundSemiFinals",
+      "round_number": null,
+      "round_letter": null,
+      "round_order": null,
+      "round_sequence": 12,
+      "fixture_order": 112,
+      "status": "NS",
+      "unplayed_state": null,
+      "is_played": false,
+      "goals_home": null,
+      "goals_away": null,
+      "home": {
+        "team_id": 10984,
+        "name": "Saint Martin",
+        "slug": "saint-martin",
+        "crest": "/crests/teams/10984-104.webp"
+      },
+      "away": {
+        "team_id": 5526,
+        "name": "Antigua and Barbuda",
+        "slug": "antigua-and-barbuda",
+        "crest": "/crests/teams/5526-104.webp"
+      },
+      "is_next_round": true,
+      "is_match_that_matters": false,
+      "league_code": "CNL"
+    }
   },
   "away": {
     "team_id": 5157,
     "name": "Bahamas",
     "slug": "bahamas",
-    "crest": "https://media.api-sports.io/football/teams/5157.png",
+    "crest": "/crests/teams/5157-104.webp",
     "formation": null,
     "has_team_stats": true,
     "has_player_stats": false,
@@ -551,7 +473,9 @@
       "fouls_per_match": 11.0,
       "offsides_per_match": 1.0,
       "cards_yellow_per_match": 2.0,
-      "cards_red_per_match": 0.0
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 2,
+      "cards_red": 0
     },
     "lineup": [
       {
@@ -565,7 +489,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 683449,
@@ -578,7 +502,7 @@
         "minute_off": 72,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 72
       },
       {
         "player_id": 130144,
@@ -591,7 +515,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 130142,
@@ -604,12 +528,12 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 683450,
         "name": "R. Ene",
-        "photo": null,
+        "photo": "https://media.api-sports.io/football/players/683450.png",
         "position_code": "D",
         "is_starter": true,
         "minute_on": null,
@@ -617,7 +541,7 @@
         "minute_off": 72,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 72
       },
       {
         "player_id": 620271,
@@ -630,7 +554,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 620275,
@@ -643,7 +567,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 369074,
@@ -656,7 +580,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 683468,
@@ -669,7 +593,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 683469,
@@ -682,7 +606,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 620272,
@@ -695,20 +619,7 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": null,
-        "minutes": null
-      },
-      {
-        "player_id": 683465,
-        "name": "P. Cooper",
-        "photo": null,
-        "position_code": "M",
-        "is_starter": false,
-        "minute_on": 72,
-        "minute_on_extra": null,
-        "minute_off": null,
-        "minute_off_extra": null,
-        "replaced_player_name": "R. Ene",
-        "minutes": null
+        "minutes": 90
       },
       {
         "player_id": 685262,
@@ -721,7 +632,20 @@
         "minute_off": null,
         "minute_off_extra": null,
         "replaced_player_name": "N. Wells",
-        "minutes": null
+        "minutes": 18
+      },
+      {
+        "player_id": 683465,
+        "name": "P. Cooper",
+        "photo": "https://media.api-sports.io/football/players/683465.png",
+        "position_code": "M",
+        "is_starter": false,
+        "minute_on": 72,
+        "minute_on_extra": null,
+        "minute_off": null,
+        "minute_off_extra": null,
+        "replaced_player_name": "R. Ene",
+        "minutes": 18
       }
     ],
     "next_match": null

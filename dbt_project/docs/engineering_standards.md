@@ -254,6 +254,7 @@ Per-layer minimums:
 
 - `staging`: document the **grain** (one row per what) in the model `description`. Then:
   - `not_null` on every column required for that row to be valid (ids, dates, join keys).
+  - A provider key that base drops when NULL is the exception. Its `not_null` lives in base. `stg_apif__fixture_players` keeps its own.
   - `unique` or `dbt_utils.unique_combination_of_columns` on the column(s) that define the grain, so dupes and bad merges fail early. Use `severity: warn` (not error) only when the violation is a known, documented source data quality issue that cannot be corrected at this layer.
   - Constrained `accepted_values` (and other light tests) where they add signal.
   - Do **not** repeat the **same** uniqueness assertion downstream unless the **grain changes** (avoid redundant tests on the same keys in `base` / later layers).

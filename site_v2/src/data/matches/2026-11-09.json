@@ -10,7 +10,7 @@
       "league_code": "FAC",
       "name": "FA Cup",
       "slug": "fa-cup",
-      "crest": "https://media.api-sports.io/football/leagues/45.png",
+      "crest": "/crests/leagues/45-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,6 +19,8 @@
           "fixture_id": 1646814,
           "slug": "2026-11-09-plymouth-parkway-vs-berkhamsted",
           "kickoff": "2026-11-09 19:30:00+00:00",
+          "kickoff_local": "2026-11-09 19:30:00",
+          "kickoff_zone_label": "GMT",
           "round": "1/128-finals",
           "round_label_i18n_key": "roundFaFirstRoundProper",
           "round_number": null,
@@ -35,86 +37,13 @@
             "team_id": 8899,
             "name": "Plymouth Parkway",
             "slug": "plymouth-parkway",
-            "crest": "https://media.api-sports.io/football/teams/8899.png"
+            "crest": "/crests/teams/8899-104.webp"
           },
           "away": {
             "team_id": 7214,
             "name": "Berkhamsted",
             "slug": "berkhamsted",
-            "crest": "https://media.api-sports.io/football/teams/7214.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "LMX",
-      "name": "Liga MX",
-      "slug": "liga-mx",
-      "crest": "https://media.api-sports.io/football/leagues/262.png",
-      "entity_type": "club",
-      "confederation": "CONCACAF",
-      "region_rank": 4,
-      "fixtures": [
-        {
-          "fixture_id": 1551036,
-          "slug": "2026-11-09-club-queretaro-vs-puebla",
-          "kickoff": "2026-11-09 00:00:00+00:00",
-          "round": "Apertura - 16",
-          "round_label_i18n_key": "roundAperturaMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 16,
-          "fixture_order": 143,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 2,
-          "home": {
-            "team_id": 2290,
-            "name": "Club Queretaro",
-            "slug": "club-queretaro",
-            "crest": "https://media.api-sports.io/football/teams/2290.png"
-          },
-          "away": {
-            "team_id": 2291,
-            "name": "Puebla",
-            "slug": "puebla",
-            "crest": "https://media.api-sports.io/football/teams/2291.png"
-          },
-          "is_next_round": false,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1551037,
-          "slug": "2026-11-09-leon-vs-guadalajara-chivas",
-          "kickoff": "2026-11-09 02:10:00+00:00",
-          "round": "Apertura - 16",
-          "round_label_i18n_key": "roundAperturaMatchday",
-          "round_number": 16,
-          "round_letter": null,
-          "round_order": 16,
-          "round_sequence": 16,
-          "fixture_order": 144,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 1,
-          "goals_away": 1,
-          "home": {
-            "team_id": 2289,
-            "name": "Leon",
-            "slug": "leon",
-            "crest": "https://media.api-sports.io/football/teams/2289.png"
-          },
-          "away": {
-            "team_id": 2278,
-            "name": "Guadalajara Chivas",
-            "slug": "guadalajara-chivas",
-            "crest": "https://media.api-sports.io/football/teams/2278.png"
+            "crest": "/crests/teams/7214-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false

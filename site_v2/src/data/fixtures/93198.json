@@ -31,7 +31,7 @@
     "team_id": 1305,
     "name": "Bastia",
     "slug": "bastia",
-    "crest": "https://media.api-sports.io/football/teams/1305.png",
+    "crest": "/crests/teams/1305-104.webp",
     "formation": "4-2-3-1",
     "has_team_stats": false,
     "has_player_stats": false,
@@ -83,7 +83,9 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": null,
-      "cards_red_per_match": null
+      "cards_red_per_match": null,
+      "cards_yellow": null,
+      "cards_red": null
     },
     "lineup": [],
     "next_match": null
@@ -92,7 +94,7 @@
     "team_id": 80,
     "name": "Olympique Lyonnais",
     "slug": "olympique-lyonnais",
-    "crest": "https://media.api-sports.io/football/teams/80.png",
+    "crest": "/crests/teams/80-104.webp",
     "formation": "4-3-3",
     "has_team_stats": false,
     "has_player_stats": false,
@@ -144,18 +146,26 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": null,
-      "cards_red_per_match": null
+      "cards_red_per_match": null,
+      "cards_yellow": null,
+      "cards_red": null
     },
     "lineup": [],
     "next_match": {
-      "fixture_id": 1552788,
-      "slug": "2026-10-18-olympique-lyonnais-vs-ogc-nice",
-      "kickoff": "2026-10-18 18:45:00+00:00",
-      "round": "Regular Season - 7",
-      "round_order": 7,
-      "round_sequence": 7,
-      "fixture_order": 63,
+      "fixture_id": 1636294,
+      "slug": "2026-11-26-olympique-lyonnais-vs-lillestrom",
+      "kickoff": "2026-11-26 20:00:00+00:00",
+      "kickoff_local": "2026-11-26 20:00:00",
+      "kickoff_zone_label": "UTC",
+      "round": "League Stage - 5",
+      "round_label_i18n_key": "roundLeaguePhaseMatchday",
+      "round_number": 5,
+      "round_letter": null,
+      "round_order": 5,
+      "round_sequence": 9,
+      "fixture_order": 165,
       "status": "NS",
+      "unplayed_state": null,
       "is_played": false,
       "goals_home": null,
       "goals_away": null,
@@ -163,17 +173,17 @@
         "team_id": 80,
         "name": "Olympique Lyonnais",
         "slug": "olympique-lyonnais",
-        "crest": "https://media.api-sports.io/football/teams/80.png"
+        "crest": "/crests/teams/80-104.webp"
       },
       "away": {
-        "team_id": 84,
-        "name": "OGC Nice",
-        "slug": "ogc-nice",
-        "crest": "https://media.api-sports.io/football/teams/84.png"
+        "team_id": 321,
+        "name": "Lillestrom",
+        "slug": "lillestrom",
+        "crest": "/crests/teams/321-104.webp"
       },
       "is_next_round": true,
       "is_match_that_matters": false,
-      "league_code": "L1"
+      "league_code": "UEL"
     }
   }
 }

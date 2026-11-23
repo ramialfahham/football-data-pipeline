@@ -588,6 +588,35 @@ models:
         description: "True when the tied sheets are not all identical, so none can be picked."
         tests: [not_null]
 
+  - name: base_apif__fixture_lines_without_key
+    description: >
+      The matches where base loses a value to its team-id filter: a statistics line or a line-up of
+      the match came with no team id, and a team of the match has no value base could otherwise have
+      used. A match whose teams all have their values from lines with a team id is not here. A line
+      with no fixture id names no match. mart_competition_research_list reads it.
+      Grain: (fixture_id, line_table, missing_key).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, line_table, missing_key]
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: line_table
+        description: "The staging model the line is in: stg_apif__fixture_statistics or stg_apif__lineups."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["stg_apif__fixture_statistics", "stg_apif__lineups"]
+      - name: missing_key
+        description: "The key the provider left NULL: team_id."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["team_id"]
+
   - name: base_apif__lineup_sheets
     description: >
       One row per player each team's latest fetch of the stg_apif__lineups model names on its

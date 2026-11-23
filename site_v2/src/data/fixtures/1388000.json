@@ -31,7 +31,7 @@
     "team_id": 83,
     "name": "FC Nantes",
     "slug": "fc-nantes",
-    "crest": "https://media.api-sports.io/football/teams/83.png",
+    "crest": "/crests/teams/83-104.webp",
     "formation": null,
     "has_team_stats": false,
     "has_player_stats": false,
@@ -83,16 +83,51 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": null,
-      "cards_red_per_match": null
+      "cards_red_per_match": null,
+      "cards_yellow": null,
+      "cards_red": null
     },
     "lineup": [],
-    "next_match": null
+    "next_match": {
+      "fixture_id": 1650285,
+      "slug": "2026-11-29-nueillaubiers-vs-fc-nantes",
+      "kickoff": "2026-11-29 15:00:00+00:00",
+      "kickoff_local": "2026-11-29 16:00:00",
+      "kickoff_zone_label": "CET",
+      "round": "Round of 128",
+      "round_label_i18n_key": "roundEighthRound",
+      "round_number": null,
+      "round_letter": null,
+      "round_order": 128,
+      "round_sequence": 2,
+      "fixture_order": 138,
+      "status": "NS",
+      "unplayed_state": null,
+      "is_played": false,
+      "goals_home": null,
+      "goals_away": null,
+      "home": {
+        "team_id": 9297,
+        "name": "Nueillaubiers",
+        "slug": "nueillaubiers",
+        "crest": "/crests/teams/9297-104.webp"
+      },
+      "away": {
+        "team_id": 83,
+        "name": "FC Nantes",
+        "slug": "fc-nantes",
+        "crest": "/crests/teams/83-104.webp"
+      },
+      "is_next_round": true,
+      "is_match_that_matters": false,
+      "league_code": "CDF"
+    }
   },
   "away": {
     "team_id": 96,
     "name": "Toulouse FC",
     "slug": "toulouse-fc",
-    "crest": "https://media.api-sports.io/football/teams/96.png",
+    "crest": "/crests/teams/96-104.webp",
     "formation": null,
     "has_team_stats": false,
     "has_player_stats": false,
@@ -144,32 +179,40 @@
       "fouls_per_match": null,
       "offsides_per_match": null,
       "cards_yellow_per_match": null,
-      "cards_red_per_match": null
+      "cards_red_per_match": null,
+      "cards_yellow": null,
+      "cards_red": null
     },
     "lineup": [],
     "next_match": {
-      "fixture_id": 1552785,
-      "slug": "2026-10-16-le-mans-vs-toulouse-fc",
-      "kickoff": "2026-10-16 18:45:00+00:00",
-      "round": "Regular Season - 7",
-      "round_order": 7,
-      "round_sequence": 7,
-      "fixture_order": 55,
+      "fixture_id": 1552836,
+      "slug": "2026-11-29-toulouse-fc-vs-stade-rennais-fc",
+      "kickoff": "2026-11-29 16:15:00+00:00",
+      "kickoff_local": "2026-11-29 17:15:00",
+      "kickoff_zone_label": "CET",
+      "round": "Regular Season - 12",
+      "round_label_i18n_key": "compFactMatchday",
+      "round_number": 12,
+      "round_letter": null,
+      "round_order": 12,
+      "round_sequence": 12,
+      "fixture_order": 107,
       "status": "NS",
+      "unplayed_state": null,
       "is_played": false,
       "goals_home": null,
       "goals_away": null,
       "home": {
-        "team_id": 1298,
-        "name": "Le Mans",
-        "slug": "le-mans",
-        "crest": "https://media.api-sports.io/football/teams/1298.png"
-      },
-      "away": {
         "team_id": 96,
         "name": "Toulouse FC",
         "slug": "toulouse-fc",
-        "crest": "https://media.api-sports.io/football/teams/96.png"
+        "crest": "/crests/teams/96-104.webp"
+      },
+      "away": {
+        "team_id": 94,
+        "name": "Stade Rennais FC",
+        "slug": "stade-rennais-fc",
+        "crest": "/crests/teams/94-104.webp"
       },
       "is_next_round": true,
       "is_match_that_matters": false,

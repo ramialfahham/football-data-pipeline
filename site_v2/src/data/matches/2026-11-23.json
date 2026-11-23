@@ -2,7 +2,7 @@
   "type": "match_day",
   "slug": "2026-11-23",
   "day": "2026-11-23",
-  "is_opening_day": false,
+  "is_opening_day": true,
   "previous_day": "2026-11-22",
   "next_day": "2026-11-24",
   "competitions": [
@@ -10,7 +10,7 @@
       "league_code": "AFCCL",
       "name": "AFC Champions League Elite",
       "slug": "afc-champions-league",
-      "crest": "https://media.api-sports.io/football/leagues/17.png",
+      "crest": "/crests/leagues/17-104.webp",
       "entity_type": "club",
       "confederation": "AFC",
       "region_rank": 5,
@@ -19,6 +19,8 @@
           "fixture_id": 1629975,
           "slug": "2026-11-23-neftchi-vs-al-hilal-saudi-fc",
           "kickoff": "2026-11-23 13:45:00+00:00",
+          "kickoff_local": "2026-11-23 13:45:00",
+          "kickoff_zone_label": "UTC",
           "round": "League Phase - 5",
           "round_label_i18n_key": "roundLeagueStageMatchday",
           "round_number": 5,
@@ -35,13 +37,13 @@
             "team_id": 4217,
             "name": "Neftchi",
             "slug": "neftchi",
-            "crest": "https://media.api-sports.io/football/teams/4217.png"
+            "crest": "/crests/teams/4217-104.webp"
           },
           "away": {
             "team_id": 2932,
             "name": "Al-Hilal Saudi FC",
             "slug": "al-hilal-saudi-fc",
-            "crest": "https://media.api-sports.io/football/teams/2932.png"
+            "crest": "/crests/teams/2932-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -50,68 +52,8 @@
           "fixture_id": 1629976,
           "slug": "2026-11-23-al-ain-vs-esteghlal-fc",
           "kickoff": "2026-11-23 16:00:00+00:00",
-          "round": "League Phase - 5",
-          "round_label_i18n_key": "roundLeagueStageMatchday",
-          "round_number": 5,
-          "round_letter": null,
-          "round_order": 5,
-          "round_sequence": 6,
-          "fixture_order": 70,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 2865,
-            "name": "Al Ain",
-            "slug": "al-ain",
-            "crest": "https://media.api-sports.io/football/teams/2865.png"
-          },
-          "away": {
-            "team_id": 2733,
-            "name": "Esteghlal FC",
-            "slug": "esteghlal-fc",
-            "crest": "https://media.api-sports.io/football/teams/2733.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": true
-        },
-        {
-          "fixture_id": 1629977,
-          "slug": "2026-11-23-al-shamal-vs-al-ahli-jeddah",
-          "kickoff": "2026-11-23 16:00:00+00:00",
-          "round": "League Phase - 5",
-          "round_label_i18n_key": "roundLeagueStageMatchday",
-          "round_number": 5,
-          "round_letter": null,
-          "round_order": 5,
-          "round_sequence": 6,
-          "fixture_order": 71,
-          "status": "NS",
-          "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 2916,
-            "name": "Al Shamal",
-            "slug": "al-shamal",
-            "crest": "https://media.api-sports.io/football/teams/2916.png"
-          },
-          "away": {
-            "team_id": 2929,
-            "name": "Al-Ahli Jeddah",
-            "slug": "al-ahli-jeddah",
-            "crest": "https://media.api-sports.io/football/teams/2929.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        },
-        {
-          "fixture_id": 1629978,
-          "slug": "2026-11-23-tractor-sazi-vs-al-wasl-fc",
-          "kickoff": "2026-11-23 16:00:00+00:00",
+          "kickoff_local": "2026-11-23 20:00:00",
+          "kickoff_zone_label": "GST",
           "round": "League Phase - 5",
           "round_label_i18n_key": "roundLeagueStageMatchday",
           "round_number": 5,
@@ -125,24 +67,59 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 2737,
-            "name": "Tractor Sazi",
-            "slug": "tractor-sazi",
-            "crest": "https://media.api-sports.io/football/teams/2737.png"
+            "team_id": 2865,
+            "name": "Al Ain",
+            "slug": "al-ain",
+            "crest": "/crests/teams/2865-104.webp"
           },
           "away": {
-            "team_id": 2872,
-            "name": "Al-Wasl FC",
-            "slug": "al-wasl-fc",
-            "crest": "https://media.api-sports.io/football/teams/2872.png"
+            "team_id": 2733,
+            "name": "Esteghlal FC",
+            "slug": "esteghlal-fc",
+            "crest": "/crests/teams/2733-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        },
+        {
+          "fixture_id": 1629977,
+          "slug": "2026-11-23-al-shamal-vs-al-ahli-jeddah",
+          "kickoff": "2026-11-23 16:00:00+00:00",
+          "kickoff_local": "2026-11-23 16:00:00",
+          "kickoff_zone_label": "UTC",
+          "round": "League Phase - 5",
+          "round_label_i18n_key": "roundLeagueStageMatchday",
+          "round_number": 5,
+          "round_letter": null,
+          "round_order": 5,
+          "round_sequence": 6,
+          "fixture_order": 70,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2916,
+            "name": "Al Shamal",
+            "slug": "al-shamal",
+            "crest": "/crests/teams/2916-104.webp"
+          },
+          "away": {
+            "team_id": 2929,
+            "name": "Al-Ahli Jeddah",
+            "slug": "al-ahli-jeddah",
+            "crest": "/crests/teams/2929-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1629979,
-          "slug": "2026-11-23-al-ittihad-fc-vs-pakhtakor",
-          "kickoff": "2026-11-23 18:15:00+00:00",
+          "fixture_id": 1629978,
+          "slug": "2026-11-23-tractor-sazi-vs-al-wasl-fc",
+          "kickoff": "2026-11-23 16:00:00+00:00",
+          "kickoff_local": "2026-11-23 20:00:00",
+          "kickoff_zone_label": "GST",
           "round": "League Phase - 5",
           "round_label_i18n_key": "roundLeagueStageMatchday",
           "round_number": 5,
@@ -156,16 +133,49 @@
           "goals_home": null,
           "goals_away": null,
           "home": {
+            "team_id": 2737,
+            "name": "Tractor Sazi",
+            "slug": "tractor-sazi",
+            "crest": "/crests/teams/2737-104.webp"
+          },
+          "away": {
+            "team_id": 2872,
+            "name": "Al-Wasl FC",
+            "slug": "al-wasl-fc",
+            "crest": "/crests/teams/2872-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1629979,
+          "slug": "2026-11-23-al-ittihad-fc-vs-pakhtakor",
+          "kickoff": "2026-11-23 18:15:00+00:00",
+          "kickoff_local": "2026-11-23 18:15:00",
+          "kickoff_zone_label": "UTC",
+          "round": "League Phase - 5",
+          "round_label_i18n_key": "roundLeagueStageMatchday",
+          "round_number": 5,
+          "round_letter": null,
+          "round_order": 5,
+          "round_sequence": 6,
+          "fixture_order": 71,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
             "team_id": 2938,
             "name": "Al-Ittihad FC",
             "slug": "al-ittihad-fc",
-            "crest": "https://media.api-sports.io/football/teams/2938.png"
+            "crest": "/crests/teams/2938-104.webp"
           },
           "away": {
             "team_id": 4220,
             "name": "Pakhtakor",
             "slug": "pakhtakor",
-            "crest": "https://media.api-sports.io/football/teams/4220.png"
+            "crest": "/crests/teams/4220-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -174,6 +184,8 @@
           "fixture_id": 1629980,
           "slug": "2026-11-23-al-quwa-al-jawiya-vs-al-gharafa",
           "kickoff": "2026-11-23 18:15:00+00:00",
+          "kickoff_local": "2026-11-23 21:15:00",
+          "kickoff_zone_label": "AST",
           "round": "League Phase - 5",
           "round_label_i18n_key": "roundLeagueStageMatchday",
           "round_number": 5,
@@ -190,13 +202,167 @@
             "team_id": 8009,
             "name": "Al Quwa Al Jawiya",
             "slug": "al-quwa-al-jawiya",
-            "crest": "https://media.api-sports.io/football/teams/8009.png"
+            "crest": "/crests/teams/8009-104.webp"
           },
           "away": {
             "team_id": 2903,
             "name": "Al-Gharafa",
             "slug": "al-gharafa",
-            "crest": "https://media.api-sports.io/football/teams/2903.png"
+            "crest": "/crests/teams/2903-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "APD",
+      "name": "Liga Profesional de Fútbol (Argentina)",
+      "slug": "liga-profesional-argentina",
+      "crest": "/crests/leagues/128-104.webp",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1649568,
+          "slug": "2026-11-23-instituto-cordoba-vs-huracan",
+          "kickoff": "2026-11-23 01:00:00+00:00",
+          "kickoff_local": "2026-11-22 22:00:00",
+          "kickoff_zone_label": "ART",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 37,
+          "fixture_order": 501,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
+          "home": {
+            "team_id": 478,
+            "name": "Instituto Cordoba",
+            "slug": "instituto-cordoba",
+            "crest": "/crests/teams/478-104.webp"
+          },
+          "away": {
+            "team_id": 445,
+            "name": "Huracan",
+            "slug": "huracan",
+            "crest": "/crests/teams/445-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1649567,
+          "slug": "2026-11-23-gimnasia-l-p-vs-newells-old-boys",
+          "kickoff": "2026-11-23 20:00:00+00:00",
+          "kickoff_local": "2026-11-23 17:00:00",
+          "kickoff_zone_label": "ART",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 37,
+          "fixture_order": 502,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 434,
+            "name": "Gimnasia L.P.",
+            "slug": "gimnasia-l-p",
+            "crest": "/crests/teams/434-104.webp"
+          },
+          "away": {
+            "team_id": 457,
+            "name": "Newells Old Boys",
+            "slug": "newells-old-boys",
+            "crest": "/crests/teams/457-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "BSA",
+      "name": "Brasileirão Série A",
+      "slug": "brasileirao",
+      "crest": "/crests/leagues/71-104.webp",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1492467,
+          "slug": "2026-11-23-internacional-vs-vitoria",
+          "kickoff": "2026-11-23 22:30:00+00:00",
+          "kickoff_local": "2026-11-23 19:30:00",
+          "kickoff_zone_label": "BRT",
+          "round": "Regular Season - 36",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 36,
+          "round_letter": null,
+          "round_order": 36,
+          "round_sequence": 36,
+          "fixture_order": 357,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 119,
+            "name": "Internacional",
+            "slug": "internacional",
+            "crest": "/crests/teams/119-104.webp"
+          },
+          "away": {
+            "team_id": 136,
+            "name": "Vitoria",
+            "slug": "vitoria",
+            "crest": "/crests/teams/136-104.webp"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1492463,
+          "slug": "2026-11-23-botafogo-vs-sao-paulo",
+          "kickoff": "2026-11-23 23:00:00+00:00",
+          "kickoff_local": "2026-11-23 20:00:00",
+          "kickoff_zone_label": "BRT",
+          "round": "Regular Season - 36",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 36,
+          "round_letter": null,
+          "round_order": 36,
+          "round_sequence": 36,
+          "fixture_order": 358,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 120,
+            "name": "Botafogo",
+            "slug": "botafogo",
+            "crest": "/crests/teams/120-104.webp"
+          },
+          "away": {
+            "team_id": 126,
+            "name": "Sao Paulo",
+            "slug": "sao-paulo",
+            "crest": "/crests/teams/126-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -207,7 +373,7 @@
       "league_code": "EKS",
       "name": "Ekstraklasa",
       "slug": "ekstraklasa",
-      "crest": "https://media.api-sports.io/football/leagues/106.png",
+      "crest": "/crests/leagues/106-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -216,6 +382,8 @@
           "fixture_id": 1553233,
           "slug": "2026-11-23-wieczysta-krakow-vs-motor-lublin",
           "kickoff": "2026-11-23 18:00:00+00:00",
+          "kickoff_local": "2026-11-23 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Regular Season - 15",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 15,
@@ -232,55 +400,57 @@
             "team_id": 17115,
             "name": "Wieczysta Kraków",
             "slug": "wieczysta-krakow",
-            "crest": "https://media.api-sports.io/football/teams/17115.png"
+            "crest": "/crests/teams/17115-104.webp"
           },
           "away": {
             "team_id": 14562,
             "name": "Motor Lublin",
             "slug": "motor-lublin",
-            "crest": "https://media.api-sports.io/football/teams/14562.png"
+            "crest": "/crests/teams/14562-104.webp"
           },
           "is_next_round": true,
-          "is_match_that_matters": false
+          "is_match_that_matters": true
         }
       ]
     },
     {
-      "league_code": "LMX",
-      "name": "Liga MX",
-      "slug": "liga-mx",
-      "crest": "https://media.api-sports.io/football/leagues/262.png",
+      "league_code": "MLS",
+      "name": "Major League Soccer",
+      "slug": "mls",
+      "crest": "/crests/leagues/253-104.webp",
       "entity_type": "club",
       "confederation": "CONCACAF",
       "region_rank": 4,
       "fixtures": [
         {
-          "fixture_id": 1551046,
-          "slug": "2026-11-23-club-queretaro-vs-necaxa",
-          "kickoff": "2026-11-23 01:00:00+00:00",
-          "round": "Apertura - 17",
-          "round_label_i18n_key": "roundAperturaMatchday",
-          "round_number": 17,
+          "fixture_id": 1651120,
+          "slug": "2026-11-23-vancouver-whitecaps-vs-real-salt-lake",
+          "kickoff": "2026-11-23 01:30:00+00:00",
+          "kickoff_local": "2026-11-22 18:30:00",
+          "kickoff_zone_label": "PDT",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
           "round_letter": null,
-          "round_order": 17,
-          "round_sequence": 17,
-          "fixture_order": 153,
-          "status": "NS",
+          "round_order": 16,
+          "round_sequence": 36,
+          "fixture_order": 517,
+          "status": "FT",
           "unplayed_state": null,
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 0,
           "home": {
-            "team_id": 2290,
-            "name": "Club Queretaro",
-            "slug": "club-queretaro",
-            "crest": "https://media.api-sports.io/football/teams/2290.png"
+            "team_id": 1603,
+            "name": "Vancouver Whitecaps",
+            "slug": "vancouver-whitecaps",
+            "crest": "/crests/teams/1603-104.webp"
           },
           "away": {
-            "team_id": 2288,
-            "name": "Necaxa",
-            "slug": "necaxa",
-            "crest": "https://media.api-sports.io/football/teams/2288.png"
+            "team_id": 1606,
+            "name": "Real Salt Lake",
+            "slug": "real-salt-lake",
+            "crest": "/crests/teams/1606-104.webp"
           },
           "is_next_round": true,
           "is_match_that_matters": false
@@ -291,7 +461,7 @@
       "league_code": "PD",
       "name": "La Liga",
       "slug": "la-liga",
-      "crest": "https://media.api-sports.io/football/leagues/140.png",
+      "crest": "/crests/leagues/140-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -300,6 +470,8 @@
           "fixture_id": 1570457,
           "slug": "2026-11-23-levante-ud-vs-elche-cf",
           "kickoff": "2026-11-23 20:00:00+00:00",
+          "kickoff_local": "2026-11-23 21:00:00",
+          "kickoff_zone_label": "CET",
           "round": "Regular Season - 13",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 13,
@@ -316,16 +488,16 @@
             "team_id": 539,
             "name": "Levante UD",
             "slug": "levante-ud",
-            "crest": "https://media.api-sports.io/football/teams/539.png"
+            "crest": "/crests/teams/539-104.webp"
           },
           "away": {
             "team_id": 797,
             "name": "Elche CF",
             "slug": "elche-cf",
-            "crest": "https://media.api-sports.io/football/teams/797.png"
+            "crest": "/crests/teams/797-104.webp"
           },
           "is_next_round": true,
-          "is_match_that_matters": false
+          "is_match_that_matters": true
         }
       ]
     },
@@ -333,7 +505,7 @@
       "league_code": "PL",
       "name": "Premier League",
       "slug": "premier-league",
-      "crest": "https://media.api-sports.io/football/leagues/39.png",
+      "crest": "/crests/leagues/39-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -342,6 +514,8 @@
           "fixture_id": 1557469,
           "slug": "2026-11-23-brentford-fc-vs-everton-fc",
           "kickoff": "2026-11-23 20:00:00+00:00",
+          "kickoff_local": "2026-11-23 20:00:00",
+          "kickoff_zone_label": "GMT",
           "round": "Regular Season - 11",
           "round_label_i18n_key": "roundMatchweek",
           "round_number": 11,
@@ -358,16 +532,16 @@
             "team_id": 55,
             "name": "Brentford FC",
             "slug": "brentford-fc",
-            "crest": "https://media.api-sports.io/football/teams/55.png"
+            "crest": "/crests/teams/55-104.webp"
           },
           "away": {
             "team_id": 45,
             "name": "Everton FC",
             "slug": "everton-fc",
-            "crest": "https://media.api-sports.io/football/teams/45.png"
+            "crest": "/crests/teams/45-104.webp"
           },
           "is_next_round": true,
-          "is_match_that_matters": false
+          "is_match_that_matters": true
         }
       ]
     },
@@ -375,7 +549,7 @@
       "league_code": "SA",
       "name": "Serie A",
       "slug": "serie-a",
-      "crest": "https://media.api-sports.io/football/leagues/135.png",
+      "crest": "/crests/leagues/135-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -384,6 +558,8 @@
           "fixture_id": 1550203,
           "slug": "2026-11-23-monza-vs-acf-fiorentina",
           "kickoff": "2026-11-23 19:45:00+00:00",
+          "kickoff_local": "2026-11-23 20:45:00",
+          "kickoff_zone_label": "CET",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "compFactMatchday",
           "round_number": 12,
@@ -400,16 +576,16 @@
             "team_id": 1579,
             "name": "Monza",
             "slug": "monza",
-            "crest": "https://media.api-sports.io/football/teams/1579.png"
+            "crest": "/crests/teams/1579-104.webp"
           },
           "away": {
             "team_id": 502,
             "name": "ACF Fiorentina",
             "slug": "acf-fiorentina",
-            "crest": "https://media.api-sports.io/football/teams/502.png"
+            "crest": "/crests/teams/502-104.webp"
           },
           "is_next_round": true,
-          "is_match_that_matters": false
+          "is_match_that_matters": true
         }
       ]
     },
@@ -417,7 +593,7 @@
       "league_code": "TSL",
       "name": "Süper Lig",
       "slug": "super-lig",
-      "crest": "https://media.api-sports.io/football/leagues/203.png",
+      "crest": "/crests/leagues/203-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -426,6 +602,8 @@
           "fixture_id": 1584467,
           "slug": "2026-11-23-basaksehir-vs-corum-fk",
           "kickoff": "2026-11-23 17:00:00+00:00",
+          "kickoff_local": "2026-11-23 20:00:00",
+          "kickoff_zone_label": "UTC+3",
           "round": "Regular Season - 12",
           "round_label_i18n_key": "roundWeek",
           "round_number": 12,
@@ -442,16 +620,16 @@
             "team_id": 564,
             "name": "Başakşehir",
             "slug": "basaksehir",
-            "crest": "https://media.api-sports.io/football/teams/564.png"
+            "crest": "/crests/teams/564-104.webp"
           },
           "away": {
             "team_id": 6343,
             "name": "Çorum FK",
             "slug": "corum-fk",
-            "crest": "https://media.api-sports.io/football/teams/6343.png"
+            "crest": "/crests/teams/6343-104.webp"
           },
           "is_next_round": true,
-          "is_match_that_matters": false
+          "is_match_that_matters": true
         }
       ]
     }

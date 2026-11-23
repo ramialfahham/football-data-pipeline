@@ -1,0 +1,54 @@
+{
+  "type": "match_day",
+  "slug": "2026-11-17",
+  "day": "2026-11-17",
+  "is_opening_day": false,
+  "previous_day": "2026-11-15",
+  "next_day": "2026-11-18",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "/crests/leagues/536-104.webp",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644694,
+          "slug": "2026-11-17-canada-vs-guatemala",
+          "kickoff": "2026-11-17 01:00:00+00:00",
+          "kickoff_local": "2026-11-16 20:00:00",
+          "kickoff_zone_label": "EST",
+          "round": "Quarter-finals",
+          "round_label_i18n_key": "roundQuarterfinalsAm",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 11,
+          "fixture_order": 104,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 4,
+          "goals_away": 1,
+          "home": {
+            "team_id": 5529,
+            "name": "Canada",
+            "slug": "canada",
+            "crest": "/crests/teams/5529-104.webp"
+          },
+          "away": {
+            "team_id": 5161,
+            "name": "Guatemala",
+            "slug": "guatemala",
+            "crest": "/crests/teams/5161-104.webp"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

@@ -10,7 +10,7 @@
       "league_code": "CDF",
       "name": "Coupe de France",
       "slug": "coupe-de-france",
-      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "crest": "/crests/leagues/66-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -19,8 +19,10 @@
           "fixture_id": 1647938,
           "slug": "2026-11-12-chambery-vs-grenoble",
           "kickoff": "2026-11-12 18:00:00+00:00",
+          "kickoff_local": "2026-11-12 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -35,13 +37,13 @@
             "team_id": 9969,
             "name": "Chambéry",
             "slug": "chambery",
-            "crest": "https://media.api-sports.io/football/teams/9969.png"
+            "crest": "/crests/teams/9969-104.webp"
           },
           "away": {
             "team_id": 101,
             "name": "Grenoble",
             "slug": "grenoble",
-            "crest": "https://media.api-sports.io/football/teams/101.png"
+            "crest": "/crests/teams/101-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false

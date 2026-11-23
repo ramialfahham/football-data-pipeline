@@ -210,7 +210,7 @@ def test_the_research_list_carries_every_finished_match_of_a_withheld_team_seaso
         "from off_standings_items as s inner join fixtures as f on s.fixture_sk = f.fixture_sk union all"
     ) in text
     shared = (MART / "shared.yml").read_text(encoding="utf-8")
-    assert shared.count('"team_season_off_standings", "lineup_duplicate_withheld", "correction_no_longer_needed"]') == 1
+    assert shared.count('"team_season_off_standings", "lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]') == 1
     assert shared.count('"fixture_lineup_corrections", "none"]') == 1
 
 

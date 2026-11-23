@@ -4033,23 +4033,23 @@ models:
     description: >
       The list of provider errors to research, rebuilt each night. One row per match, or team in a
       match, where a check of the provider's data withholds a value on goals, scores, awards or
-      cards. A line filed under a team that did not play the match is left out. A team-season whose
-      results disagree with the provider's standings is blanked. One row per correction the
-      provider no longer needs. A value the provider has corrected itself passes its check, and its
-      row leaves the list. The research routine reads
+      cards. A line filed under a team that did not play the match, or that came with no team id, is
+      left out. A team-season whose results disagree with the provider's standings is blanked. One
+      row per correction the provider no longer needs. A value the provider has corrected itself
+      passes its check, and its row leaves the list. The research routine reads
       it; no page does. Grain: item_key.
     columns:
       - name: item_key
         description: "The row's key, its parts separated by a space. It holds check_name, seed, and the correction's key or the fixture id. A line-up team, a misfiled line or a withheld team-season adds the team id."
         tests: [unique, not_null]
       - name: check_name
-        description: "What failed. One of result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld, player_team_withheld, lineup_duplicate_withheld, team_season_off_standings or correction_no_longer_needed. misfiled_team_withheld is a line filed under a team that did not play the match. player_team_withheld is a player whose stat line and events name different teams. Both stay out of the facts until a correction row settles them. lineup_duplicate_withheld is a team whose line-up the provider stored twice with different content. team_season_off_standings is a team-season whose results disagree with the provider's standings, so every value of it is blank. correction_no_longer_needed is a correction the provider's own data now carries."
+        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (a team's line-up stored twice with different content, so that team has no sheet; seed none), null_key_line_withheld (a statistics line or a line-up came with no team id and a team of the match lacks a value it could have given; seed none), team_season_off_standings (a team-season whose results disagree with the provider's standings, so its values are blank; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
         tests:
           - not_null
           - accepted_values:
-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "team_season_off_standings", "lineup_duplicate_withheld", "correction_no_longer_needed"]
+              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "team_season_off_standings", "lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]
       - name: seed
-        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none where no seed fixes it."
+        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none where no seed fixes it: a newer fetch or a settled standings removes the row."
         tests:
           - not_null
           - accepted_values:

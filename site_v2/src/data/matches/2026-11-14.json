@@ -7,52 +7,10 @@
   "next_day": "2026-11-15",
   "competitions": [
     {
-      "league_code": "BSA",
-      "name": "Brasileirão Série A",
-      "slug": "brasileirao",
-      "crest": "https://media.api-sports.io/football/leagues/71.png",
-      "entity_type": "club",
-      "confederation": "CONMEBOL",
-      "region_rank": 3,
-      "fixtures": [
-        {
-          "fixture_id": 1492455,
-          "slug": "2026-11-14-mirassol-vs-atletico-mg",
-          "kickoff": "2026-11-14 21:30:00+00:00",
-          "round": "Regular Season - 35",
-          "round_label_i18n_key": "compFactMatchday",
-          "round_number": 35,
-          "round_letter": null,
-          "round_order": 35,
-          "round_sequence": 35,
-          "fixture_order": 341,
-          "status": "FT",
-          "unplayed_state": null,
-          "is_played": true,
-          "goals_home": 0,
-          "goals_away": 0,
-          "home": {
-            "team_id": 7848,
-            "name": "Mirassol",
-            "slug": "mirassol",
-            "crest": "https://media.api-sports.io/football/teams/7848.png"
-          },
-          "away": {
-            "team_id": 1062,
-            "name": "Atletico-MG",
-            "slug": "atletico-mg",
-            "crest": "https://media.api-sports.io/football/teams/1062.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
       "league_code": "CDF",
       "name": "Coupe de France",
       "slug": "coupe-de-france",
-      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "crest": "/crests/leagues/66-104.webp",
       "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
@@ -61,8 +19,10 @@
           "fixture_id": 1647927,
           "slug": "2026-11-14-balagne-vs-montpellier",
           "kickoff": "2026-11-14 13:00:00+00:00",
+          "kickoff_local": "2026-11-14 14:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -77,13 +37,13 @@
             "team_id": 9931,
             "name": "Balagne",
             "slug": "balagne",
-            "crest": "https://media.api-sports.io/football/teams/9931.png"
+            "crest": "/crests/teams/9931-104.webp"
           },
           "away": {
             "team_id": 82,
             "name": "Montpellier",
             "slug": "montpellier",
-            "crest": "https://media.api-sports.io/football/teams/82.png"
+            "crest": "/crests/teams/82-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -92,8 +52,10 @@
           "fixture_id": 1647962,
           "slug": "2026-11-14-le-puy-foot-vs-diables-noirs-france",
           "kickoff": "2026-11-14 13:00:00+00:00",
+          "kickoff_local": "2026-11-14 14:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -108,13 +70,13 @@
             "team_id": 3069,
             "name": "Le Puy Foot",
             "slug": "le-puy-foot",
-            "crest": "https://media.api-sports.io/football/teams/3069.png"
+            "crest": "/crests/teams/3069-104.webp"
           },
           "away": {
             "team_id": 20600,
             "name": "Diables Noirs",
             "slug": "diables-noirs-france",
-            "crest": "https://media.api-sports.io/football/teams/20600.png"
+            "crest": "/crests/teams/20600-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -123,8 +85,10 @@
           "fixture_id": 1647999,
           "slug": "2026-11-14-tourcoing-vs-reims",
           "kickoff": "2026-11-14 13:00:00+00:00",
+          "kickoff_local": "2026-11-14 14:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -139,13 +103,13 @@
             "team_id": 9314,
             "name": "Tourcoing",
             "slug": "tourcoing",
-            "crest": "https://media.api-sports.io/football/teams/9314.png"
+            "crest": "/crests/teams/9314-104.webp"
           },
           "away": {
             "team_id": 93,
             "name": "Reims",
             "slug": "reims",
-            "crest": "https://media.api-sports.io/football/teams/93.png"
+            "crest": "/crests/teams/93-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -154,8 +118,10 @@
           "fixture_id": 1648004,
           "slug": "2026-11-14-versailles-vs-rodez",
           "kickoff": "2026-11-14 13:00:00+00:00",
+          "kickoff_local": "2026-11-14 14:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -170,13 +136,13 @@
             "team_id": 3131,
             "name": "Versailles",
             "slug": "versailles",
-            "crest": "https://media.api-sports.io/football/teams/3131.png"
+            "crest": "/crests/teams/3131-104.webp"
           },
           "away": {
             "team_id": 1301,
             "name": "Rodez",
             "slug": "rodez",
-            "crest": "https://media.api-sports.io/football/teams/1301.png"
+            "crest": "/crests/teams/1301-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -185,8 +151,10 @@
           "fixture_id": 1647931,
           "slug": "2026-11-14-boulay-vs-sochaux",
           "kickoff": "2026-11-14 13:30:00+00:00",
+          "kickoff_local": "2026-11-14 14:30:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -201,13 +169,13 @@
             "team_id": 9267,
             "name": "Boulay",
             "slug": "boulay",
-            "crest": "https://media.api-sports.io/football/teams/9267.png"
+            "crest": "/crests/teams/9267-104.webp"
           },
           "away": {
             "team_id": 115,
             "name": "Sochaux",
             "slug": "sochaux",
-            "crest": "https://media.api-sports.io/football/teams/115.png"
+            "crest": "/crests/teams/115-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -216,8 +184,10 @@
           "fixture_id": 1647981,
           "slug": "2026-11-14-rhone-crussol-vs-frejus-st-raphael",
           "kickoff": "2026-11-14 14:00:00+00:00",
+          "kickoff_local": "2026-11-14 15:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -232,13 +202,13 @@
             "team_id": 28644,
             "name": "Rhone-Crussol",
             "slug": "rhone-crussol",
-            "crest": "https://media.api-sports.io/football/teams/28644.png"
+            "crest": "/crests/teams/28644-104.webp"
           },
           "away": {
             "team_id": 3051,
             "name": "Fréjus St-Raphaël",
             "slug": "frejus-st-raphael",
-            "crest": "https://media.api-sports.io/football/teams/3051.png"
+            "crest": "/crests/teams/3051-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -247,8 +217,10 @@
           "fixture_id": 1647937,
           "slug": "2026-11-14-chalon-vs-hauts-lyonnais",
           "kickoff": "2026-11-14 15:00:00+00:00",
+          "kickoff_local": "2026-11-14 16:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -263,13 +235,13 @@
             "team_id": 27020,
             "name": "Chalon",
             "slug": "chalon",
-            "crest": "https://media.api-sports.io/football/teams/27020.png"
+            "crest": "/crests/teams/27020-104.webp"
           },
           "away": {
             "team_id": 3187,
             "name": "Hauts Lyonnais",
             "slug": "hauts-lyonnais",
-            "crest": "https://media.api-sports.io/football/teams/3187.png"
+            "crest": "/crests/teams/3187-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -278,8 +250,10 @@
           "fixture_id": 1647943,
           "slug": "2026-11-14-choisy-au-bac-vs-caen",
           "kickoff": "2026-11-14 15:00:00+00:00",
+          "kickoff_local": "2026-11-14 16:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -294,13 +268,13 @@
             "team_id": 3166,
             "name": "Choisy au Bac",
             "slug": "choisy-au-bac",
-            "crest": "https://media.api-sports.io/football/teams/3166.png"
+            "crest": "/crests/teams/3166-104.webp"
           },
           "away": {
             "team_id": 88,
             "name": "Caen",
             "slug": "caen",
-            "crest": "https://media.api-sports.io/football/teams/88.png"
+            "crest": "/crests/teams/88-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -309,8 +283,10 @@
           "fixture_id": 1647953,
           "slug": "2026-11-14-vendee-fontenay-vs-clermont-foot",
           "kickoff": "2026-11-14 15:00:00+00:00",
+          "kickoff_local": "2026-11-14 16:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -325,13 +301,13 @@
             "team_id": 3130,
             "name": "Vendée Fontenay",
             "slug": "vendee-fontenay",
-            "crest": "https://media.api-sports.io/football/teams/3130.png"
+            "crest": "/crests/teams/3130-104.webp"
           },
           "away": {
             "team_id": 99,
             "name": "Clermont Foot",
             "slug": "clermont-foot",
-            "crest": "https://media.api-sports.io/football/teams/99.png"
+            "crest": "/crests/teams/99-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -340,8 +316,10 @@
           "fixture_id": 1647942,
           "slug": "2026-11-14-cheruy-vs-bourg-en-bresse-01",
           "kickoff": "2026-11-14 16:00:00+00:00",
+          "kickoff_local": "2026-11-14 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -356,13 +334,13 @@
             "team_id": 28622,
             "name": "Cheruy",
             "slug": "cheruy",
-            "crest": "https://media.api-sports.io/football/teams/28622.png"
+            "crest": "/crests/teams/28622-104.webp"
           },
           "away": {
             "team_id": 430,
             "name": "Bourg-en-bresse 01",
             "slug": "bourg-en-bresse-01",
-            "crest": "https://media.api-sports.io/football/teams/430.png"
+            "crest": "/crests/teams/430-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -371,8 +349,10 @@
           "fixture_id": 1647952,
           "slug": "2026-11-14-firminy-vs-annecy",
           "kickoff": "2026-11-14 16:00:00+00:00",
+          "kickoff_local": "2026-11-14 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -387,13 +367,13 @@
             "team_id": 28626,
             "name": "Firminy",
             "slug": "firminy",
-            "crest": "https://media.api-sports.io/football/teams/28626.png"
+            "crest": "/crests/teams/28626-104.webp"
           },
           "away": {
             "team_id": 3012,
             "name": "Annecy",
             "slug": "annecy",
-            "crest": "https://media.api-sports.io/football/teams/3012.png"
+            "crest": "/crests/teams/3012-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -402,8 +382,10 @@
           "fixture_id": 1647956,
           "slug": "2026-11-14-croix-football-ic-vs-thaon",
           "kickoff": "2026-11-14 16:00:00+00:00",
+          "kickoff_local": "2026-11-14 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -418,13 +400,13 @@
             "team_id": 3043,
             "name": "Croix Football IC",
             "slug": "croix-football-ic",
-            "crest": "https://media.api-sports.io/football/teams/3043.png"
+            "crest": "/crests/teams/3043-104.webp"
           },
           "away": {
             "team_id": 3123,
             "name": "Thaon",
             "slug": "thaon",
-            "crest": "https://media.api-sports.io/football/teams/3123.png"
+            "crest": "/crests/teams/3123-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -433,8 +415,10 @@
           "fixture_id": 1647961,
           "slug": "2026-11-14-le-poire-sur-vie-vs-ussa-vertou",
           "kickoff": "2026-11-14 16:00:00+00:00",
+          "kickoff_local": "2026-11-14 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -449,13 +433,13 @@
             "team_id": 3068,
             "name": "Le Poiré sur Vie",
             "slug": "le-poire-sur-vie",
-            "crest": "https://media.api-sports.io/football/teams/3068.png"
+            "crest": "/crests/teams/3068-104.webp"
           },
           "away": {
             "team_id": 3127,
             "name": "USSA Vertou",
             "slug": "ussa-vertou",
-            "crest": "https://media.api-sports.io/football/teams/3127.png"
+            "crest": "/crests/teams/3127-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -464,8 +448,10 @@
           "fixture_id": 1647994,
           "slug": "2026-11-14-st-sebastien-vs-la-baule-le-pouliguen",
           "kickoff": "2026-11-14 16:00:00+00:00",
+          "kickoff_local": "2026-11-14 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -480,13 +466,13 @@
             "team_id": 28648,
             "name": "St Sebastien",
             "slug": "st-sebastien",
-            "crest": "https://media.api-sports.io/football/teams/28648.png"
+            "crest": "/crests/teams/28648-104.webp"
           },
           "away": {
             "team_id": 9283,
             "name": "La Baule-Le Pouliguen",
             "slug": "la-baule-le-pouliguen",
-            "crest": "https://media.api-sports.io/football/teams/9283.png"
+            "crest": "/crests/teams/9283-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -495,8 +481,10 @@
           "fixture_id": 1647998,
           "slug": "2026-11-14-tinteniac-vs-concarneau",
           "kickoff": "2026-11-14 16:00:00+00:00",
+          "kickoff_local": "2026-11-14 17:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -511,13 +499,13 @@
             "team_id": 28633,
             "name": "Tinteniac",
             "slug": "tinteniac",
-            "crest": "https://media.api-sports.io/football/teams/28633.png"
+            "crest": "/crests/teams/28633-104.webp"
           },
           "away": {
             "team_id": 1300,
             "name": "Concarneau",
             "slug": "concarneau",
-            "crest": "https://media.api-sports.io/football/teams/1300.png"
+            "crest": "/crests/teams/1300-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -526,8 +514,10 @@
           "fixture_id": 1647958,
           "slug": "2026-11-14-koetzingue-vs-biesheim",
           "kickoff": "2026-11-14 16:30:00+00:00",
+          "kickoff_local": "2026-11-14 17:30:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -542,13 +532,13 @@
             "team_id": 13691,
             "name": "Koetzingue",
             "slug": "koetzingue",
-            "crest": "https://media.api-sports.io/football/teams/13691.png"
+            "crest": "/crests/teams/13691-104.webp"
           },
           "away": {
             "team_id": 3025,
             "name": "Biesheim",
             "slug": "biesheim",
-            "crest": "https://media.api-sports.io/football/teams/3025.png"
+            "crest": "/crests/teams/3025-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -557,8 +547,10 @@
           "fixture_id": 1647922,
           "slug": "2026-11-14-amneville-vs-sundhoffen",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -573,13 +565,13 @@
             "team_id": 3144,
             "name": "Amnéville",
             "slug": "amneville",
-            "crest": "https://media.api-sports.io/football/teams/3144.png"
+            "crest": "/crests/teams/3144-104.webp"
           },
           "away": {
             "team_id": 9312,
             "name": "Sundhoffen",
             "slug": "sundhoffen",
-            "crest": "https://media.api-sports.io/football/teams/9312.png"
+            "crest": "/crests/teams/9312-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -588,8 +580,10 @@
           "fixture_id": 1647923,
           "slug": "2026-11-14-caen-ptt-vs-chambly-thelle-fc",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -604,13 +598,13 @@
             "team_id": 3158,
             "name": "Caen PTT",
             "slug": "caen-ptt",
-            "crest": "https://media.api-sports.io/football/teams/3158.png"
+            "crest": "/crests/teams/3158-104.webp"
           },
           "away": {
             "team_id": 1291,
             "name": "Chambly Thelle FC",
             "slug": "chambly-thelle-fc",
-            "crest": "https://media.api-sports.io/football/teams/1291.png"
+            "crest": "/crests/teams/1291-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -619,8 +613,10 @@
           "fixture_id": 1647924,
           "slug": "2026-11-14-asptt-dijon-vs-selongey",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -635,13 +631,13 @@
             "team_id": 22040,
             "name": "ASPTT Dijon",
             "slug": "asptt-dijon",
-            "crest": "https://media.api-sports.io/football/teams/22040.png"
+            "crest": "/crests/teams/22040-104.webp"
           },
           "away": {
             "team_id": 3300,
             "name": "Selongey",
             "slug": "selongey",
-            "crest": "https://media.api-sports.io/football/teams/3300.png"
+            "crest": "/crests/teams/3300-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -650,8 +646,10 @@
           "fixture_id": 1647929,
           "slug": "2026-11-14-racing-besancon-vs-apm-metz",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -666,13 +664,13 @@
             "team_id": 9974,
             "name": "Racing Besançon",
             "slug": "racing-besancon",
-            "crest": "https://media.api-sports.io/football/teams/9974.png"
+            "crest": "/crests/teams/9974-104.webp"
           },
           "away": {
             "team_id": 3245,
             "name": "APM Metz",
             "slug": "apm-metz",
-            "crest": "https://media.api-sports.io/football/teams/3245.png"
+            "crest": "/crests/teams/3245-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -681,8 +679,10 @@
           "fixture_id": 1647930,
           "slug": "2026-11-14-stade-bethunois-vs-nancy",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -697,13 +697,13 @@
             "team_id": 18153,
             "name": "Stade Béthunois",
             "slug": "stade-bethunois",
-            "crest": "https://media.api-sports.io/football/teams/18153.png"
+            "crest": "/crests/teams/18153-104.webp"
           },
           "away": {
             "team_id": 102,
             "name": "Nancy",
             "slug": "nancy",
-            "crest": "https://media.api-sports.io/football/teams/102.png"
+            "crest": "/crests/teams/102-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -712,8 +712,10 @@
           "fixture_id": 1647939,
           "slug": "2026-11-14-chateaubriant-vs-horizon-patho",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -728,13 +730,13 @@
             "team_id": 9272,
             "name": "Châteaubriant",
             "slug": "chateaubriant",
-            "crest": "https://media.api-sports.io/football/teams/9272.png"
+            "crest": "/crests/teams/9272-104.webp"
           },
           "away": {
             "team_id": 28627,
             "name": "Horizon Patho",
             "slug": "horizon-patho",
-            "crest": "https://media.api-sports.io/football/teams/28627.png"
+            "crest": "/crests/teams/28627-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -743,8 +745,10 @@
           "fixture_id": 1647945,
           "slug": "2026-11-14-saint-brieuc-vs-rouen",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -759,13 +763,13 @@
             "team_id": 13710,
             "name": "Saint-Brieuc",
             "slug": "saint-brieuc",
-            "crest": "https://media.api-sports.io/football/teams/13710.png"
+            "crest": "/crests/teams/13710-104.webp"
           },
           "away": {
             "team_id": 3221,
             "name": "Rouen",
             "slug": "rouen",
-            "crest": "https://media.api-sports.io/football/teams/3221.png"
+            "crest": "/crests/teams/3221-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -774,8 +778,10 @@
           "fixture_id": 1647946,
           "slug": "2026-11-14-contres-vs-linas-montlhery",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -790,13 +796,13 @@
             "team_id": 28625,
             "name": "Contres",
             "slug": "contres",
-            "crest": "https://media.api-sports.io/football/teams/28625.png"
+            "crest": "/crests/teams/28625-104.webp"
           },
           "away": {
             "team_id": 9288,
             "name": "Linas-Montlhery",
             "slug": "linas-montlhery",
-            "crest": "https://media.api-sports.io/football/teams/9288.png"
+            "crest": "/crests/teams/9288-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -805,8 +811,10 @@
           "fixture_id": 1647949,
           "slug": "2026-11-14-dunkerque-vs-quevilly",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -821,13 +829,13 @@
             "team_id": 1304,
             "name": "Dunkerque",
             "slug": "dunkerque",
-            "crest": "https://media.api-sports.io/football/teams/1304.png"
+            "crest": "/crests/teams/1304-104.webp"
           },
           "away": {
             "team_id": 431,
             "name": "Quevilly",
             "slug": "quevilly",
-            "crest": "https://media.api-sports.io/football/teams/431.png"
+            "crest": "/crests/teams/431-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -836,8 +844,10 @@
           "fixture_id": 1647951,
           "slug": "2026-11-14-cournon-vs-chassieu-decines",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -852,13 +862,13 @@
             "team_id": 9273,
             "name": "Cournon",
             "slug": "cournon",
-            "crest": "https://media.api-sports.io/football/teams/9273.png"
+            "crest": "/crests/teams/9273-104.webp"
           },
           "away": {
             "team_id": 3036,
             "name": "Chassieu Décines",
             "slug": "chassieu-decines",
-            "crest": "https://media.api-sports.io/football/teams/3036.png"
+            "crest": "/crests/teams/3036-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -867,8 +877,10 @@
           "fixture_id": 1647955,
           "slug": "2026-11-14-grau-du-roi-vs-riviera",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -883,13 +895,13 @@
             "team_id": 25358,
             "name": "Grau-du-Roi",
             "slug": "grau-du-roi",
-            "crest": "https://media.api-sports.io/football/teams/25358.png"
+            "crest": "/crests/teams/25358-104.webp"
           },
           "away": {
             "team_id": 28647,
             "name": "Riviera",
             "slug": "riviera",
-            "crest": "https://media.api-sports.io/football/teams/28647.png"
+            "crest": "/crests/teams/28647-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -898,8 +910,10 @@
           "fixture_id": 1647963,
           "slug": "2026-11-14-le-touquet-vs-avranches",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -914,13 +928,13 @@
             "team_id": 9287,
             "name": "Le Touquet",
             "slug": "le-touquet",
-            "crest": "https://media.api-sports.io/football/teams/9287.png"
+            "crest": "/crests/teams/9287-104.webp"
           },
           "away": {
             "team_id": 1303,
             "name": "Avranches",
             "slug": "avranches",
-            "crest": "https://media.api-sports.io/football/teams/1303.png"
+            "crest": "/crests/teams/1303-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -929,8 +943,10 @@
           "fixture_id": 1647965,
           "slug": "2026-11-14-lyon-duchere-vs-feurs",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -945,13 +961,13 @@
             "team_id": 1295,
             "name": "Lyon Duchere",
             "slug": "lyon-duchere",
-            "crest": "https://media.api-sports.io/football/teams/1295.png"
+            "crest": "/crests/teams/1295-104.webp"
           },
           "away": {
             "team_id": 3177,
             "name": "Feurs",
             "slug": "feurs",
-            "crest": "https://media.api-sports.io/football/teams/3177.png"
+            "crest": "/crests/teams/3177-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -960,8 +976,10 @@
           "fixture_id": 1647975,
           "slug": "2026-11-14-cheminots-paray-vs-villefranche",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -976,13 +994,13 @@
             "team_id": 3039,
             "name": "Cheminots Paray",
             "slug": "cheminots-paray",
-            "crest": "https://media.api-sports.io/football/teams/3039.png"
+            "crest": "/crests/teams/3039-104.webp"
           },
           "away": {
             "team_id": 1302,
             "name": "Villefranche",
             "slug": "villefranche",
-            "crest": "https://media.api-sports.io/football/teams/1302.png"
+            "crest": "/crests/teams/1302-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -991,8 +1009,10 @@
           "fixture_id": 1647978,
           "slug": "2026-11-14-pontivy-gsi-vs-ta-rennes",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1007,13 +1027,13 @@
             "team_id": 3098,
             "name": "Pontivy GSI",
             "slug": "pontivy-gsi",
-            "crest": "https://media.api-sports.io/football/teams/3098.png"
+            "crest": "/crests/teams/3098-104.webp"
           },
           "away": {
             "team_id": 3310,
             "name": "TA Rennes",
             "slug": "ta-rennes",
-            "crest": "https://media.api-sports.io/football/teams/3310.png"
+            "crest": "/crests/teams/3310-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1022,8 +1042,10 @@
           "fixture_id": 1647984,
           "slug": "2026-11-14-sag-cestas-vs-bayonne",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1038,13 +1060,13 @@
             "team_id": 18147,
             "name": "SAG Cestas",
             "slug": "sag-cestas",
-            "crest": "https://media.api-sports.io/football/teams/18147.png"
+            "crest": "/crests/teams/18147-104.webp"
           },
           "away": {
             "team_id": 10166,
             "name": "Bayonne",
             "slug": "bayonne",
-            "crest": "https://media.api-sports.io/football/teams/10166.png"
+            "crest": "/crests/teams/10166-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1053,8 +1075,10 @@
           "fixture_id": 1647985,
           "slug": "2026-11-14-saint-omer-vs-vire",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1069,13 +1093,13 @@
             "team_id": 3109,
             "name": "Saint-Omer",
             "slug": "saint-omer",
-            "crest": "https://media.api-sports.io/football/teams/3109.png"
+            "crest": "/crests/teams/3109-104.webp"
           },
           "away": {
             "team_id": 3243,
             "name": "Vire",
             "slug": "vire",
-            "crest": "https://media.api-sports.io/football/teams/3243.png"
+            "crest": "/crests/teams/3243-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1084,8 +1108,10 @@
           "fixture_id": 1647991,
           "slug": "2026-11-14-st-ouen-laumone-vs-boulogne",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1100,13 +1126,13 @@
             "team_id": 13630,
             "name": "St Ouen l'Aumône",
             "slug": "st-ouen-laumone",
-            "crest": "https://media.api-sports.io/football/teams/13630.png"
+            "crest": "/crests/teams/13630-104.webp"
           },
           "away": {
             "team_id": 1299,
             "name": "Boulogne",
             "slug": "boulogne",
-            "crest": "https://media.api-sports.io/football/teams/1299.png"
+            "crest": "/crests/teams/1299-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1115,8 +1141,10 @@
           "fixture_id": 1647992,
           "slug": "2026-11-14-strasbourg-koenigshoffen-vs-oberlauterbach",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1131,13 +1159,13 @@
             "team_id": 16416,
             "name": "Strasbourg Koenigshoffen",
             "slug": "strasbourg-koenigshoffen",
-            "crest": "https://media.api-sports.io/football/teams/16416.png"
+            "crest": "/crests/teams/16416-104.webp"
           },
           "away": {
             "team_id": 3279,
             "name": "Oberlauterbach",
             "slug": "oberlauterbach",
-            "crest": "https://media.api-sports.io/football/teams/3279.png"
+            "crest": "/crests/teams/3279-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1146,8 +1174,10 @@
           "fixture_id": 1648006,
           "slug": "2026-11-14-vesoul-vs-fleury-91",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1162,13 +1192,13 @@
             "team_id": 13803,
             "name": "Vesoul",
             "slug": "vesoul",
-            "crest": "https://media.api-sports.io/football/teams/13803.png"
+            "crest": "/crests/teams/13803-104.webp"
           },
           "away": {
             "team_id": 3179,
             "name": "Fleury 91",
             "slug": "fleury-91",
-            "crest": "https://media.api-sports.io/football/teams/3179.png"
+            "crest": "/crests/teams/3179-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1177,8 +1207,10 @@
           "fixture_id": 1648008,
           "slug": "2026-11-14-vitre-vs-saint-pierre-milizac",
           "kickoff": "2026-11-14 17:00:00+00:00",
+          "kickoff_local": "2026-11-14 18:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1193,13 +1225,13 @@
             "team_id": 3138,
             "name": "Vitré",
             "slug": "vitre",
-            "crest": "https://media.api-sports.io/football/teams/3138.png"
+            "crest": "/crests/teams/3138-104.webp"
           },
           "away": {
             "team_id": 9309,
             "name": "Saint-Pierre Milizac",
             "slug": "saint-pierre-milizac",
-            "crest": "https://media.api-sports.io/football/teams/9309.png"
+            "crest": "/crests/teams/9309-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1208,8 +1240,10 @@
           "fixture_id": 1647928,
           "slug": "2026-11-14-balma-vs-castanet",
           "kickoff": "2026-11-14 17:30:00+00:00",
+          "kickoff_local": "2026-11-14 18:30:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1224,13 +1258,13 @@
             "team_id": 3152,
             "name": "Balma",
             "slug": "balma",
-            "crest": "https://media.api-sports.io/football/teams/3152.png"
+            "crest": "/crests/teams/3152-104.webp"
           },
           "away": {
             "team_id": 15115,
             "name": "Castanet",
             "slug": "castanet",
-            "crest": "https://media.api-sports.io/football/teams/15115.png"
+            "crest": "/crests/teams/15115-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1239,8 +1273,10 @@
           "fixture_id": 1647926,
           "slug": "2026-11-14-avenir-foot-lozere-vs-entente-crest-aouste",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1255,13 +1291,13 @@
             "team_id": 3016,
             "name": "Avenir Foot Lozère",
             "slug": "avenir-foot-lozere",
-            "crest": "https://media.api-sports.io/football/teams/3016.png"
+            "crest": "/crests/teams/3016-104.webp"
           },
           "away": {
             "team_id": 3046,
             "name": "Entente Crest-Aouste",
             "slug": "entente-crest-aouste",
-            "crest": "https://media.api-sports.io/football/teams/3046.png"
+            "crest": "/crests/teams/3046-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1270,8 +1306,10 @@
           "fixture_id": 1647932,
           "slug": "2026-11-14-boulazac-vs-anglet-genets",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1286,13 +1324,13 @@
             "team_id": 28618,
             "name": "Boulazac",
             "slug": "boulazac",
-            "crest": "https://media.api-sports.io/football/teams/28618.png"
+            "crest": "/crests/teams/28618-104.webp"
           },
           "away": {
             "team_id": 3010,
             "name": "Anglet Genets",
             "slug": "anglet-genets",
-            "crest": "https://media.api-sports.io/football/teams/3010.png"
+            "crest": "/crests/teams/3010-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1301,8 +1339,10 @@
           "fixture_id": 1647933,
           "slug": "2026-11-14-bressuire-vs-challans",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1317,13 +1357,13 @@
             "team_id": 3155,
             "name": "Bressuire",
             "slug": "bressuire",
-            "crest": "https://media.api-sports.io/football/teams/3155.png"
+            "crest": "/crests/teams/3155-104.webp"
           },
           "away": {
             "team_id": 3032,
             "name": "Challans",
             "slug": "challans",
-            "crest": "https://media.api-sports.io/football/teams/3032.png"
+            "crest": "/crests/teams/3032-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1332,8 +1372,10 @@
           "fixture_id": 1647934,
           "slug": "2026-11-14-brive-vs-angouleme",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1348,13 +1390,13 @@
             "team_id": 13641,
             "name": "Brive",
             "slug": "brive",
-            "crest": "https://media.api-sports.io/football/teams/13641.png"
+            "crest": "/crests/teams/13641-104.webp"
           },
           "away": {
             "team_id": 3011,
             "name": "Angoulême",
             "slug": "angouleme",
-            "crest": "https://media.api-sports.io/football/teams/3011.png"
+            "crest": "/crests/teams/3011-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1363,8 +1405,10 @@
           "fixture_id": 1647935,
           "slug": "2026-11-14-buxerolles-vs-sable",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1379,13 +1423,13 @@
             "team_id": 28619,
             "name": "Buxerolles",
             "slug": "buxerolles",
-            "crest": "https://media.api-sports.io/football/teams/28619.png"
+            "crest": "/crests/teams/28619-104.webp"
           },
           "away": {
             "team_id": 9304,
             "name": "Sablé",
             "slug": "sable",
-            "crest": "https://media.api-sports.io/football/teams/9304.png"
+            "crest": "/crests/teams/9304-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1394,8 +1438,10 @@
           "fixture_id": 1647941,
           "slug": "2026-11-14-chauny-vs-le-pays-du-valois",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1410,13 +1456,13 @@
             "team_id": 3256,
             "name": "Chauny",
             "slug": "chauny",
-            "crest": "https://media.api-sports.io/football/teams/3256.png"
+            "crest": "/crests/teams/3256-104.webp"
           },
           "away": {
             "team_id": 20601,
             "name": "Le Pays du Valois",
             "slug": "le-pays-du-valois",
-            "crest": "https://media.api-sports.io/football/teams/20601.png"
+            "crest": "/crests/teams/20601-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1425,8 +1471,10 @@
           "fixture_id": 1647944,
           "slug": "2026-11-14-claira-laurent-vs-puissalicon",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1441,13 +1489,13 @@
             "team_id": 28623,
             "name": "Claira/Laurent",
             "slug": "claira-laurent",
-            "crest": "https://media.api-sports.io/football/teams/28623.png"
+            "crest": "/crests/teams/28623-104.webp"
           },
           "away": {
             "team_id": 28641,
             "name": "Puissalicon",
             "slug": "puissalicon",
-            "crest": "https://media.api-sports.io/football/teams/28641.png"
+            "crest": "/crests/teams/28641-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1456,8 +1504,10 @@
           "fixture_id": 1647947,
           "slug": "2026-11-14-cpb-brequigny-vs-montlucon",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1472,13 +1522,13 @@
             "team_id": 28620,
             "name": "CPB Brequigny",
             "slug": "cpb-brequigny",
-            "crest": "https://media.api-sports.io/football/teams/28620.png"
+            "crest": "/crests/teams/28620-104.webp"
           },
           "away": {
             "team_id": 3083,
             "name": "Montluçon",
             "slug": "montlucon",
-            "crest": "https://media.api-sports.io/football/teams/3083.png"
+            "crest": "/crests/teams/3083-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1487,8 +1537,10 @@
           "fixture_id": 1647960,
           "slug": "2026-11-14-lannion-vs-guingamp",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1503,13 +1555,13 @@
             "team_id": 3067,
             "name": "Lannion",
             "slug": "lannion",
-            "crest": "https://media.api-sports.io/football/teams/3067.png"
+            "crest": "/crests/teams/3067-104.webp"
           },
           "away": {
             "team_id": 90,
             "name": "Guingamp",
             "slug": "guingamp",
-            "crest": "https://media.api-sports.io/football/teams/90.png"
+            "crest": "/crests/teams/90-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1518,8 +1570,10 @@
           "fixture_id": 1647964,
           "slug": "2026-11-14-lourdes-fc-vs-pau",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1540,7 +1594,7 @@
             "team_id": 1297,
             "name": "PAU",
             "slug": "pau",
-            "crest": "https://media.api-sports.io/football/teams/1297.png"
+            "crest": "/crests/teams/1297-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1549,8 +1603,10 @@
           "fixture_id": 1647966,
           "slug": "2026-11-14-macaire-vs-nueillaubiers",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1565,13 +1621,13 @@
             "team_id": 28630,
             "name": "Macaire",
             "slug": "macaire",
-            "crest": "https://media.api-sports.io/football/teams/28630.png"
+            "crest": "/crests/teams/28630-104.webp"
           },
           "away": {
             "team_id": 9297,
             "name": "Nueillaubiers",
             "slug": "nueillaubiers",
-            "crest": "https://media.api-sports.io/football/teams/9297.png"
+            "crest": "/crests/teams/9297-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1580,8 +1636,10 @@
           "fixture_id": 1647990,
           "slug": "2026-11-14-stade-bordelais-vs-mazeres",
           "kickoff": "2026-11-14 18:00:00+00:00",
+          "kickoff_local": "2026-11-14 19:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1596,13 +1654,13 @@
             "team_id": 3228,
             "name": "Stade Bordelais",
             "slug": "stade-bordelais",
-            "crest": "https://media.api-sports.io/football/teams/3228.png"
+            "crest": "/crests/teams/3228-104.webp"
           },
           "away": {
             "team_id": 27035,
             "name": "Mazeres",
             "slug": "mazeres",
-            "crest": "https://media.api-sports.io/football/teams/27035.png"
+            "crest": "/crests/teams/27035-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false
@@ -1611,8 +1669,10 @@
           "fixture_id": 1647974,
           "slug": "2026-11-14-om-cambrai-vs-amiens",
           "kickoff": "2026-11-14 19:00:00+00:00",
+          "kickoff_local": "2026-11-14 20:00:00",
+          "kickoff_zone_label": "CET",
           "round": "1/128-finals",
-          "round_label_i18n_key": null,
+          "round_label_i18n_key": "roundSeventhRound",
           "round_number": null,
           "round_letter": null,
           "round_order": null,
@@ -1627,13 +1687,90 @@
             "team_id": 28640,
             "name": "OM Cambrai",
             "slug": "om-cambrai",
-            "crest": "https://media.api-sports.io/football/teams/28640.png"
+            "crest": "/crests/teams/28640-104.webp"
           },
           "away": {
             "team_id": 87,
             "name": "Amiens",
             "slug": "amiens",
-            "crest": "https://media.api-sports.io/football/teams/87.png"
+            "crest": "/crests/teams/87-104.webp"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "/crests/leagues/536-104.webp",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644692,
+          "slug": "2026-11-14-guatemala-vs-canada",
+          "kickoff": "2026-11-14 02:00:00+00:00",
+          "kickoff_local": "2026-11-13 20:00:00",
+          "kickoff_zone_label": "CST",
+          "round": "Quarter-finals",
+          "round_label_i18n_key": "roundQuarterfinalsAm",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 11,
+          "fixture_order": 100,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 3,
+          "home": {
+            "team_id": 5161,
+            "name": "Guatemala",
+            "slug": "guatemala",
+            "crest": "/crests/teams/5161-104.webp"
+          },
+          "away": {
+            "team_id": 5529,
+            "name": "Canada",
+            "slug": "canada",
+            "crest": "/crests/teams/5529-104.webp"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1644693,
+          "slug": "2026-11-14-haiti-vs-usa",
+          "kickoff": "2026-11-14 21:30:00+00:00",
+          "kickoff_local": "2026-11-14 21:30:00",
+          "kickoff_zone_label": "UTC",
+          "round": "Quarter-finals",
+          "round_label_i18n_key": "roundQuarterfinalsAm",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 11,
+          "fixture_order": 101,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 6,
+          "home": {
+            "team_id": 2386,
+            "name": "Haiti",
+            "slug": "haiti",
+            "crest": "/crests/teams/2386-104.webp"
+          },
+          "away": {
+            "team_id": 2384,
+            "name": "USA",
+            "slug": "usa",
+            "crest": "/crests/teams/2384-104.webp"
           },
           "is_next_round": false,
           "is_match_that_matters": false

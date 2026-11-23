@@ -13,7 +13,7 @@
   "club": {
     "team_id": 174,
     "name": "FC Schalke 04",
-    "crest": "https://media.api-sports.io/football/teams/174.png",
+    "crest": "/crests/teams/174-104.webp",
     "slug": "fc-schalke-04"
   },
   "tabs": [
@@ -22,27 +22,29 @@
       "team": {
         "team_id": 174,
         "name": "FC Schalke 04",
-        "crest": "https://media.api-sports.io/football/teams/174.png",
+        "crest": "/crests/teams/174-104.webp",
         "slug": "fc-schalke-04"
       },
       "cards": {
         "cards_red_player": 0.0,
-        "minutes_per_appearance": 89.27272727272727,
-        "saves_player_pct": 0.765625,
-        "appearances": 11.0,
         "cards_yellow_player": 2.0,
-        "goals_against_player": 15.0
+        "minutes_per_appearance": 89.33333333333333,
+        "saves_player_pct": 0.7761194029850746,
+        "goals_against_player": 15.0,
+        "appearances": 12.0
       },
       "next_matches": [
         {
-          "fixture_id": 1575228,
+          "fixture_id": 1575238,
           "league_code": "BL1",
           "upcoming_rank": 1,
-          "opponent_name": "VfB Stuttgart",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/172.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-11-21 17:30:00+00:00",
-          "round_name": "Regular Season - 10",
+          "opponent_name": "SC Paderborn 07",
+          "opponent_logo_url": "/crests/teams/185-104.webp",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-28 14:30:00+00:00",
+          "kickoff_local": "2026-11-28 15:30:00",
+          "kickoff_zone_label": "CET",
+          "round_name": "Regular Season - 11",
           "goals_for": null,
           "goals_against": null,
           "result": null,
@@ -55,85 +57,101 @@
           "season": 2026,
           "season_label": "2026/27",
           "position_group": "GK",
-          "player_count": 21,
+          "player_count": 22,
           "metrics": [
             {
               "metric_key": "ball_actions_per90",
-              "value": 35.90673575129534,
-              "rank": 16,
-              "median": 39.42857142857143
+              "value": 36.438515081206496,
+              "rank": 18,
+              "median": 39.666666666666664
             },
             {
               "metric_key": "goals_against_per90",
-              "value": 1.282383419689119,
-              "rank": 6,
-              "median": 1.8888888888888888
+              "value": 1.148491879350348,
+              "rank": 5,
+              "median": 1.5555555555555556
             },
             {
               "metric_key": "passes_accuracy_player_pct",
-              "value": 0.48659003831417624,
-              "rank": 21,
-              "median": 0.6829268292682927
+              "value": 0.49498327759197325,
+              "rank": 22,
+              "median": 0.6751592356687898
             },
             {
               "metric_key": "passes_per90",
-              "value": 30.427461139896373,
+              "value": 31.218097447795824,
               "rank": 18,
-              "median": 35.125
+              "median": 35.333333333333336
             },
             {
               "metric_key": "saves_per90",
-              "value": 5.362694300518135,
-              "rank": 2,
-              "median": 3.6666666666666665
+              "value": 5.1160092807424595,
+              "rank": 3,
+              "median": 3.5
             },
             {
               "metric_key": "saves_player_pct",
-              "value": 0.8070175438596491,
+              "value": 0.8166666666666667,
               "rank": 1,
-              "median": 0.6739130434782609
+              "median": 0.6808510638297872
             }
           ]
         }
       ],
       "squad": null,
       "last_season": {
-        "minutes": 982,
+        "minutes": 1072,
         "minutes_prev": 2790,
         "metrics": [
           {
             "metric_key": "ball_actions_per90",
-            "value": 33.63543788187373,
+            "value": 34.25373134328358,
             "value_prev": 32.25806451612903
           },
           {
             "metric_key": "goals_against_per90",
-            "value": 1.374745417515275,
+            "value": 1.2593283582089552,
             "value_prev": 0.9032258064516129
           },
           {
             "metric_key": "passes_accuracy_player_pct",
-            "value": 0.526813880126183,
+            "value": 0.5295774647887324,
             "value_prev": 0.5668449197860963
           },
           {
             "metric_key": "passes_per90",
-            "value": 29.05295315682281,
+            "value": 29.80410447761194,
             "value_prev": 30.161290322580644
           },
           {
             "metric_key": "saves_per90",
-            "value": 4.490835030549898,
+            "value": 4.365671641791045,
             "value_prev": 2.096774193548387
           },
           {
             "metric_key": "saves_player_pct",
-            "value": 0.765625,
+            "value": 0.7761194029850746,
             "value_prev": 0.7065217391304348
           }
         ]
       },
       "recent_matches": [
+        {
+          "played_fixture_sk": 1575228,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-11-21 17:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 0,
+          "goals_against": 0,
+          "result": "D",
+          "opponent_name": "VfB Stuttgart",
+          "opponent_logo_url": "/crests/teams/172-104.webp",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 41,
+          "on_bench": false
+        },
         {
           "played_fixture_sk": 1575215,
           "played_league_code": "BL1",
@@ -143,7 +161,7 @@
           "goals_against": 2,
           "result": "L",
           "opponent_name": "TSG 1899 Hoffenheim",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/167.png",
+          "opponent_logo_url": "/crests/teams/167-104.webp",
           "minutes": 52,
           "goals": 0,
           "assists": 0,
@@ -159,7 +177,7 @@
           "goals_against": 2,
           "result": "L",
           "opponent_name": "RB Leipzig",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/173.png",
+          "opponent_logo_url": "/crests/teams/173-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -175,7 +193,7 @@
           "goals_against": 2,
           "result": "L",
           "opponent_name": "Dynamo Dresden",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/183.png",
+          "opponent_logo_url": "/crests/teams/183-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -191,7 +209,7 @@
           "goals_against": 0,
           "result": "D",
           "opponent_name": "1. FC Köln",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/192.png",
+          "opponent_logo_url": "/crests/teams/192-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -207,7 +225,7 @@
           "goals_against": 1,
           "result": "L",
           "opponent_name": "1. FSV Mainz 05",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/164.png",
+          "opponent_logo_url": "/crests/teams/164-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -223,7 +241,7 @@
           "goals_against": 2,
           "result": "L",
           "opponent_name": "SC Freiburg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/160.png",
+          "opponent_logo_url": "/crests/teams/160-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -239,7 +257,7 @@
           "goals_against": 0,
           "result": "D",
           "opponent_name": "SV Elversberg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
+          "opponent_logo_url": "/crests/teams/1660-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -255,7 +273,7 @@
           "goals_against": 1,
           "result": "W",
           "opponent_name": "1. FC Union Berlin",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/182.png",
+          "opponent_logo_url": "/crests/teams/182-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -271,7 +289,7 @@
           "goals_against": 0,
           "result": "D",
           "opponent_name": "Bayern München",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/157.png",
+          "opponent_logo_url": "/crests/teams/157-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -287,7 +305,7 @@
           "goals_against": 3,
           "result": "L",
           "opponent_name": "FC Augsburg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
+          "opponent_logo_url": "/crests/teams/170-104.webp",
           "minutes": 90,
           "goals": 0,
           "assists": 0,
@@ -303,7 +321,7 @@
           "goals_against": 2,
           "result": "W",
           "opponent_name": "Hallescher FC",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1316.png",
+          "opponent_logo_url": "/crests/teams/1316-104.webp",
           "minutes": 120,
           "goals": 0,
           "assists": 0,

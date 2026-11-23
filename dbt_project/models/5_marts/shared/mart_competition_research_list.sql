@@ -22,6 +22,10 @@
     with different content (base_apif__lineup_fetch_ties), so that team has no sheet and the match
     line-up is not_available. No seed fixes the row (seed none); a newer fetch without the tie
     removes it;
+  - null_key_line_withheld: a statistics line or a line-up of the match came with no team id and
+    base leaves it out, while a team of the match has no value base could otherwise have used
+    (base_apif__fixture_lines_without_key). No seed fixes the row (seed none); a fetch that carries
+    the team id removes it;
   - team_season_off_standings: a team-season's results disagree with the provider's standings
     (counts_withheld), so every value of the team-season is blank. One row per finished match of the
     team-season: the results or the standings are wrong and nothing says which, and no seed fixes it
@@ -141,6 +145,14 @@ items as (
         cast(null as string) as correction
     from {{ ref('base_apif__lineup_fetch_ties') }}
     where rows_differ
+    union all
+    select distinct
+        'null_key_line_withheld' as check_name,
+        'none' as seed,
+        fixture_id as fixture_sk,
+        cast(null as int64) as team_sk,
+        cast(null as string) as correction
+    from {{ ref('base_apif__fixture_lines_without_key') }}
 ),
 
 misfiled_lines as (

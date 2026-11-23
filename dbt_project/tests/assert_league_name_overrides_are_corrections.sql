@@ -18,6 +18,7 @@
 
 with import_stg_apif__leagues as (
     select * from {{ ref('stg_apif__leagues') }}
+    where league_api_id is not null and season_api_year is not null
 ),
 
 import_league_name_overrides as (
