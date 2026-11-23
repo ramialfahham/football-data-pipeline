@@ -1,0 +1,108 @@
+diff --git a/.claude/task/256-player-order-value-tests/contract.md b/.claude/task/256-player-order-value-tests/contract.md
+new file mode 100644
+index 00000000..24ef2992
+--- /dev/null
++++ b/.claude/task/256-player-order-value-tests/contract.md
+@@ -0,0 +1,45 @@
++# Task contract — hand-worked values for every metric new to the Player page
++
++objective: >
++  Every metric new to the Player page has a hand-worked value test on the window key and on the
++  Squad key as well as on the season key. The window key gains ball_actions_per90, offsides_per90
++  and goals_against_per90 (the goalkeeper case). The Squad key gains the median and ranks, ties
++  included, of ball_actions_per90, shots_per90, shots_on_goal_player_pct, fouls_per90 and
++  offsides_per90 for one past squad whose every input is present. Each value is added up from the
++  cleaned player-match lines, never from a Player page mart, and compared against the marts by the
++  existing tests. The description of the Squad answer key in schema.yml reads "a Squad".
++refs: "#256, #136"
++
++scope_paths:
++  - dbt_project/seeds/player_window_answer_key.csv
++  - dbt_project/seeds/player_page_answer_key.csv
++  - dbt_project/seeds/schema.yml
++  - .claude/task/256-player-order-value-tests/contract.md
++  - .claude/task/256-player-order-value-tests/review.md
++  - .claude/task/256-player-order-value-tests/review_input.patch
++
++depends_on:
++  - none: the change stands alone
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  The coordinating session's message of 2026-11-22 rules the work: add the missing value tests on
++  the window and Squad keys. The metric order is not changed here: the catalogue on main owns it.
++  The Squad rank stays direction-blind: #136 approved the Squad comparison as a player's role in
++  the squad, not quality (approved in chat, 2026-11-01), and the new Squad rows state it.
++  goals_against_per90 and ball_actions_player have no Squad or window-count row to test, because
++  the Squad serves outfield rates and the window model serves ball actions per 90 only. No new
++  dependency, no cost. Round 4 on this removal delta is approved in chat, 2026-11-23.
++
++decisions_reserved:
++  - "none: every added value is a count computed from the data"
++
++approved_design:
++  - "none: no page layout changes; the rows test values the marts already serve"
++
++done_when:
++  - "`.venv/Scripts/dbt.exe parse --project-dir dbt_project` passes."
++  - "On the prod marts, each added answer-key row equals the model's value: assert_player_window_answer_key and assert_player_page_answer_key return no row in the merge request's data build."
++
++amendments: (none)
+diff --git a/dbt_project/seeds/player_page_answer_key.csv b/dbt_project/seeds/player_page_answer_key.csv
+index e7e65a03..9b61b5fd 100644
+--- a/dbt_project/seeds/player_page_answer_key.csv
++++ b/dbt_project/seeds/player_page_answer_key.csv
+@@ -64,3 +64,28 @@ squad,49922,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,1,"Player
+ squad,2709,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,3,"Player 2709: 3 goals in 1934 minutes, 0.1396 goals per 90, behind 0.3595 and 0.1851."
+ squad,20905,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,11,"Player 20905: 0 goals in 2046 minutes. 10 players have more, so the rank is 11."
+ squad,62325,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,11,"Player 62325: 0 goals in 1718 minutes, tied with player 20905 on 0 and also rank 11."
++squad,,club|63|01eff78a3484faed06b23fcc70d8d8ef,squad_player_count,17,"Leeds United, club competitions of 2022/23: 42 team matches (Premier League 38, FA Cup 4), so the floor is 42 x 90 / 3 = 1260 minutes. 17 players reach it, the lowest 1427 minutes."
++squad,,club|63|01eff78a3484faed06b23fcc70d8d8ef,ball_actions_per90.squad_median,43.31412103746398,"Leeds squad of 17, ball actions per 90 sorted: 61.41, 55.06, 52.83, 52.62, 51.21, 48.51, 44.69, 44.67, 43.31, 42.50, 39.06, 37.63, 33.79, 31.65, 29.40, 27.19, 24.88. The median is the ninth, 43.31, player 1564's: 723 passes + 3 shots + 21 dribbles + 52 tackles + 28 interceptions + 8 blocks + 0 saves = 835 ball actions, times 90 over 1735 minutes."
++squad,1150,club|63|01eff78a3484faed06b23fcc70d8d8ef,ball_actions_per90.rank,1,"Player 1150: 1400 + 3 + 20 + 90 + 43 + 8 + 0 = 1564 ball actions in 2292 minutes, 61.41 per 90, the highest of the 17."
++squad,1564,club|63|01eff78a3484faed06b23fcc70d8d8ef,ball_actions_per90.rank,9,"Player 1564: 835 ball actions in 1735 minutes, 43.31 per 90, with 8 players above."
++squad,19134,club|63|01eff78a3484faed06b23fcc70d8d8ef,ball_actions_per90.rank,17,"Player 19134: 367 + 45 + 32 + 9 + 5 + 5 + 0 = 463 ball actions in 1675 minutes, 24.88 per 90, the lowest of the 17."
++squad,,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_per90.squad_median,0.6474820143884892,"Leeds squad of 17, shots per 90 sorted: 2.43, 2.42, 1.20, 1.14, 1.09, 1.02, 0.80, 0.66, 0.65, 0.51, 0.50, 0.43, 0.38, 0.31, 0.16, 0.12, 0.03. The median is the ninth, 0.6475, player 415's: 11 shots in 1529 minutes."
++squad,935,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_per90.rank,1,"Player 935: 55 shots in 2039 minutes, 2.43 per 90, the highest of the 17."
++squad,415,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_per90.rank,9,"Player 415: 11 shots in 1529 minutes, 0.6475 per 90, with 8 players above."
++squad,20619,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_per90.rank,17,"Player 20619: 1 shot in 3330 minutes, 0.027 per 90, the lowest of the 17."
++squad,,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.squad_median,0.46153846153846156,"Leeds squad of 17, shots on target over shots sorted: 3/3, 1/1, 7/11, 14/23, 33/55, 12/21, 22/45, 16/33, 6/13, 9/20, 2/5, 6/16, 3/8, 9/31, 4/14, 3/11, 0/3. The median is the ninth, 6/13 = 0.4615, player 533's."
++squad,1564,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.rank,1,"Player 1564: 3 shots on target from 3 shots, 100%, level with player 20619 at the top."
++squad,20619,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.rank,1,"Player 20619: 1 shot on target from 1 shot, 100%, level with player 1564 at the top."
++squad,64003,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.rank,3,"Player 64003: 7 shots on target from 11 shots, 63.6%, behind the two on 100%, so the rank is 3."
++squad,19116,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.rank,12,"Player 19116: 6 shots on target from 16 shots, 37.5%, with 11 players above."
++squad,19118,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.rank,12,"Player 19118: 3 shots on target from 8 shots, 37.5%, tied with player 19116 and also rank 12."
++squad,1150,club|63|01eff78a3484faed06b23fcc70d8d8ef,shots_on_goal_player_pct.rank,17,"Player 1150: 0 shots on target from 3 shots, 0%, the lowest of the 17."
++squad,,club|63|01eff78a3484faed06b23fcc70d8d8ef,fouls_per90.squad_median,1.2028786840301577,"Leeds squad of 17, fouls per 90 sorted: 1.71, 1.56, 1.48, 1.45, 1.40, 1.37, 1.30, 1.29, 1.20, 1.19, 1.18, 1.02, 0.76, 0.75, 0.63, 0.62, 0.03. The median is the ninth, 1.2029, player 19128's: 39 fouls in 2918 minutes."
++squad,162128,club|63|01eff78a3484faed06b23fcc70d8d8ef,fouls_per90.rank,1,"Player 162128: 30 fouls in 1576 minutes, 1.71 per 90. The squad rank does not turn on whether more or fewer is better, so the most fouls is rank 1."
++squad,19128,club|63|01eff78a3484faed06b23fcc70d8d8ef,fouls_per90.rank,9,"Player 19128: 39 fouls in 2918 minutes, 1.2029 per 90, with 8 players above."
++squad,20619,club|63|01eff78a3484faed06b23fcc70d8d8ef,fouls_per90.rank,17,"Player 20619: 1 foul in 3330 minutes, 0.027 per 90, the fewest of the 17 and so the last rank."
++squad,,club|63|01eff78a3484faed06b23fcc70d8d8ef,offsides_per90.squad_median,0.04120879120879121,"Leeds squad of 17, offsides per 90 sorted: 1.07, 0.46, 0.44, 0.29, 0.21, 0.15, 0.12, 0.06, 0.04, 0.039, 0.039, 0.027, then 5 players on 0. The median is the ninth, 0.0412, player 19116's: 1 offside in 2184 minutes."
++squad,19134,club|63|01eff78a3484faed06b23fcc70d8d8ef,offsides_per90.rank,1,"Player 19134: 20 offsides in 1675 minutes, 1.07 per 90, the highest of the 17."
++squad,19116,club|63|01eff78a3484faed06b23fcc70d8d8ef,offsides_per90.rank,9,"Player 19116: 1 offside in 2184 minutes, 0.0412 per 90, with 8 players above."
++squad,1564,club|63|01eff78a3484faed06b23fcc70d8d8ef,offsides_per90.rank,13,"Player 1564: 0 offsides in 1735 minutes. 12 players have more, so the rank is 13."
++squad,47341,club|63|01eff78a3484faed06b23fcc70d8d8ef,offsides_per90.rank,13,"Player 47341: 0 offsides in 2600 minutes, tied with player 1564 and 3 others on 0, also rank 13."
+diff --git a/dbt_project/seeds/player_window_answer_key.csv b/dbt_project/seeds/player_window_answer_key.csv
+index d97aafbd..5eb738cb 100644
+--- a/dbt_project/seeds/player_window_answer_key.csv
++++ b/dbt_project/seeds/player_window_answer_key.csv
+@@ -11,3 +11,6 @@ player_id,window_type,metric_id,numerator,denominator,working
+ 184,last_season,fouls_per90,3420,3958,"Harry Kane, 2025-26: sum(fouls) = 25 + 5 + 8 = 38, times 90 = 3420; sum(minutes) = 3958."
+ 184,last_season,cards_yellow_player,2,,"Harry Kane, 2025-26: Bundesliga 1, DFB-Pokal 1, Champions League 0. The yellow card of the Club World Cup 2025 is not counted."
+ 184,last_season,cards_red_player,0,,"Harry Kane, 2025-26: no red card in the Bundesliga, the DFB-Pokal or the Champions League."
++184,last_season,ball_actions_per90,134820,3958,"Harry Kane, 2025-26: sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) = 1498 (Bundesliga 902, DFB-Pokal 178, Champions League 418; by kind 1204 + 154 + 88 + 28 + 13 + 11 + 0), times 90 = 134820; sum(minutes) = 3958."
++184,last_season,offsides_per90,2430,3958,"Harry Kane, 2025-26: sum(offsides) = 20 + 4 + 3 = 27, times 90 = 2430; sum(minutes) = 3958."
++19599,last_season,goals_against_per90,4410,3871,"Emiliano Martínez, club competitions of 2025-26 at his club: FA Cup 3 goals against in 46 minutes (1 match), Premier League 39 in 2835 (32), Europa League 7 in 990 (11): sum(goals_against) = 49, times 90 = 4410; sum(minutes) = 3871."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 47cb81c6..8e6f2710 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1379,7 +1379,7 @@ seeds:
+       Hand-worked values of the Player page for real players and squads in seasons that are over, so
+       a nightly refresh cannot change an answer: the header (full name, season label, featured
+       league, current club, position, the two tabs), the position player counts, the filter order,
+-      the Club tab's cards with last season's minutes, and one Squad's count, median and ranks. Each
++      the Club tab's cards with last season's minutes, and a Squad's count, median and ranks. Each
+       answer was worked out from the cleaned player-match lines (int_legs__player_match), the team
+       matches (int_legs__team_match) and the fixtures, never from a Player page mart.
+       assert_player_page_answer_key fails when the marts return anything else.
