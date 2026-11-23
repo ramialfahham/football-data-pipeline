@@ -135,10 +135,10 @@ def test_the_research_list_carries_a_differing_line_up_as_its_own_row_kind():
     assert (
         "select distinct 'lineup_duplicate_withheld' as check_name, 'none' as seed, fixture_id as fixture_sk, "
         "cast(null as int64) as team_sk, cast(null as string) as correction "
-        "from {{ ref('base_apif__lineup_fetch_ties') }} where rows_differ )"
+        "from {{ ref('base_apif__lineup_fetch_ties') }} where rows_differ union all select distinct '"
     ) in text
     shared = (MART / "shared.yml").read_text(encoding="utf-8")
-    assert shared.count('"lineup_duplicate_withheld", "correction_no_longer_needed"]') == 1
+    assert shared.count('"lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]') == 1
     assert shared.count('"fixture_lineup_corrections", "none"]') == 1
 
 

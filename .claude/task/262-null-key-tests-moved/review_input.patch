@@ -1,0 +1,1684 @@
+diff --git a/.claude/skills/research-provider-errors/SKILL.md b/.claude/skills/research-provider-errors/SKILL.md
+index c4dddef6..9d79c56d 100644
+--- a/.claude/skills/research-provider-errors/SKILL.md
++++ b/.claude/skills/research-provider-errors/SKILL.md
+@@ -50,6 +50,7 @@ order by research_tier nulls last, fixture_date
+ - A `misfiled_team_withheld` row is not researched. Its seed, `fixture_team_id_overrides`, is not one this skill edits. Report the row.
+ - A `lineup_duplicate_withheld` row is not researched. It has no seed (`none`): a newer provider fetch removes it. Report the row.
+ - A `player_team_withheld` row is not researched. Its seed, `fixture_lineup_corrections`, holds line-up research, which this skill does not do. Report the row.
++- A `null_key_line_withheld` row is not researched. It has no seed (`none`): a provider fetch that carries the team id removes it. Report the row.
+ 
+ ## 2. Choose the matches
+ 
+diff --git a/.claude/task/262-null-key-tests-moved/contract.md b/.claude/task/262-null-key-tests-moved/contract.md
+new file mode 100644
+index 00000000..7fcda792
+--- /dev/null
++++ b/.claude/task/262-null-key-tests-moved/contract.md
+@@ -0,0 +1,150 @@
++# Task contract - a provider key that is NULL in staging, and that base drops, is no longer tested in staging
++
++objective: >
++  Issue #262, box "Only a check that catches a defect in our own code stops the nightly." Seventeen
++  error-severity not_null tests on the staging models fail the build when the provider's payload
++  carries a NULL key (fixture_id, team_id, league_api_id, season_api_year, coach_id, player_id, a
++  standings season). Base already drops the NULL-key rows and carries its own not_null test on the
++  same key. Now the staging tests are removed and the base tests are the proof that the drop works.
++  A match where base loses a value to its team-id filter is listed by match on
++  mart_competition_research_list as null_key_line_withheld (base model
++  base_apif__fixture_lines_without_key, one macro lines_without_key), at error like the other
++  listing kinds. The rule is base's own selection: a statistics line with a fixture id and no team
++  id that carries a value for a stat which a team of the match has from no line with a team id, in
++  any fetch (the way base_apif__fixture_statistics merges the newest value of each stat from any
++  fetch), and a line-up with a fixture id and no team id in a match where a team has no sheet in
++  base_apif__lineup_sheets. A match whose teams all have their values from lines with a team id is
++  not listed, whichever fetch the line with no team id is in. The rule is proven by an error test
++  derived from staging and by a hand-written answer key. A line with no fixture id names no match
++  and is dropped without a row, as are the NULL-key rows of the other moved models. The staging
++  tests of the player stat lines (stg_apif__fixture_players: fixture_id, team_id, player_id) stay as
++  they are: they are the next change. A base model that reads staging without the key filter
++  (base_apif__teams) gets it, so a NULL key cannot reach a team, and a singular test that
++  recomputes a rule of base from a moved staging model carries the filter base applies. A python
++  test pins the move: no removed staging test is back, each has its base proof in yml at error
++  without a filter, every base filter that drops a NULL key is in the SQL, every read of a moved
++  staging model is pinned, and the listing model and the mart branch are pinned. The staging yml
++  header, layering.md and engineering_standards.md state the policy.
++
++refs: >
++  #262 What exactly / How (approved in chat, 15 Nov 2026). The coordinating session ruled: where a
++  provider key NULL is dropped in base, the staging test becomes a base test that proves the drop,
++  and the dropped value is listed if the match can be identified. Standing own-key tests (our
++  surrogate keys) stay at error. Not in this change: a staging NULL that base passes on
++  (home_team_id, team_name, fixture_date, and player_teams.team_id, which no model reads), the
++  uniqueness tests of staging, the player stat lines (stg_apif__fixture_players: their tests, base
++  filters, listing and any recovery through a seed are their own change).
++
++depends_on:
++  - none: every file this change edits is on gitlab/main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__teams.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_lines_without_key.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/macros/lines_without_key.sql
++  - dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/docs/layering.md
++  - dbt_project/docs/engineering_standards.md
++  - dbt_project/tests/assert_null_key_lines_listed.sql
++  - dbt_project/tests/assert_lines_without_key_answer_key.sql
++  - dbt_project/tests/assert_team_id_aliases_merged.sql
++  - dbt_project/tests/assert_league_name_overrides_are_corrections.sql
++  - tests/test_staging_key_tests_moved.py
++  - tests/test_null_key_lines_wiring.py
++  - tests/test_lineup_ties_wiring.py
++  - .claude/skills/research-provider-errors/SKILL.md
++  - .claude/task/262-null-key-tests-moved/contract.md
++  - .claude/task/262-null-key-tests-moved/review.md
++  - .claude/task/262-null-key-tests-moved/review_input.patch
++
++impact_map: >
++  writers: the yml of twelve staging models loses 17 not_null tests, one base model gains key
++  filters (base_apif__teams: fixture_id on the statistics and events reads and on fixtures_next,
++  season on standings), one base model, one macro, one mart branch and two singular tests are
++  added, and two singular tests gain the filters of base on reads of a moved staging model:
++  assert_team_id_aliases_merged (its fixture and standings reads) and
++  assert_league_name_overrides_are_corrections (its leagues read). Every other singular test that
++  reads one of the twelve moved staging models was read in full: those that recompute a rule of
++  base carry its key filter already, and the rest (assert_country_name_overrides_still_needed,
++  test_stg_fixture_statistics_non_empty, assert_goal_added_minute_from_newest_fetch,
++  assert_fixture_events_only_from_latest_fetch) compare strings, count rows or join on the key, so a
++  NULL-key row changes none of their results. The tests removed (`dbt ls --select <model>
++  --resource-type test`): not_null_stg_apif__fixtures_next_fixture_id,
++  not_null_stg_apif__fixture_events_fixture_id, not_null_stg_apif__fixture_statistics_fixture_id,
++  not_null_stg_apif__fixture_statistics_team_id, not_null_stg_apif__lineups_fixture_id,
++  not_null_stg_apif__lineups_team_id, not_null_stg_apif__teams_team_id,
++  not_null_stg_apif__leagues_league_api_id, not_null_stg_apif__leagues_season_api_year,
++  not_null_stg_apif__players_player_id, not_null_stg_apif__players_team_id,
++  not_null_stg_apif__player_profiles_player_id, not_null_stg_apif__squads_player_id,
++  not_null_stg_apif__squads_team_id, not_null_stg_apif__standings_season,
++  not_null_stg_apif__coaches_coach_id, not_null_stg_apif__coach_career_coach_id.
++  Each key has a base proof already in yml (`not_null` on the column): base_apif__fixtures_next,
++  base_apif__fixture_events, base_apif__fixture_statistics, base_apif__lineup_sheets,
++  base_apif__teams, base_apif__leagues, base_apif__players, base_apif__squads,
++  base_apif__standings, base_apif__coaches, base_apif__coach_career, base_apif__player_profiles,
++  base_apif__player_team_season.
++  The changed models and their readers, from `dbt ls --select <model>+ --resource-type model` (the
++  .venv dbt, repo root, measured on this branch): base_apif__teams+ lists 89 models, 34 of them
++  marts: base_apif__teams, base_apif__teams_global, base_apif__venues,
++  dim_player_team_season_mapping, dim_team, dim_venue, fct_fixture, fct_fixture_team_stats and every
++  model and mart downstream of dim_team and fct_fixture. base_apif__fixture_lines_without_key+
++  lists 2 models: itself and mart_competition_research_list. tests/test_lineup_ties_wiring.py pins
++  the research-list branch of lineup_duplicate_withheld and the accepted values of check_name, which
++  this change extends, so its two pins move with the change. The new model reads stg_apif__fixture_statistics,
++  stg_apif__lineups, base_apif__fixtures_next, base_apif__lineup_sheets and the seed
++  fixture_team_id_overrides; none of those changes.
++  downstream: the filters drop only a staging row whose fixture_id or standings season is NULL, and
++  the new model reads staging and base only. The key tests of staging passed before this change, so
++  prod holds no such row: no row, no number and no page changes, and the new row kind is empty today.
++  layer_rules: tests, yml, base filters, one base model, one macro, one mart branch;
++  check_layer_contract applies unchanged.
++  deploy_order: one build; the nightly picks it up after merge.
++  blast_radius: none for any model or value today. The not_null checks on a provider key in staging
++  fall from 17 to 0, and no test is at warn. The staging tests of the player stat lines and the
++  staging uniqueness tests stay at error. A uniqueness test of staging that groups on a key column
++  (the order-keys tests of events, standings, teams and leagues) still fails on two NULL-key rows
++  with the same other columns in one fetch, because dbt_utils.unique_combination_of_columns groups
++  NULLs: that interaction is not closed by this change. Its owners are the coordinating session's
++  splits of #262: split 2b for the events test, split 2d for the standings, teams and leagues
++  tests. The column test unique on stg_apif__fixtures_next.fixture_id ignores NULLs, so it needs no
++  owner. Split 1b (the player stat lines) does not cover it.
++  recurring_cost: the new base model reads two staging tables and dry-runs at 106 MB per build, and
++  assert_null_key_lines_listed at 260 MB at most per run. Together that is about 0.37 GB a night,
++  about 11 GB a month, well under one dollar a month at on-demand rates.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  Ruled by the coordinating session on #262's approved rule (approved in chat, 15 Nov 2026). The
++  staging NULL test is a provider-data check; the base model drops the row and its own not_null
++  proves the drop. A match where base loses a value to the team-id filter is listed by match as
++  null_key_line_withheld with seed none: no seed row can name a line with no team id, a fetch that
++  carries the id removes the row. The row kind is named after the existing *_withheld kinds
++  (engineering decision, working agreement section 10 unclear cases). Rows with no identifiable
++  match, which means a line with no fixture id and the NULL-key rows of the other moved models, are
++  dropped without a row, as the ruling says: listed if the match can be identified. The six
++  uniqueness tests of staging stay at error: the ruling names NULL keys, and a duplicate at the
++  grain of a staging model can come from our own flatten. The player stat lines stay as they are
++  until their own change. Base models that read staging without the key filter get it. The header
++  comment of the staging yml, layering.md and engineering_standards.md state the policy: a provider
++  key that base drops when NULL is tested in base, not in staging, except in
++  stg_apif__fixture_players, which keeps its own tests. The recurring cost of the new
++  model and test is measured in the impact map and is far below the amount that goes to the CPO.
++
++decisions_reserved: >
++  none: no page, metric, name or rule is added.
++
++done_when:
++  - python scripts/ci_local.py --mr passes
++  - dbt parse passes
++  - python -m pytest tests/test_staging_key_tests_moved.py tests/test_null_key_lines_wiring.py passes, and fails with a removed staging test restored, a base proof lowered, a base filter removed or the listing model or the mart branch changed
++  - the MR pipeline is green, data:build:mr included
++
++amendments: (none)
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index eaa27954..d899834b 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -254,6 +254,7 @@ Per-layer minimums:
+ 
+ - `staging`: document the **grain** (one row per what) in the model `description`. Then:
+   - `not_null` on every column required for that row to be valid (ids, dates, join keys).
++  - A provider key that base drops when NULL is the exception. Its `not_null` lives in base. `stg_apif__fixture_players` keeps its own.
+   - `unique` or `dbt_utils.unique_combination_of_columns` on the column(s) that define the grain, so dupes and bad merges fail early. Use `severity: warn` (not error) only when the violation is a known, documented source data quality issue that cannot be corrected at this layer.
+   - Constrained `accepted_values` (and other light tests) where they add signal.
+   - Do **not** repeat the **same** uniqueness assertion downstream unless the **grain changes** (avoid redundant tests on the same keys in `base` / later layers).
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 6574c849..404dda0e 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -158,7 +158,7 @@ Allowed:
+ - JSON extraction, unnesting, and flattening (including `cross join`/`left join unnest(...)`
+   to explode arrays) needed to expose one regular typed table per raw source.
+ - Dropping rows that are missing a grain key (null id/date) — this is cleanup, not dedup.
+-- Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields; `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
++- Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields, except a provider key that base drops when NULL (its `not_null` is in base; `stg_apif__fixture_players` keeps its own); `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
+ 
+ Not allowed:
+ - **Entity-grain deduplication** — any `qualify`/`row_number()`/`distinct` that collapses rows
+diff --git a/dbt_project/macros/lines_without_key.sql b/dbt_project/macros/lines_without_key.sql
+new file mode 100644
+index 00000000..7c7df149
+--- /dev/null
++++ b/dbt_project/macros/lines_without_key.sql
+@@ -0,0 +1,124 @@
++{#- The matches where base loses a value to its team-id filter, one row per match and line table.
++    The relations are the macro's only inputs, so a test can run hand-written lines through it:
++    statistics_lines  stg_apif__fixture_statistics: fixture_id, team_id, stat_type, stat_value_raw
++    lineups           stg_apif__lineups: fixture_id, team_id
++    served_sheets     base_apif__lineup_sheets: fixture_id, team_id
++    participants      the matches whose two teams are known: fixture_id, home_team_id, away_team_id
++    overrides         fixture_team_id_overrides: wrong_team_api_id, correct_team_api_id, mode, fixture_id
++    A statistics line with no team id is lost where a stat it carries has no value for a team of the
++    match from a line with a team id, in any fetch: base_apif__fixture_statistics merges the newest
++    value of each stat from any fetch, under the team id after the overrides. A line-up with no team
++    id is lost where a team of the match has no sheet in served_sheets. A line with no fixture id
++    names no match and a match not in participants is not judged. -#}
++{% macro lines_without_key(statistics_lines, lineups, served_sheets, participants, overrides) -%}
++    with statistic_values as (
++        select
++            fixture_id,
++            team_id as provider_team_id,
++            stat_type,
++            case
++                when stat_type = 'Ball Possession'
++                    then safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64)
++                when stat_type in (
++                    'Shots on Goal', 'Shots off Goal', 'Total Shots', 'Blocked Shots', 'Shots insidebox',
++                    'Shots outsidebox', 'Fouls', 'Corner Kicks', 'Offsides', 'Free Kicks', 'Yellow Cards',
++                    'Red Cards', 'Goalkeeper Saves', 'Total passes', 'Passes accurate'
++                )
++                    then safe_cast(stat_value_raw as int64)
++            end as stat_value
++        from {{ statistics_lines }}
++        where fixture_id is not null
++    ),
++
++    stats_without_team as (
++        select distinct
++            fixture_id,
++            stat_type
++        from statistic_values
++        where provider_team_id is null and stat_value is not null
++    ),
++
++    stats_with_team as (
++        select distinct
++            fixture_id,
++            provider_team_id,
++            stat_type
++        from statistic_values
++        where provider_team_id is not null and stat_value is not null
++    ),
++
++    stats_by_team as (
++        select
++            line.fixture_id,
++            line.stat_type,
++            coalesce(
++                fixture_override.correct_team_api_id,
++                alias_override.correct_team_api_id,
++                reattribute_override.correct_team_api_id,
++                line.provider_team_id
++            ) as team_id
++        from stats_with_team as line
++        left join {{ overrides }} as fixture_override
++            on
++                line.provider_team_id = fixture_override.wrong_team_api_id
++                and line.fixture_id = fixture_override.fixture_id
++                and fixture_override.mode = 'reattribute_in_fixture'
++        left join {{ overrides }} as alias_override
++            on
++                line.provider_team_id = alias_override.wrong_team_api_id
++                and alias_override.mode = 'alias'
++        left join {{ participants }} as line_match
++            on line.fixture_id = line_match.fixture_id
++        left join {{ overrides }} as reattribute_override
++            on
++                line.provider_team_id = reattribute_override.wrong_team_api_id
++                and reattribute_override.mode = 'reattribute_if_cohabiting'
++                and reattribute_override.correct_team_api_id in (line_match.home_team_id, line_match.away_team_id)
++                and reattribute_override.wrong_team_api_id not in (line_match.home_team_id, line_match.away_team_id)
++    ),
++
++    statistics_lost as (
++        select distinct unnamed.fixture_id
++        from stats_without_team as unnamed
++        inner join {{ participants }} as match_teams
++            on unnamed.fixture_id = match_teams.fixture_id
++        left join stats_by_team as named
++            on
++                unnamed.fixture_id = named.fixture_id
++                and unnamed.stat_type = named.stat_type
++                and named.team_id in (match_teams.home_team_id, match_teams.away_team_id)
++        group by unnamed.fixture_id, unnamed.stat_type
++        having count(distinct named.team_id) < 2
++    ),
++
++    lineups_without_team as (
++        select distinct fixture_id
++        from {{ lineups }}
++        where fixture_id is not null and team_id is null
++    ),
++
++    lineups_lost as (
++        select unnamed.fixture_id
++        from lineups_without_team as unnamed
++        inner join {{ participants }} as match_teams
++            on unnamed.fixture_id = match_teams.fixture_id
++        left join {{ served_sheets }} as sheet
++            on
++                unnamed.fixture_id = sheet.fixture_id
++                and sheet.team_id in (match_teams.home_team_id, match_teams.away_team_id)
++        group by unnamed.fixture_id
++        having count(distinct sheet.team_id) < 2
++    )
++
++    select
++        fixture_id,
++        'stg_apif__fixture_statistics' as line_table,
++        'team_id' as missing_key
++    from statistics_lost
++    union all
++    select
++        fixture_id,
++        'stg_apif__lineups' as line_table,
++        'team_id' as missing_key
++    from lineups_lost
++{%- endmacro %}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index b54f7acb..3aa13c44 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -5,10 +5,13 @@ version: 2
+ # tables hold one complete snapshot row per run), then faithfully flatten the payload 1:1.
+ # No entity-grain deduplication, no aggregation/pivot, no cross-source unions/joins here —
+ # all of that is business logic that belongs in base. See dbt_project/docs/layering.md §1_staging.
+-# Test policy: not_null on grain columns; unique only where a single snapshot is already unique
+-# at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) or on
+-# transfers — they carry expected duplicates (multiple ingest snapshots, and for transfers the same
+-# move fetched under both involved teams); entity dedup is in base.
++# Test policy: not_null on the ingest columns (league_code, raw_ingested_at) and on the columns no
++# base model drops; unique only where a single snapshot is already unique at that grain. A provider
++# key that is NULL is not tested here: base drops the row and tests its own key, except in
++# stg_apif__fixture_players, which keeps its own tests. No unique tests on
++# fixture_detail models (events, players, stats, lineups) beyond the order keys, or on transfers —
++# they carry expected duplicates (multiple ingest snapshots, and for transfers the same move fetched
++# under both involved teams); entity dedup is in base.
+ #
+ # INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS): their
+ # loaders are skip-if-already-ingested (PR-a), so a run's snapshot holds only that run's NEW
+@@ -34,7 +37,7 @@ models:
+         tests: [not_null]
+       - name: fixture_id
+         description: "{{ doc('fixture_api_id') }}"
+-        tests: [not_null, unique]
++        tests: [unique]
+       - name: fixture_date
+         description: "{{ doc('fixture_date') }}"
+         tests: [not_null]
+@@ -113,7 +116,6 @@ models:
+         tests: [not_null]
+       - name: season
+         description: "{{ doc('season_api_year') }}"
+-        tests: [not_null]
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+         # Faithful staging: old API-Football standings can carry team.name with a null team.id
+@@ -178,7 +180,6 @@ models:
+         description: "{{ doc('season_api_year') }}"
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+-        tests: [not_null]
+       - name: team_name
+         description: "{{ doc('team_name') }}"
+         tests: [not_null]
+@@ -241,10 +242,8 @@ models:
+         tests: [not_null]
+       - name: league_api_id
+         description: "{{ doc('league_api_id') }}"
+-        tests: [not_null]
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -307,10 +306,8 @@ models:
+         tests: [not_null]
+       - name: player_id
+         description: "{{ doc('player_api_id') }}"
+-        tests: [not_null]
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -349,7 +346,6 @@ models:
+         tests: [not_null]
+       - name: fixture_id
+         description: "{{ doc('fixture_api_id') }}"
+-        tests: [not_null]
+       - name: event_index
+         description: "The zero-based position of this event in the provider's $.events array for the fixture. API-Football does not assign event ids, so this position is the only stable identity for an event within a fixture."
+         tests: [not_null]
+@@ -486,10 +482,8 @@ models:
+         tests: [not_null]
+       - name: fixture_id
+         description: "{{ doc('fixture_api_id') }}"
+-        tests: [not_null]
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -515,10 +509,8 @@ models:
+         tests: [not_null]
+       - name: fixture_id
+         description: "{{ doc('fixture_api_id') }}"
+-        tests: [not_null]
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -572,10 +564,8 @@ models:
+         tests: [not_null]
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+-        tests: [not_null]
+       - name: player_id
+         description: "{{ doc('player_api_id') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -603,7 +593,6 @@ models:
+         tests: [not_null]
+       - name: player_id
+         description: "{{ doc('player_api_id') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -675,7 +664,6 @@ models:
+         tests: [not_null]
+       - name: coach_id
+         description: "{{ doc('coach_api_id') }}"
+-        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+@@ -710,7 +698,6 @@ models:
+         tests: [not_null]
+       - name: coach_id
+         description: "{{ doc('coach_api_id') }}"
+-        tests: [not_null]
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+         # provider-nullable (see description); base filters null team_id, so no staging not_null test
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 90885532..416864b7 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -588,6 +588,35 @@ models:
+         description: "True when the tied sheets are not all identical, so none can be picked."
+         tests: [not_null]
+ 
++  - name: base_apif__fixture_lines_without_key
++    description: >
++      The matches where base loses a value to its team-id filter: a statistics line or a line-up of
++      the match came with no team id, and a team of the match has no value base could otherwise have
++      used. A match whose teams all have their values from lines with a team id is not here. A line
++      with no fixture id names no match. mart_competition_research_list reads it.
++      Grain: (fixture_id, line_table, missing_key).
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [fixture_id, line_table, missing_key]
++    columns:
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: line_table
++        description: "The staging model the line is in: stg_apif__fixture_statistics or stg_apif__lineups."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["stg_apif__fixture_statistics", "stg_apif__lineups"]
++      - name: missing_key
++        description: "The key the provider left NULL: team_id."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["team_id"]
++
+   - name: base_apif__lineup_sheets
+     description: >
+       One row per player each team's latest fetch of the stg_apif__lineups model names on its
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_lines_without_key.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_lines_without_key.sql
+new file mode 100644
+index 00000000..70eb15d6
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_lines_without_key.sql
+@@ -0,0 +1,40 @@
++{#
++  The matches where base loses a value to its team-id filter. A statistics line or a line-up the
++  provider sent with a fixture id and no team id is dropped by base_apif__fixture_statistics and
++  base_apif__lineup_fetches; the match is here when a team of it has a value, or a sheet, that
++  line could have given and no line with a team id gives (the macro lines_without_key says how).
++  A line with no fixture id names no match. One row per match, line table and missing key.
++#}
++with participants as (
++    select
++        fixture_id,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where
++        home_team_id is not null
++        and away_team_id is not null
++),
++
++overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id,
++        mode,
++        cast(fixture_id as int64) as fixture_id
++    from {{ ref('fixture_team_id_overrides') }}
++)
++
++select distinct
++    cast(fixture_id as int64) as fixture_id,
++    line_table,
++    missing_key
++from (
++    {{ lines_without_key(
++        ref('stg_apif__fixture_statistics'),
++        ref('stg_apif__lineups'),
++        ref('base_apif__lineup_sheets'),
++        'participants',
++        'overrides'
++    ) }}
++)
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams.sql b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+index 99929392..492d8f38 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+@@ -28,6 +28,7 @@ stg_fixtures as (
+         away_team_name,
+         raw_ingested_at
+     from {{ ref('stg_apif__fixtures_next') }}
++    where fixture_id is not null
+ ),
+ 
+ -- Standings can introduce teams that never appear in the teams endpoint or in
+@@ -43,7 +44,7 @@ stg_standings as (
+         season,
+         raw_ingested_at
+     from {{ ref('stg_apif__standings') }}
+-    where team_id is not null
++    where team_id is not null and season is not null
+ ),
+ 
+ -- Fixture-level sources (statistics, players, events) carry team ids for teams
+@@ -59,7 +60,7 @@ stg_fixture_level as (
+         team_name,
+         raw_ingested_at
+     from {{ ref('stg_apif__fixture_statistics') }}
+-    where team_id is not null
++    where team_id is not null and fixture_id is not null
+ 
+     union all
+ 
+@@ -81,7 +82,7 @@ stg_fixture_level as (
+         team_name,
+         raw_ingested_at
+     from {{ ref('stg_apif__fixture_events') }}
+-    where team_id is not null
++    where team_id is not null and fixture_id is not null
+ ),
+ 
+ -- Fixture participants and the hand-curated team-id corrections, exactly as the three fixture-level
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+index 44cf6b29..5ac973da 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+@@ -22,6 +22,10 @@
+     with different content (base_apif__lineup_fetch_ties), so that team has no sheet and the match
+     line-up is not_available. No seed fixes the row (seed none); a newer fetch without the tie
+     removes it;
++  - null_key_line_withheld: a statistics line or a line-up of the match came with no team id and
++    base leaves it out, while a team of the match has no value base could otherwise have used
++    (base_apif__fixture_lines_without_key). No seed fixes the row (seed none); a fetch that carries
++    the team id removes it;
+   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
+     (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
+   seed names the correction seed that fixes the row. research_tier is the research order of the
+@@ -136,6 +140,14 @@ items as (
+         cast(null as string) as correction
+     from {{ ref('base_apif__lineup_fetch_ties') }}
+     where rows_differ
++    union all
++    select distinct
++        'null_key_line_withheld' as check_name,
++        'none' as seed,
++        fixture_id as fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('base_apif__fixture_lines_without_key') }}
+ ),
+ 
+ misfiled_lines as (
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ee3d2b44..77249c0c 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -4043,7 +4043,8 @@ models:
+     description: >
+       The list of provider errors to research, rebuilt each night. One row per match, or team in a
+       match, where a check of the provider's data withholds a value on goals, scores, awards or
+-      cards or leaves out a line filed under a team that did not play the match, and one row per
++      cards, leaves out a line filed under a team that did not play the match, or leaves out a line
++      that came with no team id, and one row per
+       correction the provider no longer needs. A value the provider has
+       corrected itself passes its check, and its row leaves the list. The research routine reads
+       it; no page does. Grain: item_key.
+@@ -4052,13 +4053,13 @@ models:
+         description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
+         tests: [unique, not_null]
+       - name: check_name
+-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
++        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), null_key_line_withheld (a statistics line or a line-up came with no team id and a team of the match lacks a value it could have given; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "correction_no_longer_needed"]
++              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]
+       - name: seed
+-        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld: no seed fixes it, a newer fetch removes it."
++        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld and null_key_line_withheld: no seed fixes it, a newer fetch removes it."
+         tests:
+           - not_null
+           - accepted_values:
+diff --git a/dbt_project/tests/assert_league_name_overrides_are_corrections.sql b/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
+index 2c14f06d..aeec6fe2 100644
+--- a/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
++++ b/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
+@@ -18,6 +18,7 @@
+ 
+ with import_stg_apif__leagues as (
+     select * from {{ ref('stg_apif__leagues') }}
++    where league_api_id is not null and season_api_year is not null
+ ),
+ 
+ import_league_name_overrides as (
+diff --git a/dbt_project/tests/assert_lines_without_key_answer_key.sql b/dbt_project/tests/assert_lines_without_key_answer_key.sql
+new file mode 100644
+index 00000000..0791f57d
+--- /dev/null
++++ b/dbt_project/tests/assert_lines_without_key_answer_key.sql
+@@ -0,0 +1,168 @@
++{#
++  Hand-written lines run through lines_without_key, the rule the base model calls. Returns each
++  match the rule lists and should not, and each it should list and misses: a match whose value is
++  lost to the team-id filter that is not listed stays out of the research list, and a match listed
++  for nothing sends the research to a match with nothing wrong. Every match is two teams, 5 and 6,
++  and the fixture ids are ones no seed row names.
++  Statistics, one stat of one NULL-team line per match unless said:
++    990000001 team 6 has no Fouls from a line with a team id: listed
++    990000002 both teams have Fouls: not listed, in whichever fetch the NULL-team line is
++    990000003 the NULL-team line carries no value: not listed
++    990000004 the NULL-team line carries a stat base does not read: not listed
++    990000005 team 7 is team 5 under an alias, so one team has Fouls: listed
++    990000006 a Ball Possession share of one team only: listed
++    990000007 a third team has Fouls, team 6 has not: listed
++    990000008 a match without known teams: not judged
++    990000014 team 8 is team 6 in this fixture by a reattribute_in_fixture row: not listed
++    990000015 the same row does not apply to another fixture, so team 6 has no Fouls: listed
++    990000016 team 9 is team 6 by a reattribute_if_cohabiting row: not listed
++    990000017 teams 6 and 9 both play the match, so the row does not apply: not listed
++    no fixture id: names no match
++  Line-ups:
++    990000010 team 6 has no sheet: listed
++    990000011 both teams have a sheet: not listed
++    990000012 a third team has a sheet, team 6 has not: listed
++    990000013 no NULL-team line-up: not listed
++    no fixture id: names no match
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with participants as (
++    select *
++    from unnest([
++        struct(990000001 as fixture_id, 5 as home_team_id, 6 as away_team_id),
++        struct(990000002, 5, 6),
++        struct(990000003, 5, 6),
++        struct(990000004, 5, 6),
++        struct(990000005, 5, 6),
++        struct(990000006, 5, 6),
++        struct(990000007, 5, 6),
++        struct(990000014, 5, 6),
++        struct(990000015, 5, 6),
++        struct(990000016, 5, 6),
++        struct(990000017, 6, 9),
++        struct(990000010, 5, 6),
++        struct(990000011, 5, 6),
++        struct(990000012, 5, 6),
++        struct(990000013, 5, 6)
++    ])
++),
++
++overrides as (
++    select *
++    from unnest([
++        struct(7 as wrong_team_api_id, 5 as correct_team_api_id, 'alias' as mode, cast(null as int64) as fixture_id),
++        struct(8, 6, 'reattribute_in_fixture', 990000014),
++        struct(9, 6, 'reattribute_if_cohabiting', cast(null as int64))
++    ])
++),
++
++statistics_rows as (
++    select *
++    from unnest([
++        struct(990000001 as fixture_id, cast(null as int64) as team_id, 'Fouls' as stat_type, '10' as stat_value_raw),
++        struct(990000001, 5, 'Fouls', '12'),
++        struct(990000001, 6, 'Corner Kicks', '3'),
++        struct(990000002, cast(null as int64), 'Fouls', '10'),
++        struct(990000002, 5, 'Fouls', '12'),
++        struct(990000002, 6, 'Fouls', '9'),
++        struct(990000003, cast(null as int64), 'Fouls', cast(null as string)),
++        struct(990000003, cast(null as int64), 'Corner Kicks', 'n/a'),
++        struct(990000003, 5, 'Fouls', '12'),
++        struct(990000003, 5, 'Corner Kicks', '4'),
++        struct(990000004, cast(null as int64), 'Expected Goals', '1.2'),
++        struct(990000004, 5, 'Expected Goals', '0.8'),
++        struct(990000005, cast(null as int64), 'Fouls', '10'),
++        struct(990000005, 5, 'Fouls', '12'),
++        struct(990000005, 7, 'Fouls', '11'),
++        struct(990000006, cast(null as int64), 'Ball Possession', '45%'),
++        struct(990000006, 5, 'Ball Possession', '55%'),
++        struct(990000007, cast(null as int64), 'Fouls', '10'),
++        struct(990000007, 5, 'Fouls', '12'),
++        struct(990000007, 99, 'Fouls', '11'),
++        struct(990000008, cast(null as int64), 'Fouls', '10'),
++        struct(990000014, cast(null as int64), 'Fouls', '10'),
++        struct(990000014, 5, 'Fouls', '12'),
++        struct(990000014, 8, 'Fouls', '11'),
++        struct(990000015, cast(null as int64), 'Fouls', '10'),
++        struct(990000015, 5, 'Fouls', '12'),
++        struct(990000015, 8, 'Fouls', '11'),
++        struct(990000016, cast(null as int64), 'Fouls', '10'),
++        struct(990000016, 5, 'Fouls', '12'),
++        struct(990000016, 9, 'Fouls', '11'),
++        struct(990000017, cast(null as int64), 'Fouls', '10'),
++        struct(990000017, 6, 'Fouls', '12'),
++        struct(990000017, 9, 'Fouls', '11'),
++        struct(cast(null as int64), cast(null as int64), 'Fouls', '10')
++    ])
++),
++
++lineup_rows as (
++    select *
++    from unnest([
++        struct(990000010 as fixture_id, cast(null as int64) as team_id),
++        struct(990000010, 5),
++        struct(990000011, cast(null as int64)),
++        struct(990000011, 5),
++        struct(990000011, 6),
++        struct(990000012, cast(null as int64)),
++        struct(990000012, 5),
++        struct(990000013, 5),
++        struct(cast(null as int64), cast(null as int64))
++    ])
++),
++
++served_sheets as (
++    select *
++    from unnest([
++        struct(990000010 as fixture_id, 5 as team_id),
++        struct(990000011, 5),
++        struct(990000011, 6),
++        struct(990000012, 5),
++        struct(990000012, 99),
++        struct(990000013, 5)
++    ])
++),
++
++actual as (
++    select distinct
++        fixture_id,
++        line_table,
++        missing_key
++    from (
++        {{ lines_without_key('statistics_rows', 'lineup_rows', 'served_sheets', 'participants', 'overrides') }}
++    )
++),
++
++expected as (
++    select *
++    from unnest([
++        struct(990000001 as fixture_id, 'stg_apif__fixture_statistics' as line_table, 'team_id' as missing_key),
++        struct(990000005, 'stg_apif__fixture_statistics', 'team_id'),
++        struct(990000006, 'stg_apif__fixture_statistics', 'team_id'),
++        struct(990000007, 'stg_apif__fixture_statistics', 'team_id'),
++        struct(990000015, 'stg_apif__fixture_statistics', 'team_id'),
++        struct(990000010, 'stg_apif__lineups', 'team_id'),
++        struct(990000012, 'stg_apif__lineups', 'team_id')
++    ])
++)
++
++select
++    'not_listed' as problem,
++    e.fixture_id,
++    e.line_table,
++    e.missing_key
++from expected as e
++left join actual as a
++    on e.fixture_id = a.fixture_id and e.line_table = a.line_table and e.missing_key = a.missing_key
++where a.fixture_id is null
++union all
++select
++    'listed_for_nothing' as problem,
++    a.fixture_id,
++    a.line_table,
++    a.missing_key
++from actual as a
++left join expected as e
++    on a.fixture_id = e.fixture_id and a.line_table = e.line_table and a.missing_key = e.missing_key
++where e.fixture_id is null
+diff --git a/dbt_project/tests/assert_null_key_lines_listed.sql b/dbt_project/tests/assert_null_key_lines_listed.sql
+new file mode 100644
+index 00000000..cd17a702
+--- /dev/null
++++ b/dbt_project/tests/assert_null_key_lines_listed.sql
+@@ -0,0 +1,154 @@
++-- A match where base loses a value to its team-id filter is on the research list as
++-- null_key_line_withheld, and no other match is. The matches are derived from staging here, never
++-- from base_apif__fixture_lines_without_key:
++--   - a statistics line with a fixture id and no team id carries a value for a stat that a team of
++--     the match has from no line with a team id, in any fetch (the way base merges the stats);
++--   - a line-up with a fixture id and no team id, in a match where a team's latest fetch has no
++--     players.
++--   - not_listed: such a match is not on the list.
++--   - listed_without_line: the list holds the match and none of the above is true of it.
++-- A match with a team id the overrides seed rewrites, or a line-up tie the provider stored twice
++-- with different content, is left out on both sides: another row kind lists the tie, and
++-- assert_lines_without_key_answer_key proves the override mapping.
++
++{{ config(store_failures = true, severity = 'error') }}
++
++with participants as (
++    select
++        fixture_id,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where home_team_id is not null and away_team_id is not null
++),
++
++statistic_lines as (
++    select
++        fixture_id,
++        team_id,
++        stat_type,
++        safe_cast(
++            if(stat_type = 'Ball Possession', regexp_replace(stat_value_raw, r'%', ''), stat_value_raw) as int64
++        ) is not null as has_value
++    from {{ ref('stg_apif__fixture_statistics') }}
++    where
++        fixture_id is not null
++        and stat_type in (
++            'Shots on Goal', 'Shots off Goal', 'Total Shots', 'Blocked Shots', 'Shots insidebox',
++            'Shots outsidebox', 'Fouls', 'Corner Kicks', 'Offsides', 'Free Kicks', 'Ball Possession',
++            'Yellow Cards', 'Red Cards', 'Goalkeeper Saves', 'Total passes', 'Passes accurate'
++        )
++),
++
++statistics_expected as (
++    select statistic_lines.fixture_id
++    from statistic_lines
++    inner join participants
++        on statistic_lines.fixture_id = participants.fixture_id
++    group by statistic_lines.fixture_id, statistic_lines.stat_type
++    having
++        logical_or(statistic_lines.team_id is null and statistic_lines.has_value)
++        and count(distinct if(
++            statistic_lines.has_value
++            and statistic_lines.team_id in (participants.home_team_id, participants.away_team_id),
++            statistic_lines.team_id,
++            null
++        )) < 2
++),
++
++latest_sheets as (
++    select
++        fixture_id,
++        team_id,
++        coalesce(array_length(json_query_array(start_xi_json)), 0)
++        + coalesce(array_length(json_query_array(substitutes_json)), 0) > 0 as has_players
++    from {{ ref('stg_apif__lineups') }}
++    where fixture_id is not null and team_id is not null
++    qualify row_number() over (
++        partition by league_code, fixture_id, team_id
++        order by raw_ingested_at desc
++    ) = 1
++),
++
++lineups_expected as (
++    select unnamed.fixture_id
++    from (
++        select distinct fixture_id
++        from {{ ref('stg_apif__lineups') }}
++        where fixture_id is not null and team_id is null
++    ) as unnamed
++    inner join participants
++        on unnamed.fixture_id = participants.fixture_id
++    left join latest_sheets
++        on
++            unnamed.fixture_id = latest_sheets.fixture_id
++            and latest_sheets.has_players
++            and latest_sheets.team_id in (participants.home_team_id, participants.away_team_id)
++    group by unnamed.fixture_id
++    having count(distinct latest_sheets.team_id) < 2
++),
++
++rewritten_teams as (
++    select distinct cast(wrong_team_api_id as int64) as team_id
++    from {{ ref('fixture_team_id_overrides') }}
++),
++
++left_out as (
++    select distinct lines.fixture_id
++    from {{ ref('stg_apif__fixture_statistics') }} as lines
++    inner join rewritten_teams
++        on lines.team_id = rewritten_teams.team_id
++    where lines.fixture_id is not null
++    union distinct
++    select distinct lines.fixture_id
++    from {{ ref('stg_apif__lineups') }} as lines
++    inner join rewritten_teams
++        on lines.team_id = rewritten_teams.team_id
++    where lines.fixture_id is not null
++    union distinct
++    select distinct ties.fixture_id
++    from {{ ref('base_apif__lineup_fetch_ties') }} as ties
++    where ties.rows_differ and ties.fixture_id is not null
++),
++
++expected as (
++    select fixture_id from statistics_expected
++    union distinct
++    select fixture_id from lineups_expected
++),
++
++expected_in_fixtures as (
++    select expected.fixture_id
++    from expected
++    inner join {{ ref('fct_fixture') }} as fixtures
++        on expected.fixture_id = fixtures.fixture_sk
++    left join left_out
++        on expected.fixture_id = left_out.fixture_id
++    where left_out.fixture_id is null
++),
++
++listed as (
++    select research.fixture_sk as fixture_id
++    from {{ ref('mart_competition_research_list') }} as research
++    left join left_out
++        on research.fixture_sk = left_out.fixture_id
++    where
++        research.check_name = 'null_key_line_withheld'
++        and left_out.fixture_id is null
++)
++
++select
++    'not_listed' as problem,
++    expected_in_fixtures.fixture_id
++from expected_in_fixtures
++left join listed
++    on expected_in_fixtures.fixture_id = listed.fixture_id
++where listed.fixture_id is null
++union all
++select
++    'listed_without_line' as problem,
++    listed.fixture_id
++from listed
++left join expected_in_fixtures
++    on listed.fixture_id = expected_in_fixtures.fixture_id
++where expected_in_fixtures.fixture_id is null
+diff --git a/dbt_project/tests/assert_team_id_aliases_merged.sql b/dbt_project/tests/assert_team_id_aliases_merged.sql
+index 3346c6c9..b00ff6b6 100644
+--- a/dbt_project/tests/assert_team_id_aliases_merged.sql
++++ b/dbt_project/tests/assert_team_id_aliases_merged.sql
+@@ -132,6 +132,7 @@ both_ids_in_one_fixture as (
+                 overrides.correct_team_api_id = fixtures.home_team_id
+                 and overrides.wrong_team_api_id = fixtures.away_team_id
+             )
++    where fixtures.fixture_id is not null
+ ),
+ 
+ both_ids_in_one_table as (
+@@ -141,6 +142,7 @@ both_ids_in_one_table as (
+         on
+             overrides.wrong_team_api_id = standings.team_id
+             or overrides.correct_team_api_id = standings.team_id
++    where standings.season is not null
+     group by overrides.correct_team_api_id, standings.league_code, standings.season, standings.group_name
+     having count(distinct standings.team_id) > 1
+ ),
+diff --git a/tests/test_lineup_ties_wiring.py b/tests/test_lineup_ties_wiring.py
+index 2e082308..75f84e88 100644
+--- a/tests/test_lineup_ties_wiring.py
++++ b/tests/test_lineup_ties_wiring.py
+@@ -135,10 +135,10 @@ def test_the_research_list_carries_a_differing_line_up_as_its_own_row_kind():
+     assert (
+         "select distinct 'lineup_duplicate_withheld' as check_name, 'none' as seed, fixture_id as fixture_sk, "
+         "cast(null as int64) as team_sk, cast(null as string) as correction "
+-        "from {{ ref('base_apif__lineup_fetch_ties') }} where rows_differ )"
++        "from {{ ref('base_apif__lineup_fetch_ties') }} where rows_differ union all select distinct '"
+     ) in text
+     shared = (MART / "shared.yml").read_text(encoding="utf-8")
+-    assert shared.count('"lineup_duplicate_withheld", "correction_no_longer_needed"]') == 1
++    assert shared.count('"lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]') == 1
+     assert shared.count('"fixture_lineup_corrections", "none"]') == 1
+ 
+ 
+diff --git a/tests/test_null_key_lines_wiring.py b/tests/test_null_key_lines_wiring.py
+new file mode 100644
+index 00000000..00203296
+--- /dev/null
++++ b/tests/test_null_key_lines_wiring.py
+@@ -0,0 +1,265 @@
++"""A match where base loses a value to its team-id filter is listed by match.
++
++The macro lines_without_key says which matches those are, from base's own selection: a statistics
++line with no team id is lost where a stat it carries has no value for a team of the match from a
++line with a team id in any fetch, and a line-up with no team id is lost where a team of the match
++has no sheet in base_apif__lineup_sheets. The model base_apif__fixture_lines_without_key calls it,
++the research list carries the matches as null_key_line_withheld, and two tests at error check the
++rule: one derives the matches from staging, one runs hand-written lines through the macro. Each pin
++fails when its wiring is undone.
++"""
++
++import pathlib
++import re
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++DBT = ROOT / "dbt_project"
++BASE = DBT / "models" / "2_base" / "api_football"
++MART = DBT / "models" / "5_marts" / "shared"
++
++
++def _sql(path):
++    text = path.read_text(encoding="utf-8")
++    text = re.sub(r"\{#.*?#\}", " ", text, flags=re.DOTALL)
++    text = re.sub(r"--[^\n]*", " ", text)
++    return re.sub(r"\s+", " ", text)
++
++
++def _macro():
++    text = _sql(DBT / "macros" / "lines_without_key.sql")
++    return text.split("macro lines_without_key", 1)[1].split("endmacro", 1)[0]
++
++
++def _stat_types(text):
++    return set(re.findall(r"'([A-Z][A-Za-z ]+)'", text))
++
++
++def test_the_macro_takes_five_relations_and_calls_no_other_macro():
++    text = _macro()
++    assert text.lstrip().startswith("(statistics_lines, lineups, served_sheets, participants, overrides) -%}")
++    assert "{{ fixture_player_id" not in text
++    assert "raw_ingested_at" not in text
++
++
++def test_the_macro_reads_the_stats_base_reads_and_no_others():
++    base = _sql(BASE / "base_apif__fixture_statistics.sql")
++    base_types = set(re.findall(r"stat_type = '([^']+)'", base))
++    assert len(base_types) == 16
++    block = _macro().split("case when stat_type = 'Ball Possession'", 1)[1].split("end as stat_value", 1)[0]
++    assert "then safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64)" in block
++    listed = set(re.findall(r"'([^']+)'", block.split("stat_type in (", 1)[1].split(")", 1)[0]))
++    assert listed | {"Ball Possession"} == base_types
++    assert "then safe_cast(stat_value_raw as int64)" in block
++
++
++def test_the_macro_judges_a_statistics_line_with_no_team_by_the_teams_that_have_the_stat_in_any_fetch():
++    text = _macro()
++    assert "from {{ statistics_lines }} where fixture_id is not null )" in text
++    assert "where provider_team_id is null and stat_value is not null" in text
++    assert "where provider_team_id is not null and stat_value is not null" in text
++    assert "inner join {{ participants }} as match_teams on unnamed.fixture_id = match_teams.fixture_id" in text
++    assert (
++        "and unnamed.stat_type = named.stat_type and named.team_id in "
++        "(match_teams.home_team_id, match_teams.away_team_id) group by"
++    ) in text
++    assert "group by unnamed.fixture_id, unnamed.stat_type having count(distinct named.team_id) < 2" in text
++
++
++def test_the_macro_maps_a_team_the_way_base_does():
++    text = _macro()
++    base = _sql(BASE / "base_apif__fixture_statistics.sql")
++    for mode in ("reattribute_in_fixture", "alias", "reattribute_if_cohabiting"):
++        assert f"mode = '{mode}'" in text, mode
++        assert f"mode = '{mode}'" in base, mode
++    assert (
++        "left join {{ overrides }} as fixture_override on line.provider_team_id = fixture_override.wrong_team_api_id "
++        "and line.fixture_id = fixture_override.fixture_id and fixture_override.mode = 'reattribute_in_fixture'"
++    ) in text
++    assert (
++        "left join {{ overrides }} as alias_override on line.provider_team_id = alias_override.wrong_team_api_id "
++        "and alias_override.mode = 'alias'"
++    ) in text
++    assert "left join {{ participants }} as line_match on line.fixture_id = line_match.fixture_id" in text
++    assert (
++        "left join {{ overrides }} as reattribute_override on "
++        "line.provider_team_id = reattribute_override.wrong_team_api_id "
++        "and reattribute_override.mode = 'reattribute_if_cohabiting'"
++    ) in text
++    assert (
++        "coalesce( fixture_override.correct_team_api_id, alias_override.correct_team_api_id, "
++        "reattribute_override.correct_team_api_id, line.provider_team_id ) as team_id"
++    ) in text
++    assert "reattribute_override.correct_team_api_id in (line_match.home_team_id, line_match.away_team_id)" in text
++    assert (
++        "reattribute_override.wrong_team_api_id not in (line_match.home_team_id, line_match.away_team_id)"
++    ) in text
++
++
++def test_the_macro_judges_a_line_up_with_no_team_by_the_sheets_base_serves():
++    text = _macro()
++    assert "where fixture_id is not null and team_id is null" in text
++    assert "from {{ lineups }} where" in text
++    assert "left join {{ served_sheets }} as sheet on unnamed.fixture_id = sheet.fixture_id" in text
++    assert "and sheet.team_id in (match_teams.home_team_id, match_teams.away_team_id) group by" in text
++    assert "group by unnamed.fixture_id having count(distinct sheet.team_id) < 2" in text
++    assert "'stg_apif__lineups' as line_table, 'team_id' as missing_key from lineups_lost" in text
++    assert "'stg_apif__fixture_statistics' as line_table, 'team_id' as missing_key from statistics_lost" in text
++
++
++def test_the_listing_model_calls_the_macro_with_staging_the_served_sheets_and_the_teams_of_the_match():
++    text = _sql(BASE / "base_apif__fixture_lines_without_key.sql")
++    assert "select distinct cast(fixture_id as int64) as fixture_id, line_table, missing_key from (" in text
++    assert (
++        "{{ lines_without_key( ref('stg_apif__fixture_statistics'), ref('stg_apif__lineups'), "
++        "ref('base_apif__lineup_sheets'), 'participants', 'overrides' ) }}"
++    ) in text
++    assert (
++        "participants as ( select fixture_id, cast(home_team_id as int64) as home_team_id, "
++        "cast(away_team_id as int64) as away_team_id from {{ ref('base_apif__fixtures_next') }} "
++        "where home_team_id is not null and away_team_id is not null )"
++    ) in text
++    assert "from {{ ref('fixture_team_id_overrides') }} )" in text
++    assert "stg_apif__fixture_players" not in text
++    assert "seed" not in text
++
++
++def test_the_research_list_carries_the_matches_as_their_own_row_kind_with_no_seed():
++    text = _sql(MART / "mart_competition_research_list.sql")
++    assert (
++        "select distinct 'null_key_line_withheld' as check_name, 'none' as seed, fixture_id as fixture_sk, "
++        "cast(null as int64) as team_sk, cast(null as string) as correction "
++        "from {{ ref('base_apif__fixture_lines_without_key') }} )"
++    ) in text
++    shared = (MART / "shared.yml").read_text(encoding="utf-8")
++    assert shared.count('"lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]') == 1
++    assert "player_id_overrides" not in shared
++
++
++def test_the_listing_model_has_its_own_tests_at_error():
++    text = (BASE / "base.yml").read_text(encoding="utf-8")
++    block = text.split("- name: base_apif__fixture_lines_without_key", 1)[1].split("\n  - name: ", 1)[0]
++    assert "combination_of_columns: [fixture_id, line_table, missing_key]" in block
++    assert 'values: ["stg_apif__fixture_statistics", "stg_apif__lineups"]' in block
++    assert 'values: ["team_id"]' in block
++    assert "seed" not in block
++    assert "severity" not in block
++    assert "where:" not in block
++
++
++def test_the_listing_test_derives_the_matches_from_staging_and_stays_at_error():
++    text = _sql(DBT / "tests" / "assert_null_key_lines_listed.sql")
++    assert "severity = 'error'" in text
++    for model in ("stg_apif__fixture_statistics", "stg_apif__lineups"):
++        assert f"ref('{model}')" in text, model
++    assert "base_apif__fixture_lines_without_key" not in text
++    assert "lines_without_key(" not in text
++    assert "base_apif__lineup_sheets" not in text
++    assert "check_name = 'null_key_line_withheld'" in text
++    assert "'not_listed' as problem" in text
++    assert "'listed_without_line' as problem" in text
++    base_types = set(re.findall(r"stat_type = '([^']+)'", _sql(BASE / "base_apif__fixture_statistics.sql")))
++    assert _stat_types(text.split("stat_type in (", 1)[1].split(")", 1)[0]) == base_types
++    assert "having logical_or(statistic_lines.team_id is null and statistic_lines.has_value) and count(distinct if(" in text
++    assert "statistic_lines.team_id in (participants.home_team_id, participants.away_team_id), statistic_lines.team_id, null )) < 2" in text
++    assert "qualify row_number() over ( partition by league_code, fixture_id, team_id order by raw_ingested_at desc ) = 1" in text
++    assert "and latest_sheets.has_players and latest_sheets.team_id in (participants.home_team_id" in text
++    assert "having count(distinct latest_sheets.team_id) < 2" in text
++    assert (
++        "from {{ ref('base_apif__lineup_fetch_ties') }} as ties "
++        "where ties.rows_differ and ties.fixture_id is not null"
++    ) in text
++    assert text.count("inner join rewritten_teams on lines.team_id = rewritten_teams.team_id") == 2
++    assert "select distinct cast(wrong_team_api_id as int64) as team_id from {{ ref('fixture_team_id_overrides') }}" in text
++    assert "inner join {{ ref('fct_fixture') }} as fixtures on expected.fixture_id = fixtures.fixture_sk" in text
++    assert "left join left_out on expected.fixture_id = left_out.fixture_id where left_out.fixture_id is null" in text
++    assert "research.check_name = 'null_key_line_withheld' and left_out.fixture_id is null" in text
++    assert (
++        "left join listed on expected_in_fixtures.fixture_id = listed.fixture_id "
++        "where listed.fixture_id is null"
++    ) in text
++    assert (
++        "left join expected_in_fixtures on listed.fixture_id = expected_in_fixtures.fixture_id "
++        "where expected_in_fixtures.fixture_id is null"
++    ) in text
++
++
++def test_the_answer_key_runs_the_macro_on_its_own_lines_in_both_directions():
++    text = _sql(DBT / "tests" / "assert_lines_without_key_answer_key.sql")
++    assert "severity = 'error'" in text
++    assert (
++        "{{ lines_without_key('statistics_rows', 'lineup_rows', 'served_sheets', 'participants', 'overrides') }}"
++    ) in text
++    assert "'not_listed' as problem" in text
++    assert "'listed_for_nothing' as problem" in text
++    for row in (
++        "struct(990000001 as fixture_id, cast(null as int64) as team_id, 'Fouls' as stat_type, '10' as stat_value_raw),",
++        "struct(990000001, 5, 'Fouls', '12'),",
++        "struct(990000001, 6, 'Corner Kicks', '3'),",
++        "struct(990000002, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000002, 5, 'Fouls', '12'),",
++        "struct(990000002, 6, 'Fouls', '9'),",
++        "struct(990000003, cast(null as int64), 'Fouls', cast(null as string)),",
++        "struct(990000003, cast(null as int64), 'Corner Kicks', 'n/a'),",
++        "struct(990000004, cast(null as int64), 'Expected Goals', '1.2'),",
++        "struct(990000005, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000005, 5, 'Fouls', '12'),",
++        "struct(990000005, 7, 'Fouls', '11'),",
++        "struct(990000006, cast(null as int64), 'Ball Possession', '45%'),",
++        "struct(990000006, 5, 'Ball Possession', '55%'),",
++        "struct(990000007, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000007, 99, 'Fouls', '11'),",
++        "struct(990000008, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000014, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000014, 5, 'Fouls', '12'),",
++        "struct(990000014, 8, 'Fouls', '11'),",
++        "struct(990000015, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000015, 5, 'Fouls', '12'),",
++        "struct(990000015, 8, 'Fouls', '11'),",
++        "struct(990000016, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000016, 5, 'Fouls', '12'),",
++        "struct(990000016, 9, 'Fouls', '11'),",
++        "struct(990000017, cast(null as int64), 'Fouls', '10'),",
++        "struct(990000017, 6, 'Fouls', '12'),",
++        "struct(990000017, 9, 'Fouls', '11'),",
++        "struct(990000014, 5, 6), struct(990000015, 5, 6), struct(990000016, 5, 6), struct(990000017, 6, 9),",
++        "struct(8, 6, 'reattribute_in_fixture', 990000014), struct(9, 6, 'reattribute_if_cohabiting', cast(null as int64)) ])",
++        "struct(cast(null as int64), cast(null as int64), 'Fouls', '10') ])",
++        "struct(990000010 as fixture_id, cast(null as int64) as team_id),",
++        "struct(990000010, 5),",
++        "struct(990000011, cast(null as int64)),",
++        "struct(990000011, 6),",
++        "struct(990000012, cast(null as int64)),",
++        "struct(990000013, 5),",
++        "struct(cast(null as int64), cast(null as int64)) ])",
++        "struct(990000010 as fixture_id, 5 as team_id),",
++        "struct(990000011, 5),",
++        "struct(990000012, 99),",
++        "struct(990000013, 5) ])",
++        "struct(7 as wrong_team_api_id, 5 as correct_team_api_id, 'alias' as mode, cast(null as int64) as fixture_id),",
++    ):
++        assert row in text, row
++    assert "struct(990000008, 5, 6)," not in text
++    assert (
++        "struct(990000001 as fixture_id, 'stg_apif__fixture_statistics' as line_table, 'team_id' as missing_key), "
++        "struct(990000005, 'stg_apif__fixture_statistics', 'team_id'), "
++        "struct(990000006, 'stg_apif__fixture_statistics', 'team_id'), "
++        "struct(990000007, 'stg_apif__fixture_statistics', 'team_id'), "
++        "struct(990000015, 'stg_apif__fixture_statistics', 'team_id'), "
++        "struct(990000010, 'stg_apif__lineups', 'team_id'), "
++        "struct(990000012, 'stg_apif__lineups', 'team_id') ])"
++    ) in text
++    assert (
++        "from expected as e left join actual as a on e.fixture_id = a.fixture_id and e.line_table = a.line_table "
++        "and e.missing_key = a.missing_key where a.fixture_id is null"
++    ) in text
++    assert (
++        "from actual as a left join expected as e on a.fixture_id = e.fixture_id and a.line_table = e.line_table "
++        "and a.missing_key = e.missing_key where e.fixture_id is null"
++    ) in text
++
++
++def test_the_research_skill_does_not_research_the_row_kind():
++    text = (ROOT / ".claude" / "skills" / "research-provider-errors" / "SKILL.md").read_text(encoding="utf-8")
++    line = text.split("`null_key_line_withheld` row", 1)[1].split("\n", 1)[0]
++    assert "is not researched" in line
++    assert "no seed (`none`)" in line
+diff --git a/tests/test_staging_key_tests_moved.py b/tests/test_staging_key_tests_moved.py
+new file mode 100644
+index 00000000..8b3a56ac
+--- /dev/null
++++ b/tests/test_staging_key_tests_moved.py
+@@ -0,0 +1,364 @@
++"""A provider key that base drops when NULL is tested in base, not in staging.
++
++The staging not_null tests on provider keys stopped the nightly on a provider payload. Base drops
++the NULL-key rows and its own not_null tests prove it. This test pins the move: no removed staging
++test is back, each has its base proof in yml at error without a filter, every read of a moved
++staging model carries its key filter, and the staging uniqueness tests stay at error.
++"""
++
++import pathlib
++import re
++
++import pytest
++import yaml
++
++DBT = pathlib.Path(__file__).resolve().parents[1] / "dbt_project"
++STAGING = DBT / "models" / "1_staging" / "api_football" / "stg_apif__generic.yml"
++BASE = DBT / "models" / "2_base" / "api_football" / "base.yml"
++BASE_SQL = DBT / "models" / "2_base" / "api_football"
++
++# (staging model, staging column, base model, base column)
++NULL_KEYS = [
++    ("stg_apif__fixtures_next", "fixture_id", "base_apif__fixtures_next", "fixture_id"),
++    ("stg_apif__fixture_events", "fixture_id", "base_apif__fixture_events", "fixture_id"),
++    ("stg_apif__fixture_statistics", "fixture_id", "base_apif__fixture_statistics", "fixture_id"),
++    ("stg_apif__fixture_statistics", "team_id", "base_apif__fixture_statistics", "team_id"),
++    ("stg_apif__lineups", "fixture_id", "base_apif__lineup_fetches", "fixture_id"),
++    ("stg_apif__lineups", "team_id", "base_apif__lineup_fetches", "team_id"),
++    ("stg_apif__teams", "team_id", "base_apif__teams", "team_api_id"),
++    ("stg_apif__leagues", "league_api_id", "base_apif__leagues", "league_api_id"),
++    ("stg_apif__leagues", "season_api_year", "base_apif__leagues", "season_api_year"),
++    ("stg_apif__players", "player_id", "base_apif__players", "player_api_id"),
++    ("stg_apif__players", "team_id", "base_apif__player_team_season", "team_id"),
++    ("stg_apif__player_profiles", "player_id", "base_apif__player_profiles", "player_api_id"),
++    ("stg_apif__squads", "team_id", "base_apif__squads", "team_api_id"),
++    ("stg_apif__squads", "player_id", "base_apif__squads", "player_api_id"),
++    ("stg_apif__standings", "season", "base_apif__standings", "season"),
++    ("stg_apif__coaches", "coach_id", "base_apif__coaches", "coach_api_id"),
++    ("stg_apif__coach_career", "coach_id", "base_apif__coach_career", "coach_api_id"),
++]
++
++# staging models whose uniqueness test stays: (model, the model-level test name, or "fixture_id" for
++# the column-level unique test of stg_apif__fixtures_next)
++UNIQUE_STAYS = [
++    ("stg_apif__fixtures_next", "fixture_id"),
++    ("stg_apif__fixture_events", "stg_apif__fixture_events_order_keys_unique"),
++    ("stg_apif__teams", "stg_apif__teams_order_keys_unique"),
++    ("stg_apif__leagues", "stg_apif__leagues_order_keys_unique"),
++    ("stg_apif__standings", "stg_apif__standings_order_keys_unique"),
++]
++
++# Reads of a moved staging model whose key filters sit between the ref and the end of its CTE or its
++# union branch: (base file, staging model, filters). The i-th row of a file and model pins the i-th
++# read of that model in that file.
++BASE_READERS = [
++    ("base_apif__fixtures_next.sql", "stg_apif__fixtures_next", ["fixture_id is not null"]),
++    ("base_apif__fixture_events.sql", "stg_apif__fixture_events", ["fixture_id is not null"]),
++    (
++        "base_apif__fixture_statistics.sql",
++        "stg_apif__fixture_statistics",
++        ["fixture_id is not null", "team_id is not null"],
++    ),
++    ("base_apif__lineup_fetches.sql", "stg_apif__lineups", ["fixture_id is not null", "team_id is not null"]),
++    ("base_apif__squads.sql", "stg_apif__squads", ["team_id is not null", "player_id is not null"]),
++    ("base_apif__standings.sql", "stg_apif__standings", ["team_id is not null", "season is not null"]),
++    ("base_apif__coaches.sql", "stg_apif__coaches", ["stg.coach_id is not null"]),
++    ("base_apif__coach_career.sql", "stg_apif__coach_career", ["coach_id is not null", "team_id is not null"]),
++    ("base_apif__player_profiles.sql", "stg_apif__player_profiles", ["player_id is not null"]),
++    ("base_apif__teams.sql", "stg_apif__teams", ["team_id is not null"]),
++    ("base_apif__teams.sql", "stg_apif__standings", ["team_id is not null", "season is not null"]),
++    ("base_apif__teams.sql", "stg_apif__fixtures_next", ["fixture_id is not null"]),
++    ("base_apif__teams.sql", "stg_apif__fixture_statistics", ["team_id is not null", "fixture_id is not null"]),
++    ("base_apif__teams.sql", "stg_apif__fixture_events", ["team_id is not null", "fixture_id is not null"]),
++    ("base_apif__players.sql", "stg_apif__players", ["player_id is not null"]),
++]
++
++# Reads whose filter sits outside the CTE that holds the staging ref: (base file, staging model, the
++# normalised SQL that carries the filter)
++FETCHES = "from fetches where fixture_id is not null group by fixture_id"
++LISTING_CALL = (
++    "{{ lines_without_key( ref('stg_apif__fixture_statistics'), ref('stg_apif__lineups'), "
++    "ref('base_apif__lineup_sheets'), 'participants', 'overrides' ) }}"
++)
++FILE_PINS = [
++    ("base_apif__fixture_fetches.sql", "stg_apif__lineups", FETCHES),
++    ("base_apif__fixture_fetches.sql", "stg_apif__fixture_events", FETCHES),
++    ("base_apif__fixture_fetches.sql", "stg_apif__fixture_statistics", FETCHES),
++    (
++        "base_apif__player_team_season.sql",
++        "stg_apif__players",
++        "from src where player_id is not null and team_id is not null and season_year is not null",
++    ),
++    (
++        "base_apif__leagues.sql",
++        "stg_apif__leagues",
++        "where leagues.league_api_id is not null and leagues.season_api_year is not null )",
++    ),
++    ("base_apif__fixture_lines_without_key.sql", "stg_apif__fixture_statistics", LISTING_CALL),
++    ("base_apif__fixture_lines_without_key.sql", "stg_apif__lineups", LISTING_CALL),
++]
++
++REF = re.compile(r"ref\(\s*['\"](stg_apif__\w+)['\"]\s*\)")
++FORBIDDEN_IN_A_PROOF = {"where", "warn_if", "error_if", "limit", "store_failures", "enabled", "fail_calc"}
++
++
++def _models(path):
++    return {model["name"]: model for model in yaml.safe_load(path.read_text(encoding="utf-8"))["models"]}
++
++
++def _sql(path):
++    text = path.read_text(encoding="utf-8")
++    text = re.sub(r"\{#.*?#\}", " ", text, flags=re.DOTALL)
++    text = re.sub(r"--[^\n]*", " ", text)
++    return re.sub(r"\s+", " ", text)
++
++
++def _tests(tests):
++    found = []
++    for test in tests or []:
++        if isinstance(test, str):
++            found.append((test, {}))
++        else:
++            (name, body), = test.items()
++            found.append((name, body or {}))
++    return found
++
++
++def _column_tests(model, column):
++    (found,) = [c for c in model["columns"] if c["name"] == column]
++    return _tests(found.get("tests") or found.get("data_tests"))
++
++
++def _model_tests(model):
++    return _tests(model.get("tests") or model.get("data_tests"))
++
++
++def _stays_at_error(body):
++    config = body.get("config") or {}
++    return (
++        not (FORBIDDEN_IN_A_PROOF & set(body))
++        and not (FORBIDDEN_IN_A_PROOF & set(config))
++        and config.get("severity", "error") == "error"
++        and body.get("severity", "error") == "error"
++    )
++
++
++@pytest.fixture(scope="module")
++def staging():
++    return _models(STAGING)
++
++
++@pytest.fixture(scope="module")
++def base():
++    return _models(BASE)
++
++
++@pytest.mark.parametrize("stg, column, base_model, base_column", NULL_KEYS)
++def test_a_null_provider_key_is_proven_dropped_by_base_not_tested_in_staging(
++    staging, base, stg, column, base_model, base_column
++):
++    assert "not_null" not in [name for name, _ in _column_tests(staging[stg], column)]
++    proofs = [body for name, body in _column_tests(base[base_model], base_column) if name == "not_null"]
++    assert len(proofs) == 1
++    assert _stays_at_error(proofs[0]), (base_model, base_column, proofs[0])
++
++
++@pytest.mark.parametrize("stg, test", UNIQUE_STAYS)
++def test_the_uniqueness_test_of_staging_stays_at_error(staging, stg, test):
++    model = staging[stg]
++    if test == "fixture_id":
++        kept = [body for name, body in _column_tests(model, "fixture_id") if name == "unique"]
++    else:
++        kept = [body for _, body in _model_tests(model) if body.get("name") == test]
++    assert len(kept) == 1, (stg, test)
++    assert _stays_at_error(kept[0]), (stg, test, kept[0])
++
++
++def test_a_proof_that_is_filtered_or_lowered_is_not_a_proof():
++    assert _stays_at_error({})
++    assert not _stays_at_error({"config": {"severity": "warn"}})
++    assert not _stays_at_error({"severity": "warn"})
++    assert not _stays_at_error({"where": "x is not null"})
++    assert not _stays_at_error({"config": {"where": "x is not null"}})
++    assert not _stays_at_error({"warn_if": ">1"})
++    assert not _stays_at_error({"config": {"enabled": False}})
++    assert not _stays_at_error({"config": {"fail_calc": "0"}})
++
++
++def test_no_reader_row_is_listed_twice():
++    assert len(BASE_READERS) == len({(file, stg, tuple(filters)) for file, stg, filters in BASE_READERS})
++    assert len(FILE_PINS) == len(set(FILE_PINS))
++
++
++def _read_bodies(text, stg):
++    bodies = []
++    for match in re.finditer(r"ref\(\s*['\"]" + stg + r"['\"]\s*\)", text):
++        after = text[match.end():]
++        ends = [after.find(mark) for mark in ("union all", "), ", ") select")]
++        bodies.append(after[: min(end for end in ends if end >= 0)])
++    return bodies
++
++
++@pytest.mark.parametrize("base_file, stg, filters", BASE_READERS)
++def test_a_base_model_reading_staging_drops_the_null_key_rows(base_file, stg, filters):
++    index = [row[:2] for row in BASE_READERS[: BASE_READERS.index((base_file, stg, filters))]].count(
++        (base_file, stg)
++    )
++    bodies = _read_bodies(_sql(BASE_SQL / base_file), stg)
++    assert index < len(bodies), (base_file, stg, index)
++    for condition in filters:
++        assert condition in bodies[index], (base_file, stg, condition)
++
++
++@pytest.mark.parametrize("base_file, stg, snippet", FILE_PINS)
++def test_a_base_read_filtered_outside_its_own_cte_drops_the_null_key_rows(base_file, stg, snippet):
++    assert snippet in _sql(BASE_SQL / base_file), (base_file, stg)
++
++
++def test_every_base_read_of_a_moved_staging_model_is_pinned():
++    moved = {stg for stg, _, _, _ in NULL_KEYS}
++    reads = {}
++    for path in sorted(BASE_SQL.glob("*.sql")):
++        for stg in REF.findall(_sql(path)):
++            if stg in moved:
++                reads[(path.name, stg)] = reads.get((path.name, stg), 0) + 1
++    pinned = {}
++    for base_file, stg, _ in BASE_READERS:
++        pinned[(base_file, stg)] = pinned.get((base_file, stg), 0) + 1
++    for base_file, stg, _ in FILE_PINS:
++        pinned[(base_file, stg)] = pinned.get((base_file, stg), 0) + 1
++    unpinned = {pair: count for pair, count in reads.items() if pinned.get(pair, 0) < count}
++    assert not unpinned
++
++
++# Singular tests that recompute a rule of base from a moved staging model carry the filter base
++# applies: (test file, the normalised SQL that carries the filter)
++TEST_PINS = [
++    (
++        "assert_team_id_aliases_merged.sql",
++        "from {{ ref('stg_apif__fixtures_next') }} where fixture_id is not null and fixture_id not in",
++    ),
++    ("assert_team_id_aliases_merged.sql", "where fixtures.fixture_id is not null"),
++    ("assert_team_id_aliases_merged.sql", "where standings.season is not null"),
++    (
++        "assert_league_name_overrides_are_corrections.sql",
++        "from {{ ref('stg_apif__leagues') }} where league_api_id is not null and season_api_year is not null",
++    ),
++    ("assert_base_team_stats_cleaned.sql", "where s.fixture_id is not null and s.team_id is not null"),
++    ("assert_coach_bio_from_every_fetch.sql", "from {{ ref('stg_apif__coaches') }} where coach_id is not null"),
++    ("assert_coach_fetches_agree_on_bio.sql", "from {{ ref('stg_apif__coaches') }} where coach_id is not null"),
++    ("assert_fixture_statistics_from_every_fetch.sql", "where fixture_id is not null and team_id is not null and"),
++    ("assert_identity_fields_never_blanked.sql", "from {{ ref('stg_apif__players') }} where player_id is not null"),
++    ("assert_identity_names_stable.sql", "from {{ ref('stg_apif__players') }} where player_id is not null"),
++    (
++        "assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql",
++        "from {{ ref('stg_apif__lineups') }} where fixture_id is not null and team_id is not null",
++    ),
++    (
++        "assert_lineup_two_people_one_id_not_held.sql",
++        "from {{ ref('stg_apif__lineups') }} where fixture_id is not null and team_id is not null",
++    ),
++]
++
++# Singular tests that read a moved staging model and need no key filter, because a NULL-key row
++# changes none of their results: they compare strings, count rows or join on the key.
++TEST_EXEMPT = {
++    "assert_country_name_overrides_still_needed.sql",
++    "assert_fixture_events_only_from_latest_fetch.sql",
++    "assert_goal_added_minute_from_newest_fetch.sql",
++    "assert_sheet_and_stats_player_join_on_shirt.sql",
++    "test_stg_fixture_statistics_non_empty.sql",
++    "assert_null_key_lines_listed.sql",
++}
++
++
++# How many reads of a moved staging model each of those tests and each macro makes. A read added
++# to a pinned file is a read no pin has seen.
++READS = {
++    "assert_base_team_stats_cleaned.sql": 1,
++    "assert_coach_bio_from_every_fetch.sql": 1,
++    "assert_coach_fetches_agree_on_bio.sql": 1,
++    "assert_fixture_statistics_from_every_fetch.sql": 2,
++    "assert_identity_fields_never_blanked.sql": 1,
++    "assert_identity_names_stable.sql": 1,
++    "assert_league_name_overrides_are_corrections.sql": 1,
++    "assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql": 1,
++    "assert_lineup_two_people_one_id_not_held.sql": 1,
++    "assert_team_id_aliases_merged.sql": 3,
++    "assert_country_name_overrides_still_needed.sql": 4,
++    "assert_fixture_events_only_from_latest_fetch.sql": 1,
++    "assert_goal_added_minute_from_newest_fetch.sql": 1,
++    "assert_sheet_and_stats_player_join_on_shirt.sql": 1,
++    "test_stg_fixture_statistics_non_empty.sql": 1,
++    "assert_null_key_lines_listed.sql": 5,
++    "players_with_conflicting_bio.sql": 1,
++}
++
++# Macros that read a moved staging model and carry its key filter: (macro file, normalised SQL)
++MACRO_PINS = [
++    (
++        "players_with_conflicting_bio.sql",
++        "from {{ ref('stg_apif__players') }} as season_row where season_row.player_id is not null",
++    ),
++]
++
++
++def _moved_reads(path):
++    moved = {stg for stg, _, _, _ in NULL_KEYS}
++    return [stg for stg in REF.findall(_sql(path)) if stg in moved]
++
++
++@pytest.mark.parametrize("test_file, snippet", TEST_PINS)
++def test_a_singular_test_recomputing_base_drops_the_null_key_rows(test_file, snippet):
++    assert snippet in _sql(DBT / "tests" / test_file), test_file
++
++
++@pytest.mark.parametrize("macro_file, snippet", MACRO_PINS)
++def test_a_macro_reading_a_moved_staging_model_drops_the_null_key_rows(macro_file, snippet):
++    assert snippet in _sql(DBT / "macros" / macro_file), macro_file
++
++
++def test_every_singular_test_reading_a_moved_staging_model_is_pinned_or_exempt():
++    reading = {path.name for path in sorted((DBT / "tests").glob("*.sql")) if _moved_reads(path)}
++    assert reading == {file for file, _ in TEST_PINS} | TEST_EXEMPT
++
++
++def test_every_macro_reading_a_moved_staging_model_is_pinned():
++    reading = {path.name for path in sorted((DBT / "macros").glob("*.sql")) if _moved_reads(path)}
++    assert reading == {file for file, _ in MACRO_PINS}
++
++
++def test_no_singular_test_or_macro_has_a_read_no_pin_has_seen():
++    counts = {}
++    for folder in ("tests", "macros"):
++        for path in sorted((DBT / folder).glob("*.sql")):
++            if _moved_reads(path):
++                counts[path.name] = len(_moved_reads(path))
++    assert counts == READS
++
++
++def test_the_policy_is_stated_where_the_rule_lives_and_names_the_one_model_it_excepts(staging):
++    standards = " ".join((DBT / "docs" / "engineering_standards.md").read_text(encoding="utf-8").split())
++    layering = " ".join((DBT / "docs" / "layering.md").read_text(encoding="utf-8").split())
++    header = " ".join(STAGING.read_text(encoding="utf-8").split())
++    assert (
++        "A provider key that base drops when NULL is the exception. Its `not_null` lives in base. "
++        "`stg_apif__fixture_players` keeps its own."
++    ) in standards
++    assert (
++        "except a provider key that base drops when NULL (its `not_null` is in base; "
++        "`stg_apif__fixture_players` keeps its own)"
++    ) in layering
++    assert "except in # stg_apif__fixture_players, which keeps its own tests." in header
++    kept = [name for name, _ in _column_tests(staging["stg_apif__fixture_players"], "fixture_id")]
++    assert "not_null" in kept
++
++
++def test_the_read_guard_sees_a_multi_line_and_a_double_quoted_read():
++    assert REF.findall(_sql_of("from {{ ref(\n 'stg_apif__teams'\n) }}")) == ["stg_apif__teams"]
++    assert REF.findall(_sql_of('from {{ ref("stg_apif__teams") }}')) == ["stg_apif__teams"]
++    assert len(_read_bodies("ref('stg_apif__teams') where a ), x as (ref('stg_apif__teams') where b ), ", "stg_apif__teams")) == 2
++
++
++def _sql_of(text):
++    return re.sub(r"\s+", " ", text)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-null-key-tests-moved/review.md    |   30 +
+#    .../262-null-key-tests-moved/review_input.patch    | 1661 ++++++++++++++++++++
+#    2 files changed, 1691 insertions(+)
+# ============================================================================

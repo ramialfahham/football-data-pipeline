@@ -28,6 +28,7 @@ stg_fixtures as (
         away_team_name,
         raw_ingested_at
     from {{ ref('stg_apif__fixtures_next') }}
+    where fixture_id is not null
 ),
 
 -- Standings can introduce teams that never appear in the teams endpoint or in
@@ -43,7 +44,7 @@ stg_standings as (
         season,
         raw_ingested_at
     from {{ ref('stg_apif__standings') }}
-    where team_id is not null
+    where team_id is not null and season is not null
 ),
 
 -- Fixture-level sources (statistics, players, events) carry team ids for teams
@@ -59,7 +60,7 @@ stg_fixture_level as (
         team_name,
         raw_ingested_at
     from {{ ref('stg_apif__fixture_statistics') }}
-    where team_id is not null
+    where team_id is not null and fixture_id is not null
 
     union all
 
@@ -81,7 +82,7 @@ stg_fixture_level as (
         team_name,
         raw_ingested_at
     from {{ ref('stg_apif__fixture_events') }}
-    where team_id is not null
+    where team_id is not null and fixture_id is not null
 ),
 
 -- Fixture participants and the hand-curated team-id corrections, exactly as the three fixture-level

@@ -132,6 +132,7 @@ both_ids_in_one_fixture as (
                 overrides.correct_team_api_id = fixtures.home_team_id
                 and overrides.wrong_team_api_id = fixtures.away_team_id
             )
+    where fixtures.fixture_id is not null
 ),
 
 both_ids_in_one_table as (
@@ -141,6 +142,7 @@ both_ids_in_one_table as (
         on
             overrides.wrong_team_api_id = standings.team_id
             or overrides.correct_team_api_id = standings.team_id
+    where standings.season is not null
     group by overrides.correct_team_api_id, standings.league_code, standings.season, standings.group_name
     having count(distinct standings.team_id) > 1
 ),

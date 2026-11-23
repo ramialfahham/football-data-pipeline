@@ -4043,7 +4043,8 @@ models:
     description: >
       The list of provider errors to research, rebuilt each night. One row per match, or team in a
       match, where a check of the provider's data withholds a value on goals, scores, awards or
-      cards or leaves out a line filed under a team that did not play the match, and one row per
+      cards, leaves out a line filed under a team that did not play the match, or leaves out a line
+      that came with no team id, and one row per
       correction the provider no longer needs. A value the provider has
       corrected itself passes its check, and its row leaves the list. The research routine reads
       it; no page does. Grain: item_key.
@@ -4052,13 +4053,13 @@ models:
         description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team or a misfiled line, separated by a space."
         tests: [unique, not_null]
       - name: check_name
-        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, misfiled_team_withheld (a line filed under a team that did not play the match, left out of the facts until a fixture_team_id_overrides row files it under the right team), player_team_withheld (a player's stat line and events name different teams of the match and nothing decides which is right; both are left out of the facts until a fixture_lineup_corrections row names his team), lineup_duplicate_withheld (the provider stored a team's line-up twice at the newest ingest time with different content, so that team has no sheet and the match line-up is not available until a newer fetch; seed none), null_key_line_withheld (a statistics line or a line-up came with no team id and a team of the match lacks a value it could have given; seed none), or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
         tests:
           - not_null
           - accepted_values:
-              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "correction_no_longer_needed"]
+              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "misfiled_team_withheld", "player_team_withheld", "lineup_duplicate_withheld", "null_key_line_withheld", "correction_no_longer_needed"]
       - name: seed
-        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld: no seed fixes it, a newer fetch removes it."
+        description: "The correction seed that fixes the row, or that holds the correction no longer needed. none on lineup_duplicate_withheld and null_key_line_withheld: no seed fixes it, a newer fetch removes it."
         tests:
           - not_null
           - accepted_values:
