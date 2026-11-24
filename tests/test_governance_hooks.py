@@ -440,24 +440,6 @@ def tracked(prefix: str) -> list[str]:
     return [p for p in r.stdout.split("\0") if p]
 
 
-def test_every_reviewer_brief_carries_the_identical_delta_section():
-    """A drifted copy of the delta-re-review rule would make a reviewer apply a different rule."""
-    import glob
-    agents_dir = os.path.join(os.path.dirname(__file__), "..", ".claude", "agents")
-    briefs = sorted(glob.glob(os.path.join(agents_dir, "*.md")))
-    reviewers = [b for b in briefs if os.path.basename(b) != "README.md"]
-    assert len(reviewers) >= 6, f"expected >=6 reviewer briefs, found {len(reviewers)}"
-    sections = {}
-    for b in reviewers:
-        text = open(b, encoding="utf-8").read()
-        assert "## Delta re-review" in text, f"{os.path.basename(b)} lost its delta section"
-        sections[b] = text.split("## Delta re-review", 1)[1]
-    uniq = set(sections.values())
-    assert len(uniq) == 1, (
-        "delta sections have drifted across briefs: "
-        + ", ".join(os.path.basename(b) for b in sections))
-
-
 def test_ci_backstop_requires_rounds(ci_repo):
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
@@ -1245,9 +1227,17 @@ def test_commit_denied_without_a_rounds_line(repo):
     assert denied(out) and "rounds:" in out
 
 
+def _stage_tested_fix(repo) -> str:
+    (repo / "tests").mkdir(exist_ok=True)
+    (repo / "tests" / "test_fix.py").write_text("def test_fix():\n    assert True\n")
+    subprocess.run(["git", "add", "tests/test_fix.py"], cwd=repo, check=True)
+    return "\n## fixes\n- a class | sweep: grep -rn x . | test: tests/test_fix.py::test_fix\n"
+
+
 def test_commit_allowed_at_the_cap(repo):
     setup_review_repo(repo)
-    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="rounds: 3\n")
+    fixes = _stage_tested_fix(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY + fixes, rounds="rounds: 3\n")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert not denied(out)
 
@@ -1261,7 +1251,8 @@ def test_commit_denied_over_the_cap_without_override(repo):
 
 def test_commit_allowed_over_the_cap_with_a_real_override(repo):
     setup_review_repo(repo)
-    write_review(repo, staged_hash(repo), GOOD_BODY,
+    fixes = _stage_tested_fix(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY + fixes,
                  rounds="rounds: 5\nrounds_cap_override: CPO said keep going, 2026-07-22\n")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert not denied(out)

@@ -198,15 +198,39 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 
 **Cross-Examination.**
 
-- A FAIL names a defect: the file, the line and what goes wrong. No concrete failure, no FAIL.
-- A PASS may find nothing. It lists what the reviewer examined under `risks_checked:`, with at
-  least one entry. "Checked X against Y, no defect" is a complete entry.
+- Each reviewer judges the change against a written standard: the contract's acceptance criteria,
+  its own checklist and Appendix A.
+- A reviewer reports every finding in one pass.
+- Each finding names its class and every place in the change where that class occurs, not only
+  the first.
+- Each finding is blocking or a nit. Blocking means wrong data, an acceptance criterion not met,
+  security, a §10 decision or a guard regression.
+- A checklist item that says FAIL is blocking only when its breach falls in one of those classes.
+- A nit never fails a round. A verdict with only nits is a PASS, and its nits go on the issue as a
+  follow-up comment.
+- A wording or style rule that a gate checks is the gate's job. Any other wording breach is a nit.
+- A finding is one line under `findings:`: `- [blocking] <class>: <every place> — <what goes
+  wrong>`, or the same with `[nit]`.
+- A blocking finding names a concrete failure: the file, the line and what goes wrong.
+- A PASS lists what the reviewer examined under `risks_checked:`, with at least one entry.
+  "Checked X against Y, no defect" is a complete entry.
 - Praise is banned. A finding made up to justify a pass is banned too.
 - A reviewer keeps a critical attitude and is allowed to approve.
-- A re-review after the first round is a delta review. The reviewer gets only what changed since
-  its own last PASS.
-- The delta reviewer judges that change plus its own prior findings, not the whole diff again. It
-  FAILs when the change is too large for its last PASS to stand.
+
+**Fix and re-review.**
+
+- The builder fixes the whole class of each blocking finding. Each fix comes with a test that
+  fails before the fix.
+- `review.md` lists each fixed class under `## fixes`, with the sweep that found every place and
+  the test. The test lives in `tests/**/test_*.py`, `dbt_project/tests/**.sql` or
+  `site_v2/**/*.test.mjs`.
+- A round that followed only PASS verdicts lists one entry under `## fixes`: `- none: <why>`.
+- After a FAIL, the re-review gets only the fix diff and the reviewer's own findings.
+- A new blocking finding on a line unchanged since round 1 carries a concrete failing case.
+  Without one, it becomes a follow-up issue.
+- After a PASS, a re-review gets only what changed since that PASS.
+- A reviewer refuses a re-review when the change is too large for its earlier verdict to stand.
+  The builder then runs a full review.
 
 **Lock.**
 
@@ -220,9 +244,11 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 - `contract.md` is hashed and is never artifact-exempt. Every contract change goes through review.
 - A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
   the round count and needs no new review.
-- The round count is capped at 3. Past the cap, the builder stops and brings the open findings to
-  the CPO.
-- To continue on the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
+- The round cap is 3 reviewer rounds per issue, counted across sessions. A new session or branch
+  for the same work continues the count.
+- At the cap, the work is split: what passed lands, and the rest is split off into its own issue.
+  A further round is the CPO's call.
+- `review.md` records that call as `rounds_cap_override: approved in chat, <date>`.
 
 ### Commit gate
 
@@ -236,6 +262,11 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 - A PASS has nothing under `risks_checked:`.
 - The `rounds:` line is missing or is not a positive integer.
 - `rounds:` exceeds the cap of 3 without a `rounds_cap_override:`.
+- A finding lacks `[blocking]` or `[nit]` and its class.
+- A PASS carries a blocking finding, or a FAIL carries none.
+- `rounds:` exceeds 1, and `## fixes` is missing or an entry lacks its sweep or a test file the
+  branch changes.
+- A `none:` entry under `## fixes` has no reason or stands beside a fix.
 - The diff touches `site_v2/src/`, and the acceptance criteria are missing or not all
   demonstrated.
 
@@ -400,7 +431,7 @@ standards, the metric catalogue and the task contract.
 
 **Wording before go-live.** Until go-live, the coordinating agent writes fan-visible strings from the approved designs and existing labels; the CPO reviews each finished page group and can veto any string. URLs, slugs and other permanent identifiers stay CPO-only.
 
-**Review cap.** At the round cap, the coordinating agent lands what passed and closes or splits off the rest; a fourth round stays the CPO's.
+**Review cap.** At the round cap (§2), the work is split: what passed lands, and the rest is split off into its own issue. A further round is the CPO's call.
 
 **Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
 

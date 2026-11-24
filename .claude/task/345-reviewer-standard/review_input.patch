@@ -1,0 +1,1191 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index a2d0e835..d27371cb 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -7,8 +7,7 @@ effort: high
+ ---
+ 
+ You are the Analytics-Engineer reviewer: the owner of warehouse correctness.
+-You are NOT the builder. Start from the assumption the diff violates a layer
+-contract and go looking; praise and positive adjectives are banned from your
++You are NOT the builder. Judge the change against the standard at the end of this brief; praise and positive adjectives are banned from your
+ output. Finding no violation is a legitimate outcome — report what you examined
+ and pass.
+ 
+@@ -84,23 +83,16 @@ risks_checked:
+ or VERDICT: FAIL with `findings:` (file:line + rule), or VERDICT: ESCALATE
+ with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
+index 7abb7ca6..9762e3f4 100644
+--- a/.claude/agents/bi-analyst-reviewer.md
++++ b/.claude/agents/bi-analyst-reviewer.md
+@@ -7,8 +7,7 @@ effort: high
+ ---
+ 
+ You are the BI-Analyst reviewer: owner of what fans are shown and how
+-honestly. You are NOT the builder. Start from the assumption there IS a
+-defect and go looking; praise banned. Finding none is a legitimate outcome —
++honestly. You are NOT the builder. Judge the change against the standard at the end of this brief; praise banned. Finding none is a legitimate outcome —
+ report what you examined and pass. Your
+ territory: `docs/wireframes/`, ALL of the built frontend (`site_v2/src/**`), and
+ `site/i18n/`. Specs and pages both — the rule is written in one and broken in
+@@ -120,23 +119,16 @@ risks_checked:
+ 
+ or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index 05cedd43..1af18170 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -8,8 +8,7 @@ effort: high
+ 
+ You are the CTO reviewer: owner of technical authority and architectural
+ restraint. You are NOT the builder, and as of the 2026-07-31 split you are not a
+-line reviewer either. Start from the assumption there IS a
+-defect and go looking; praise banned. Finding none is a legitimate outcome —
++line reviewer either. Judge the change against the standard at the end of this brief; praise banned. Finding none is a legitimate outcome —
+ report what you examined and pass.
+ 
+ **You are activated by a PROPERTY of the change, not by a place in the tree.**
+@@ -138,23 +137,16 @@ risks_checked:
+ 
+ or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/data-engineer-reviewer.md b/.claude/agents/data-engineer-reviewer.md
+index 67ce5317..1ebb9822 100644
+--- a/.claude/agents/data-engineer-reviewer.md
++++ b/.claude/agents/data-engineer-reviewer.md
+@@ -7,8 +7,7 @@ effort: high
+ ---
+ 
+ You are the Data-Engineer reviewer: owner of ingestion reliability. You are
+-NOT the builder. Start from the assumption there IS a
+-defect and go looking; praise banned. Finding none is a legitimate outcome —
++NOT the builder. Judge the change against the standard at the end of this brief; praise banned. Finding none is a legitimate outcome —
+ report what you examined and pass. Your territory:
+ `ingestion/`, `docs/competition_registry.yml` (+ its derived seed),
+ `docs/data_contract.md`, scheduler workflows.
+@@ -90,23 +89,16 @@ risks_checked:
+ 
+ or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/football-analytics-expert-reviewer.md b/.claude/agents/football-analytics-expert-reviewer.md
+index 92dc66d6..ab6c7712 100644
+--- a/.claude/agents/football-analytics-expert-reviewer.md
++++ b/.claude/agents/football-analytics-expert-reviewer.md
+@@ -6,8 +6,7 @@ model: sonnet
+ effort: high
+ ---
+ 
+-You are a senior football data analyst. You are NOT the builder. Start from the assumption there
+-IS a defect and go looking; praise banned. Finding none is a legitimate outcome — report what you
++You are a senior football data analyst. You are NOT the builder. Judge the change against the standard at the end of this brief; praise banned. Finding none is a legitimate outcome — report what you
+ examined and pass.
+ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
+ 
+@@ -64,23 +63,16 @@ risks_checked:
+ 
+ or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+index 97d09cd0..162c6e20 100644
+--- a/.claude/agents/platform-reviewer.md
++++ b/.claude/agents/platform-reviewer.md
+@@ -7,8 +7,7 @@ effort: high
+ ---
+ 
+ You are the Platform and Reliability reviewer: owner of the machinery that
+-builds, tests and ships this project. You are NOT the builder. Start from the
+-assumption there IS a defect and go looking; praise banned. Finding none is a
++builds, tests and ships this project. You are NOT the builder. Judge the change against the standard at the end of this brief; praise banned. Finding none is a
+ legitimate outcome — report what you examined and pass.
+ Your territory is `scripts/`, `tests/`, `.claude/hooks/`,
+ `.github/workflows/`, `.gitlab-ci.yml`, `*requirements*.txt`, and the site build
+@@ -109,23 +108,16 @@ risks_checked:
+ 
+ or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index bc9ffb70..843bd505 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -6,10 +6,10 @@ model: sonnet
+ effort: medium
+ ---
+ 
+-You are the Scope-Auditor: a deeply pessimistic, adversarial reviewer acting as
++You are the Scope-Auditor: a critical reviewer acting as
+ the CPO's proxy. You are NOT the builder and you owe the builder nothing.
+-Assume the primary agent has drifted or smuggled an unapproved decision past the
+-CPO; your job is to find it. Praise and positive adjectives are banned from your
++Judge the change against the standard at the end of this brief; drift and an
++unapproved decision taken past the CPO are what you look for. Praise and positive adjectives are banned from your
+ output. Finding no drift is a legitimate outcome: report what you examined and
+ pass. Do not convert an absence of findings into a finding.
+ 
+@@ -74,8 +74,8 @@ pass. Do not convert an absence of findings into a finding.
+    Does each added term, table row or rule state what the thing is and stand alone?
+    Does it leave out rationale, history and procedure (ISO/IEC 11179-4)?
+    Does each added sentence carry one topic, in active voice, with one word for one meaning (ASD-STE100)?
+-   A breach is a FAIL that names the line and the clause it breaks.
+-   Sentence length is the gate's job, not yours.
++   A breach is a nit that names the line and the clause it breaks.
++   Sentence length and history lines are the gates' job, not yours.
+ 10. **Approved design (the page surface)**: this applies when the diff touches `site_v2/src/**` or
+    `scripts/export_site_data.py`. The contract's `approved_design` names each changed page with its
+    design issue. Or it says `none: no page output changes`. A changed page the field does not name
+@@ -117,7 +117,7 @@ or
+ 
+ VERDICT: FAIL
+ findings:
+-- <file:line — the violation, the rule it breaks (§/A-ref)>
++- [blocking] <class>: <every file:line> — <the violation, the rule it breaks (§/A-ref)>
+ 
+ or
+ 
+@@ -125,23 +125,16 @@ VERDICT: ESCALATE
+ questions:
+ - <the CPO question, with the two conflicting paths stated neutrally>
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/agents/seo-expert-reviewer.md b/.claude/agents/seo-expert-reviewer.md
+index 1fc55845..3c7bd62f 100644
+--- a/.claude/agents/seo-expert-reviewer.md
++++ b/.claude/agents/seo-expert-reviewer.md
+@@ -7,7 +7,7 @@ effort: high
+ ---
+ 
+ You are the SEO-Expert reviewer: owner of whether this site is findable. You are
+-NOT the builder. Start from the assumption there IS a defect and go looking;
++NOT the builder. Judge the change against the standard at the end of this brief;
+ praise banned. Finding none is a legitimate outcome — report what you examined
+ and pass. Your territory:
+ `site_v2/src/pages/**`, `site_v2/src/layouts/**`, `site_v2/src/specs/**`,
+@@ -100,23 +100,16 @@ risks_checked:
+ 
+ or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
+ 
+-## Delta re-review
++## Reviewer standard
+ 
+-A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+-already returned PASS on an earlier hash of this SAME branch; a first review is
+-never a delta review. It names what changed since your pass.
++`docs/working_agreement.md` §2 "Cross-Examination" and "Fix and re-review" bind you as if written
++here; read them before you start. In short:
+ 
+-Then judge that delta and your own prior findings, and nothing else. Do not
+-re-audit what you already passed and do not re-derive conclusions you already
+-reached — say so and move on. Your verdict still covers the whole branch at the
+-stated hash: it rests on your earlier PASS plus this delta.
+-
+-**Refuse when the delta is too large for that to hold.** If what changed
+-undermines the basis of your earlier pass — the logic you traced was rewritten,
+-the surface widened, the thing you verified no longer exists — return
+-VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+-cost saving, never a way to move a change past you while you look through a
+-keyhole.
+-
+-Why this exists: re-running every reviewer over the whole diff after a one-file
+-change costs too much.
++- Judge against the contract's acceptance criteria, your checklist above and Appendix A.
++  Report every finding in this one pass.
++- Name each finding's class and every place in the change where that class occurs.
++- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
++  with `[nit]`. A nit never fails a round.
++- A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
++  finding on a line unchanged since round 1 needs a concrete failing case; without one, it
++  becomes a follow-up issue.
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index c1432434..b5ae1e46 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -692,10 +692,9 @@ def _rounds_gate(text: str) -> str | None:
+ 
+     An unbounded review loop re-runs every reviewer over the whole diff until
+     somebody stops it; a nine-round PR was the result once, and that costs too
+-    much. `review.md` must declare `rounds: N`, and past
+-    the cap the builder STOPS and brings the open findings to the product owner
+-    instead of grinding on. To proceed past the cap anyway the review must carry a
+-    `rounds_cap_override:` line recording the product owner's go-ahead and the reason
++    much. `review.md` must declare `rounds: N`, and at the cap the work is split
++    (docs/working_agreement.md §2). A further round needs a
++    `rounds_cap_override:` line recording the product owner's approval
+     — a real sentence, not a bare marker.
+     """
+     # `[^\S\n]*` = horizontal whitespace only, so a keyless `rounds:` cannot swallow
+@@ -721,13 +720,84 @@ def _rounds_gate(text: str) -> str | None:
+         if not reason or _is_placeholder(reason):
+             return (
+                 f"REVIEW GATE: {raw} review rounds exceeds the cap of {ROUND_CAP}. "
+-                "STOP and bring the open findings to the CPO rather than looping. "
+-                "If the CPO says continue, record it as `rounds_cap_override: "
+-                "<their reason>` in review.md, then commit."
++                "At the cap the work is split: what passed lands, and the rest is split "
++                "off into its own issue. A further round is the CPO's call; record it as "
++                "`rounds_cap_override: approved in chat, <date>` in review.md, then commit."
+             )
+     return None
+ 
+ 
++FINDING_RE = re.compile(
++    r"^\[(blocking|nit)\][^\S\n]+([^:\n]+?):[^\S\n]+\S.*?[^\S\n](?:—|--|-)[^\S\n]+\S")
++FIX_RE = re.compile(
++    r"^\S[^|\n]*?[^\S\n]*\|[^\S\n]*sweep:[^\S\n]*\S[^|\n]*?[^\S\n]*\|"
++    r"[^\S\n]*test:[^\S\n]*([^\s:|]+)(?:::\S+)?[^\S\n]*$")
++TEST_PATH_RE = re.compile(
++    r"^(?:tests/(?:[^/]+/)*test_[^/]+\.py|dbt_project/tests/.+\.sql"
++    r"|site_v2/(?:[^/]+/)*[^/]+\.test\.mjs)$")
++
++
++def _findings_block(body: str) -> str:
++    """The lines under `findings:` up to the next unindented `key:` line such as `risks_checked:`."""
++    lines, keep = [], False
++    for line in body.splitlines():
++        if re.match(r"^[^\S\n]*findings[^\S\n]*:", line):
++            keep = True
++        elif keep and re.match(r"^[A-Za-z_][A-Za-z_ ]*:", line):
++            break
++        elif keep:
++            lines.append(line)
++    return "\n".join(lines)
++
++
++def _findings_gate(text: str, branch_paths: list[str], root: str) -> str | None:
++    """Reason to deny on the findings and fixes in review.md, or None (§2 Cross-Examination)."""
++    for name, body in _review_sections(text).items():
++        if name == "fixes":
++            continue
++        found = _bullets(_findings_block(body))
++        for n, item in enumerate(found, 1):
++            if not FINDING_RE.match(item):
++                return (
++                    f"REVIEW GATE: finding {n} in `{name}` is not `[blocking] <class>: <every "
++                    "place> - <what goes wrong>` or the same with `[nit]`.")
++        blocking = [f for f in found if f.startswith("[blocking]")]
++        if "VERDICT: PASS" in body and blocking:
++            return (f"REVIEW GATE: `{name}` is a PASS with a blocking finding. "
++                    "A blocking finding is a FAIL.")
++        if "VERDICT: FAIL" in body and not blocking:
++            return (f"REVIEW GATE: `{name}` is a FAIL with no blocking finding. A nit never "
++                    "fails a round: record the verdict as PASS with its nits.")
++    m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(\d+)[^\S\n]*$", text, flags=re.MULTILINE)
++    if not m or int(m.group(1)) < 2:
++        return None
++    fixes = _bullets(_review_sections(text).get("fixes", ""))
++    if not fixes:
++        return ("REVIEW GATE: rounds: above 1 needs a `## fixes` section in review.md: "
++                "`- <class> | sweep: <how every place was found> | test: <test file>::<test>`, "
++                "or `- none: <why>` for a round that followed only PASS verdicts.")
++    nones = [f for f in fixes if re.match(r"^none[^\S\n]*:", f, flags=re.IGNORECASE)]
++    if nones:
++        reason = nones[0].split(":", 1)[1]
++        if len(fixes) > 1 or _is_placeholder(reason):
++            return ("REVIEW GATE: a `## fixes` entry `none: <why>` stands alone and says why "
++                    "the round followed only PASS verdicts.")
++        return None
++    for n, item in enumerate(fixes, 1):
++        fm = FIX_RE.match(item)
++        if not fm:
++            return f"REVIEW GATE: `## fixes` entry {n} lacks its class, sweep or test."
++        test = fm.group(1)
++        if not TEST_PATH_RE.match(test):
++            return (f"REVIEW GATE: the fix test `{test}` is not a test: it lives in "
++                    "`tests/**/test_*.py`, `dbt_project/tests/**.sql` or "
++                    "`site_v2/**/*.test.mjs`.")
++        if test not in branch_paths or not os.path.isfile(os.path.join(root, test)):
++            return (f"REVIEW GATE: the fix test `{test}` is not a file this branch changes. "
++                    "Each fix comes with a test that fails before the fix.")
++    return None
++
++
+ # Kept EQUAL to task_contract_gate._NULLISH so the round-cap override and the
+ # contract fields reject the same nullish words — `(none)` was missing here and
+ # present there, the exact one-copy-got-the-fix drift the cto flagged. A parity
+@@ -931,6 +1001,14 @@ def _commit_gate(root: str) -> str | None:
+     rounds_msg = _rounds_gate(text)
+     if rounds_msg:
+         return rounds_msg
++    try:
++        names = _cumulative_diff(root, ["--name-only", "-z"]).decode("utf-8", "replace")
++    except Exception:
++        return "REVIEW GATE: the branch's changed paths could not be listed (git diff failed)."
++    findings_msg = _findings_gate(
++        text, [p.replace("\\", "/") for p in names.split("\0") if p], root)
++    if findings_msg:
++        return findings_msg
+     if "VERDICT: FAIL" in text:
+         return "REVIEW GATE: a reviewer verdict is FAIL. Fix the findings and re-run the cycle."
+     if text.count("VERDICT: ESCALATE") > text.count("CPO ANSWER:"):
+diff --git a/.claude/task/345-reviewer-standard/contract.md b/.claude/task/345-reviewer-standard/contract.md
+new file mode 100644
+index 00000000..3eea34ef
+--- /dev/null
++++ b/.claude/task/345-reviewer-standard/contract.md
+@@ -0,0 +1,104 @@
++# Task contract — reviewer standard and round loop (#345, MR 1)
++
++objective: >
++  Reviewers judge against a written standard and report every finding in one pass, each with its
++  class, every place it occurs and a severity (blocking or nit). The builder fixes the whole class
++  with a test that fails before the fix; a re-review after a FAIL sees only the fix diff and the
++  reviewer's own findings. The round cap is one rule in working_agreement.md §2 and §10. The
++  commit gate and its CI backstop check what a machine can: severity and class on every finding,
++  no FAIL from nits, and a `## fixes` entry with its test after round 1.
++refs: "#345 (MR 1 of 3: reviewer standard and round loop)"
++
++scope_paths:
++  - .claude/agents/analytics-engineer-reviewer.md
++  - .claude/agents/bi-analyst-reviewer.md
++  - .claude/agents/cto-reviewer.md
++  - .claude/agents/data-engineer-reviewer.md
++  - .claude/agents/football-analytics-expert-reviewer.md
++  - .claude/agents/platform-reviewer.md
++  - .claude/agents/scope-auditor.md
++  - .claude/agents/seo-expert-reviewer.md
++  - docs/working_agreement.md
++  - .claude/hooks/git_discipline.py
++  - scripts/check_task_artifacts.py
++  - .claude/task/REVIEW_TEMPLATE.md
++  - tests/test_reviewer_standard.py
++  - tests/test_governance_hooks.py
++  - tests/test_sentence_length_in_docs.py
++  - .claude/task/345-reviewer-standard/contract.md
++  - .claude/task/345-reviewer-standard/review.md
++  - .claude/task/345-reviewer-standard/review_input.patch
++  - .claude/task/345-reviewer-standard/acceptance_evidence.md
++
++protected_override: >
++  .claude/agents/*.md and .claude/hooks/git_discipline.py: the redesign in issue #345, MR 1,
++  approved in chat, 2026-11-24. The MR head lists both as locked files; the merge is the approval.
++
++impact_map: >
++  writers: none; no table or model. The protected paths are the eight reviewer briefs and
++  `.claude/hooks/git_discipline.py`.
++  downstream: the briefs are read only when a reviewer subagent is spawned (no code parses them
++  except `tests/test_governance_hooks.py`, whose identical-section test moves to
++  `tests/test_reviewer_standard.py`, and the two doc pins in `tests/test_sentence_length_in_docs.py`
++  and `tests/test_no_decision_history_in_docs.py`, which the edits must not raise).
++  `git_discipline.py` fires on every Bash PreToolUse (`.claude/settings.json`) and is imported by
++  `.claude/hooks/task_contract_gate.py`, `scripts/check_task_artifacts.py` (CI job
++  `validate:governance`, `.gitlab-ci.yml` line 458), and three test files
++  (`grep -rln "import git_discipline\|git_discipline as"`). The new `_findings_gate` is called by
++  `_commit_gate` and by `check_task_artifacts.main`; nothing else changes.
++  layer_rules: the hook fails open on its own exceptions (existing handler); the CI backstop fails
++  closed. The new check reuses one function in both, like `_rounds_gate`.
++  deploy_order: none; `glab mr list` shows no open MR. A branch that merges main after this
++  lands is checked by the new rules on its next commit and pipeline: a `review.md` finding without
++  `[blocking]`/`[nit]`, or `rounds:` above 1 without `## fixes`, is refused.
++  blast_radius: every future review round. No data, model, page or cost changes.
++
++depends_on:
++  - "none: gitlab/main f78a3cf5, no open MR"
++
++shared_files:
++  - "none: no design baseline or shared fixture changes"
++
++approved_design:
++  - "none: no page output changes"
++
++decisions_taken: >
++  The rule text is the MR 1 list of issue #345, approved in chat, 2026-11-24; the changed
++  working_agreement.md sentences are quoted in the MR head for approval by the merge.
++  No new mechanism: `_findings_gate` is a new check inside the existing commit gate and its CI
++  backstop, both named in the issue's How step 1. No recurring cost. The `rounds_cap_override:`
++  key stays; it now records the CPO's approval of a further round. The cap across sessions is a
++  procedural rule; no gate counts rounds across folders.
++  Sentences beyond the issue's own words, each there to make the approved rules agree, and each
++  quoted in the MR head for the CPO's approval by the merge: a checklist item that says FAIL is
++  blocking only when its breach falls in one of the five classes; a verdict with only nits is a
++  PASS whose nits go on the issue; a wording rule a gate checks is the gate's, any other wording
++  breach a nit; a new session or branch for the same work continues the count; at the cap the rest
++  is split off into its own issue; the override reads `approved in chat, <date>`; a round that
++  followed only PASS verdicts records `- none: <why>` under `## fixes`; a fix test lives where the
++  repo runs tests: `tests/**/test_*.py`, `dbt_project/tests/**.sql` or `site_v2/**/*.test.mjs`
++  (swept with `git ls-files`; dbt schema tests and `unit_tests:` are not fix tests). The after-PASS
++  re-review and the too-large refusal restate the existing §2 rule.
++
++decisions_reserved:
++  - "none: the rule text is the approved MR 1 design; any sentence beyond it goes to the coordinator"
++
++acceptance_criteria:
++  - "AC1 Every reviewer brief ends with one identical `## Reviewer standard` section that binds §2 Cross-Examination, and no brief keeps the open-hunt sentence. Test: tests/test_reviewer_standard.py::test_every_brief_ends_with_the_identical_standard and ::test_no_brief_keeps_the_open_hunt."
++  - "AC2 §2 states the standard: acceptance criteria, checklist and Appendix A; one pass; class and every place; blocking or nit with the five blocking classes; a nit never fails a round; the whole class fixed with a test that fails before the fix; a re-review after a FAIL gets only the fix diff and the reviewer's own findings; a new blocking finding on an unchanged line needs a concrete failing case or becomes a follow-up issue. Test: ::test_section_2_states_every_rule."
++  - "AC3 §2 and §10 state one cap rule: rounds per issue across sessions, split at the cap, a further round the CPO's; the old 'bring the open findings to the CPO' sentence is gone. Test: ::test_the_cap_is_one_rule."
++  - "AC4 The scope-auditor's writing-standards item makes a breach a nit. Test: ::test_a_wording_breach_is_a_nit."
++  - "AC5 The commit gate and the CI backstop refuse a finding without `[blocking]` or `[nit]` and a class. Tests: ::test_gate_refuses_a_finding_without_severity_and_class (a missing separator included), ::test_ci_backstop_refuses_the_same_review, ::test_gate_refuses_when_the_branch_paths_cannot_be_listed."
++  - "AC6 A PASS may carry nits; a PASS with a blocking finding is refused; a FAIL with only nits is refused with the nit rule. Tests: ::test_a_pass_with_nits_commits, ::test_a_pass_with_a_blocking_finding_is_refused, ::test_a_fail_of_nits_is_refused_with_the_nit_rule."
++  - "AC7 With `rounds:` above 1, `review.md` needs `## fixes` entries, each naming a test file the branch changes (`tests/**/test_*.py`, `dbt_project/tests/**.sql` or `site_v2/**/*.test.mjs`), or the one entry `- none: <why>` for a round that followed only PASS verdicts; otherwise refused. Tests: ::test_a_fix_naming_a_file_that_is_not_a_test_is_refused, ::test_every_test_location_the_repo_runs_is_a_fix_test, ::test_a_fix_test_the_branch_does_not_change_is_refused, ::test_a_round_after_a_pass_commits_with_a_none_entry, ::test_a_none_entry_beside_a_fix_is_refused, ::test_round_two_without_fixes_is_refused, ::test_a_fix_whose_test_is_not_in_the_branch_is_refused, ::test_round_two_with_a_tested_fix_commits, ::test_a_fixes_entry_without_its_sweep_is_refused, ::test_a_fix_test_missing_on_disk_is_refused, ::test_ci_backstop_accepts_a_tested_fix."
++  - "AC8 The review template's finding and fixes lines pass the gate. Test: ::test_the_template_examples_pass_the_gate."
++
++done_when:
++  - "`python -m pytest tests/test_reviewer_standard.py` passes; run before the code, it fails."
++  - "`python -m pytest` (full suite) passes."
++  - "`python scripts/ci_local.py --mr` passes."
++
++amendments:
++  - "2026-11-24: + tests/test_sentence_length_in_docs.py — authority: that test's own rule (the pin only moves down); content: each reviewer brief's pin drops by one, since one replaced sentence in each was over the limit."
++  - "2026-11-24: AC5 and AC7 — authority: the round-1 FAIL verdicts (fix-test location, unpinned gate conditions, a round after a PASS); content: AC7 names the test locations and the `none:` entry, AC5 and AC7 list the added tests."
++  - "2026-11-24: AC7 — authority: the round-2 FAIL verdicts (the test locations left out the site's node tests); content: AC7 adds `site_v2/**/*.test.mjs` and its test. The rule sentences these amendments add are declared in decisions_taken for the CPO's approval by the merge."
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 06f95404..69e2f1a1 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -198,15 +198,39 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ 
+ **Cross-Examination.**
+ 
+-- A FAIL names a defect: the file, the line and what goes wrong. No concrete failure, no FAIL.
+-- A PASS may find nothing. It lists what the reviewer examined under `risks_checked:`, with at
+-  least one entry. "Checked X against Y, no defect" is a complete entry.
++- Each reviewer judges the change against a written standard: the contract's acceptance criteria,
++  its own checklist and Appendix A.
++- A reviewer reports every finding in one pass.
++- Each finding names its class and every place in the change where that class occurs, not only
++  the first.
++- Each finding is blocking or a nit. Blocking means wrong data, an acceptance criterion not met,
++  security, a §10 decision or a guard regression.
++- A checklist item that says FAIL is blocking only when its breach falls in one of those classes.
++- A nit never fails a round. A verdict with only nits is a PASS, and its nits go on the issue as a
++  follow-up comment.
++- A wording or style rule that a gate checks is the gate's job. Any other wording breach is a nit.
++- A finding is one line under `findings:`: `- [blocking] <class>: <every place> — <what goes
++  wrong>`, or the same with `[nit]`.
++- A blocking finding names a concrete failure: the file, the line and what goes wrong.
++- A PASS lists what the reviewer examined under `risks_checked:`, with at least one entry.
++  "Checked X against Y, no defect" is a complete entry.
+ - Praise is banned. A finding made up to justify a pass is banned too.
+ - A reviewer keeps a critical attitude and is allowed to approve.
+-- A re-review after the first round is a delta review. The reviewer gets only what changed since
+-  its own last PASS.
+-- The delta reviewer judges that change plus its own prior findings, not the whole diff again. It
+-  FAILs when the change is too large for its last PASS to stand.
++
++**Fix and re-review.**
++
++- The builder fixes the whole class of each blocking finding. Each fix comes with a test that
++  fails before the fix.
++- `review.md` lists each fixed class under `## fixes`, with the sweep that found every place and
++  the test. The test lives in `tests/**/test_*.py`, `dbt_project/tests/**.sql` or
++  `site_v2/**/*.test.mjs`.
++- A round that followed only PASS verdicts lists one entry under `## fixes`: `- none: <why>`.
++- After a FAIL, the re-review gets only the fix diff and the reviewer's own findings.
++- A new blocking finding on a line unchanged since round 1 carries a concrete failing case.
++  Without one, it becomes a follow-up issue.
++- After a PASS, a re-review gets only what changed since that PASS.
++- A reviewer refuses a re-review when the change is too large for its earlier verdict to stand.
++  The builder then runs a full review.
+ 
+ **Lock.**
+ 
+@@ -220,9 +244,11 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ - `contract.md` is hashed and is never artifact-exempt. Every contract change goes through review.
+ - A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
+   the round count and needs no new review.
+-- The round count is capped at 3. Past the cap, the builder stops and brings the open findings to
+-  the CPO.
+-- To continue on the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
++- The round cap is 3 reviewer rounds per issue, counted across sessions. A new session or branch
++  for the same work continues the count.
++- At the cap, the work is split: what passed lands, and the rest is split off into its own issue.
++  A further round is the CPO's call.
++- `review.md` records that call as `rounds_cap_override: approved in chat, <date>`.
+ 
+ ### Commit gate
+ 
+@@ -236,6 +262,11 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ - A PASS has nothing under `risks_checked:`.
+ - The `rounds:` line is missing or is not a positive integer.
+ - `rounds:` exceeds the cap of 3 without a `rounds_cap_override:`.
++- A finding lacks `[blocking]` or `[nit]` and its class.
++- A PASS carries a blocking finding, or a FAIL carries none.
++- `rounds:` exceeds 1, and `## fixes` is missing or an entry lacks its sweep or a test file the
++  branch changes.
++- A `none:` entry under `## fixes` has no reason or stands beside a fix.
+ - The diff touches `site_v2/src/`, and the acceptance criteria are missing or not all
+   demonstrated.
+ 
+@@ -400,7 +431,7 @@ standards, the metric catalogue and the task contract.
+ 
+ **Wording before go-live.** Until go-live, the coordinating agent writes fan-visible strings from the approved designs and existing labels; the CPO reviews each finished page group and can veto any string. URLs, slugs and other permanent identifiers stay CPO-only.
+ 
+-**Review cap.** At the round cap, the coordinating agent lands what passed and closes or splits off the rest; a fourth round stays the CPO's.
++**Review cap.** At the round cap (§2), the work is split: what passed lands, and the rest is split off into its own issue. A further round is the CPO's call.
+ 
+ **Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
+ 
+diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
+index f0e56c33..2adb1dc9 100644
+--- a/scripts/check_task_artifacts.py
++++ b/scripts/check_task_artifacts.py
+@@ -19,7 +19,10 @@ branch and the base, it verifies:
+     OWN section (per-section pairing, mirroring the local commit gate — an
+     answer elsewhere must not mask an unanswered escalation);
+   - every "VERDICT: PASS" section says what it examined (>= 1 entry under
+-    `risks_checked:`). It need not name a defect.
++    `risks_checked:`). It need not name a defect;
++  - every finding carries `[blocking]` or `[nit]` and a class, and a round past
++    the first lists its tested fixes or why none was needed
++    (`git_discipline._findings_gate`).
+ 
+ Fails CLOSED (non-zero exit) — this is CI, not a guardrail hook.
+ 
+@@ -202,6 +205,9 @@ def main() -> int:
+     rounds_err = _rounds_error(text)
+     if rounds_err:
+         errors.append(rounds_err)
++    findings_err = _gd._findings_gate(text, paths, os.getcwd())
++    if findings_err:
++        errors.append(findings_err)
+     errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
+     if "VERDICT: FAIL" in text:
+         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 450c051d..e4333f8f 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -440,24 +440,6 @@ def tracked(prefix: str) -> list[str]:
+     return [p for p in r.stdout.split("\0") if p]
+ 
+ 
+-def test_every_reviewer_brief_carries_the_identical_delta_section():
+-    """A drifted copy of the delta-re-review rule would make a reviewer apply a different rule."""
+-    import glob
+-    agents_dir = os.path.join(os.path.dirname(__file__), "..", ".claude", "agents")
+-    briefs = sorted(glob.glob(os.path.join(agents_dir, "*.md")))
+-    reviewers = [b for b in briefs if os.path.basename(b) != "README.md"]
+-    assert len(reviewers) >= 6, f"expected >=6 reviewer briefs, found {len(reviewers)}"
+-    sections = {}
+-    for b in reviewers:
+-        text = open(b, encoding="utf-8").read()
+-        assert "## Delta re-review" in text, f"{os.path.basename(b)} lost its delta section"
+-        sections[b] = text.split("## Delta re-review", 1)[1]
+-    uniq = set(sections.values())
+-    assert len(uniq) == 1, (
+-        "delta sections have drifted across briefs: "
+-        + ", ".join(os.path.basename(b) for b in sections))
+-
+-
+ def test_ci_backstop_requires_rounds(ci_repo):
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+@@ -1245,9 +1227,17 @@ def test_commit_denied_without_a_rounds_line(repo):
+     assert denied(out) and "rounds:" in out
+ 
+ 
++def _stage_tested_fix(repo) -> str:
++    (repo / "tests").mkdir(exist_ok=True)
++    (repo / "tests" / "test_fix.py").write_text("def test_fix():\n    assert True\n")
++    subprocess.run(["git", "add", "tests/test_fix.py"], cwd=repo, check=True)
++    return "\n## fixes\n- a class | sweep: grep -rn x . | test: tests/test_fix.py::test_fix\n"
++
++
+ def test_commit_allowed_at_the_cap(repo):
+     setup_review_repo(repo)
+-    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="rounds: 3\n")
++    fixes = _stage_tested_fix(repo)
++    write_review(repo, staged_hash(repo), GOOD_BODY + fixes, rounds="rounds: 3\n")
+     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+     assert not denied(out)
+ 
+@@ -1261,7 +1251,8 @@ def test_commit_denied_over_the_cap_without_override(repo):
+ 
+ def test_commit_allowed_over_the_cap_with_a_real_override(repo):
+     setup_review_repo(repo)
+-    write_review(repo, staged_hash(repo), GOOD_BODY,
++    fixes = _stage_tested_fix(repo)
++    write_review(repo, staged_hash(repo), GOOD_BODY + fixes,
+                  rounds="rounds: 5\nrounds_cap_override: CPO said keep going, 2026-07-22\n")
+     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+     assert not denied(out)
+diff --git a/tests/test_reviewer_standard.py b/tests/test_reviewer_standard.py
+new file mode 100644
+index 00000000..ef21bd18
+--- /dev/null
++++ b/tests/test_reviewer_standard.py
+@@ -0,0 +1,325 @@
++"""The reviewer standard: the briefs, working_agreement.md §2 and §10, and the gate's findings check."""
++# ruff: noqa: F811  (the imported fixtures are requested by name as test parameters)
++
++from __future__ import annotations
++
++import glob
++import os
++import re
++import subprocess
++
++import pytest
++
++from test_governance_hooks import (  # noqa: F401  (fixtures are used by name)
++    COMMIT_CMD,
++    CONTRACT,
++    GOOD_BODY,
++    TASK_ID,
++    _repo_template,
++    bash_event,
++    branch_hash,
++    ci_repo,
++    denied,
++    repo,
++    run_ci_check,
++    run_hook,
++    setup_review_repo,
++    staged_hash,
++)
++
++REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
++AGENTS = os.path.join(REPO, ".claude", "agents")
++AGREEMENT = os.path.join(REPO, "docs", "working_agreement.md")
++TEMPLATE = os.path.join(REPO, ".claude", "task", "REVIEW_TEMPLATE.md")
++STANDARD_HEADER = "## Reviewer standard"
++
++
++def _briefs() -> list[str]:
++    return sorted(b for b in glob.glob(os.path.join(AGENTS, "*.md"))
++                  if os.path.basename(b) != "README.md")
++
++
++def _read(path: str) -> str:
++    return open(path, encoding="utf-8").read()
++
++
++def _flat(text: str) -> str:
++    return re.sub(r"\s+", " ", text)
++
++
++def _section(text: str, start: str, end: str) -> str:
++    return text.split(start, 1)[1].split(end, 1)[0]
++
++
++def test_every_brief_ends_with_the_identical_standard():
++    briefs = _briefs()
++    assert len(briefs) == 8, f"expected the 8 reviewer briefs, found {len(briefs)}"
++    tails = {}
++    for b in briefs:
++        text = _read(b)
++        assert STANDARD_HEADER in text, f"{os.path.basename(b)} has no standard section"
++        tails[os.path.basename(b)] = text.split(STANDARD_HEADER, 1)[1]
++    assert len(set(tails.values())) == 1, f"standard sections differ: {sorted(tails)}"
++    tail = _flat(next(iter(tails.values())))
++    for phrase in ("§2", "Cross-Examination", "one pass", "every place", "[blocking]", "[nit]",
++                   "A nit never fails a round", "only the fix diff and your own findings",
++                   "unchanged since round 1", "concrete failing case", "follow-up issue"):
++        assert phrase in tail, f"the standard section lacks {phrase!r}"
++
++
++def test_no_brief_keeps_the_open_hunt():
++    for b in _briefs():
++        flat = _flat(_read(b))
++        for phrase in ("Start from the assumption", "go looking", "Assume the primary agent",
++                       "## Delta re-review"):
++            assert phrase not in flat, f"{os.path.basename(b)} still says {phrase!r}"
++
++
++def test_section_2_states_every_rule():
++    text = _flat(_section(_read(AGREEMENT), "**Cross-Examination.**", "**Lock.**"))
++    for phrase in (
++        "the contract's acceptance criteria, its own checklist and Appendix A",
++        "every finding in one pass",
++        "names its class and every place in the change where that class occurs",
++        "Blocking means wrong data, an acceptance criterion not met, security, "
++        "a §10 decision or a guard regression",
++        "A nit never fails a round",
++        "fixes the whole class",
++        "a test that fails before the fix",
++        "After a FAIL, the re-review gets only the fix diff and the reviewer's own findings",
++        "A new blocking finding on a line unchanged since round 1 carries a concrete failing case",
++        "becomes a follow-up issue",
++    ):
++        assert phrase in text, f"§2 lacks {phrase!r}"
++
++
++def test_the_cap_is_one_rule():
++    text = _flat(_read(AGREEMENT))
++    split = ("the work is split: what passed lands, and the rest is split off into its own "
++             "issue. A further round is the CPO's call.")
++    lock = _section(text, "**Lock.**", "### Commit gate")
++    cap10 = _section(text, "**Review cap.**", "**Unclear cases.**")
++    assert "per issue, counted across sessions" in lock
++    assert split in lock, "§2 does not state the split rule"
++    assert split in cap10, "§10 does not state the same split rule as §2"
++    assert "brings the open findings" not in text
++
++
++def test_a_wording_breach_is_a_nit():
++    text = _flat(_read(os.path.join(AGENTS, "scope-auditor.md")))
++    item = _section(text, "**Writing standards**", "**Approved design")
++    assert "A breach is a nit" in item
++    assert "A breach is a FAIL" not in item
++
++
++def _gate(repo, body: str, rounds: str = "rounds: 1\n") -> str:
++    (repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
++        f"# Review\ndiff_sha256: {staged_hash(repo)}\n{rounds}\n{body}\n", encoding="utf-8")
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    return out
++
++
++def _with_scope_findings(lines: str, verdict: str = "PASS") -> str:
++    return GOOD_BODY.replace(
++        "## scope-auditor\nVERDICT: PASS\n",
++        f"## scope-auditor\nVERDICT: {verdict}\nfindings:\n{lines}", 1)
++
++
++NIT = "- [nit] wording: docs/x.md:3 — two topics in one sentence\n"
++BLOCKING = "- [blocking] guard regression: x.py:9, y.py:4 — the hook now fails closed\n"
++
++
++@pytest.mark.parametrize("line", [
++    "- docs/x.md:3 — two topics in one sentence\n",
++    "- [minor] wording: docs/x.md:3 — two topics\n",
++    "- [nit] docs/x.md:3 two topics\n",
++    "- [nit] wording: docs/x.md:3 two topics in one sentence\n",
++])
++def test_gate_refuses_a_finding_without_severity_and_class(repo, line):
++    setup_review_repo(repo)
++    out = _gate(repo, _with_scope_findings(line))
++    assert denied(out) and "[blocking]" in out
++
++
++def test_ci_backstop_refuses_the_same_review(ci_repo):
++    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
++    body = _with_scope_findings("- docs/x.md:3 — two topics in one sentence\n")
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
++        "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 1\n\n" + body,
++        encoding="utf-8")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
++    code, out = run_ci_check(ci_repo)
++    assert code == 1 and "[blocking]" in out
++
++
++def test_a_pass_with_nits_commits(repo):
++    setup_review_repo(repo)
++    assert not denied(_gate(repo, _with_scope_findings(NIT)))
++
++
++def test_a_pass_with_a_blocking_finding_is_refused(repo):
++    setup_review_repo(repo)
++    out = _gate(repo, _with_scope_findings(BLOCKING))
++    assert denied(out) and "blocking" in out and "PASS" in out
++
++
++def test_a_fail_of_nits_is_refused_with_the_nit_rule(repo):
++    setup_review_repo(repo)
++    out = _gate(repo, _with_scope_findings(NIT, verdict="FAIL"))
++    assert denied(out) and "nit never fails" in out
++
++
++def _stage_test_file(repo, rel: str = "tests/test_fix.py") -> None:
++    target = repo / rel
++    target.parent.mkdir(parents=True, exist_ok=True)
++    target.write_text("def test_fix():\n    assert True\n")
++    subprocess.run(["git", "add", rel], cwd=repo, check=True)
++
++
++def test_round_two_without_fixes_is_refused(repo):
++    setup_review_repo(repo)
++    _stage_test_file(repo)
++    out = _gate(repo, GOOD_BODY, rounds="rounds: 2\n")
++    assert denied(out) and "## fixes" in out
++
++
++def test_a_fix_whose_test_is_not_in_the_branch_is_refused(repo):
++    setup_review_repo(repo)
++    fixes = ("\n## fixes\n- guard regression | sweep: grep -n fail_closed .claude/hooks"
++             " | test: tests/test_other.py::test_fix\n")
++    out = _gate(repo, GOOD_BODY + fixes, rounds="rounds: 2\n")
++    assert denied(out) and "tests/test_other.py" in out
++
++
++def test_round_two_with_a_tested_fix_commits(repo):
++    setup_review_repo(repo)
++    _stage_test_file(repo)
++    fixes = ("\n## fixes\n- guard regression | sweep: grep -n fail_closed .claude/hooks"
++             " | test: tests/test_fix.py::test_fix\n")
++    out = _gate(repo, GOOD_BODY + fixes, rounds="rounds: 2\n")
++    assert not denied(out), out
++
++
++def _fix(test: str) -> str:
++    return f"\n## fixes\n- guard regression | sweep: grep -rn x . | test: {test}\n"
++
++
++@pytest.mark.parametrize("rel", ["docs/x.md", "dbt_project/models/allowed.sql"])
++def test_a_fix_naming_a_file_that_is_not_a_test_is_refused(repo, rel):
++    setup_review_repo(repo)
++    _stage_test_file(repo, rel)
++    out = _gate(repo, GOOD_BODY + _fix(rel), rounds="rounds: 2\n")
++    assert denied(out) and "not a test" in out
++
++
++def test_a_fix_test_the_branch_does_not_change_is_refused(repo):
++    setup_review_repo(repo)
++    (repo / "tests").mkdir(exist_ok=True)
++    (repo / "tests" / "test_old.py").write_text("def test_old():\n    assert True\n")
++    out = _gate(repo, GOOD_BODY + _fix("tests/test_old.py::test_old"), rounds="rounds: 2\n")
++    assert denied(out) and "tests/test_old.py" in out
++
++
++@pytest.mark.parametrize("rel", [
++    "dbt_project/tests/assert_x.sql",
++    "site_v2/src/lib/x.test.mjs",
++    "site_v2/scripts/x.test.mjs",
++])
++def test_every_test_location_the_repo_runs_is_a_fix_test(repo, rel):
++    setup_review_repo(repo)
++    _stage_test_file(repo, rel)
++    out = _gate(repo, GOOD_BODY + _fix(rel), rounds="rounds: 2\n")
++    assert not denied(out), out
++
++
++def test_a_round_after_a_pass_commits_with_a_none_entry(repo):
++    setup_review_repo(repo)
++    fixes = "\n## fixes\n- none: round 1 passed; a merge of main changed the hash\n"
++    out = _gate(repo, GOOD_BODY + fixes, rounds="rounds: 2\n")
++    assert not denied(out), out
++
++
++@pytest.mark.parametrize("fixes", [
++    "- none: round 1 passed\n- guard regression | sweep: grep -rn x . | test: tests/test_fix.py\n",
++    "- none:\n",
++])
++def test_a_none_entry_beside_a_fix_is_refused(repo, fixes):
++    setup_review_repo(repo)
++    _stage_test_file(repo)
++    out = _gate(repo, GOOD_BODY + "\n## fixes\n" + fixes, rounds="rounds: 2\n")
++    assert denied(out) and "none" in out
++
++
++def test_a_fixes_entry_without_its_sweep_is_refused(repo):
++    setup_review_repo(repo)
++    _stage_test_file(repo)
++    fixes = "\n## fixes\n- guard regression | test: tests/test_fix.py::test_fix\n"
++    out = _gate(repo, GOOD_BODY + fixes, rounds="rounds: 2\n")
++    assert denied(out) and "sweep" in out
++
++
++def _gd():
++    import importlib
++    import sys
++    sys.path.insert(0, os.path.join(REPO, ".claude", "hooks"))
++    return importlib.import_module("git_discipline")
++
++
++def test_a_fix_test_missing_on_disk_is_refused(tmp_path):
++    review = ("rounds: 2\n" + GOOD_BODY + "\n## fixes\n- a class | sweep: grep -rn x ."
++              " | test: tests/test_gone.py::test_x\n")
++    msg = _gd()._findings_gate(review, ["tests/test_gone.py"], str(tmp_path))
++    assert msg and "tests/test_gone.py" in msg
++
++
++def test_ci_backstop_accepts_a_tested_fix(ci_repo):
++    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
++    (ci_repo / "tests").mkdir(exist_ok=True)
++    (ci_repo / "tests" / "test_fix.py").write_text("def test_fix():\n    assert True\n")
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
++    fixes = "\n## fixes\n- a class | sweep: grep -rn x . | test: tests/test_fix.py::test_fix\n"
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
++        "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 2\n\n" + GOOD_BODY + fixes,
++        encoding="utf-8")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
++    code, out = run_ci_check(ci_repo)
++    assert code == 0, out
++
++
++def test_gate_refuses_when_the_branch_paths_cannot_be_listed(repo, monkeypatch):
++    setup_review_repo(repo)
++    (repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
++        f"# Review\ndiff_sha256: {staged_hash(repo)}\nrounds: 1\n{GOOD_BODY}\n", encoding="utf-8")
++    gd = _gd()
++    real = gd._cumulative_diff
++
++    def failing(root, spec, raw=False):
++        if "--name-only" in spec:
++            raise RuntimeError("git diff failed")
++        return real(root, spec, raw)
++
++    monkeypatch.setattr(gd, "_cumulative_diff", failing)
++    msg = gd._commit_gate(str(repo))
++    assert msg and "could not be listed" in msg
++
++
++def test_the_template_examples_pass_the_gate():
++    import importlib
++    import sys
++    sys.path.insert(0, os.path.join(REPO, ".claude", "hooks"))
++    gd = importlib.import_module("git_discipline")
++    text = _read(TEMPLATE)
++    findings = re.findall(r"^- (\[(?:blocking|nit)\].*)$", text, flags=re.MULTILINE)
++    fixes = re.findall(r"^- (.+\| sweep: .*)$", text, flags=re.MULTILINE)
++    assert findings and fixes, "the template shows no finding or no fixes entry"
++    for line in findings:
++        assert gd.FINDING_RE.match(line), line
++    for line in fixes:
++        assert gd.FIX_RE.match(line), line
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 553a75ff..c414be2e 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -17,14 +17,14 @@ import sentence_length_gate as gate  # noqa: E402
+ 
+ # The pin: long sentences per document. A cleanup lowers a number or removes a row; nothing adds one.
+ PINNED = {
+-    ".claude/agents/analytics-engineer-reviewer.md": 5,
+-    ".claude/agents/bi-analyst-reviewer.md": 16,
+-    ".claude/agents/cto-reviewer.md": 16,
+-    ".claude/agents/data-engineer-reviewer.md": 7,
+-    ".claude/agents/football-analytics-expert-reviewer.md": 5,
+-    ".claude/agents/platform-reviewer.md": 10,
+-    ".claude/agents/scope-auditor.md": 10,
+-    ".claude/agents/seo-expert-reviewer.md": 14,
++    ".claude/agents/analytics-engineer-reviewer.md": 4,
++    ".claude/agents/bi-analyst-reviewer.md": 15,
++    ".claude/agents/cto-reviewer.md": 15,
++    ".claude/agents/data-engineer-reviewer.md": 6,
++    ".claude/agents/football-analytics-expert-reviewer.md": 4,
++    ".claude/agents/platform-reviewer.md": 9,
++    ".claude/agents/scope-auditor.md": 9,
++    ".claude/agents/seo-expert-reviewer.md": 13,
+     ".claude/skills/onboard-competition/SKILL.md": 10,
+     ".claude/skills/onboard-endpoint/SKILL.md": 9,
+     ".claude/skills/validate-local/SKILL.md": 6,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/REVIEW_TEMPLATE.md | 17 ++++++++++++++---
+#    1 file changed, 14 insertions(+), 3 deletions(-)
+# ============================================================================

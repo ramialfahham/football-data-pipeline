@@ -8,8 +8,12 @@
 > required by `.claude/review_routing.json` for the staged paths has a verdict
 > section, no FAIL exists, every ESCALATE has a `CPO ANSWER:`, every PASS
 > says what it examined (at least one entry under `risks_checked:` — it need NOT
-> name a defect; CPO 2026-08-01), and `rounds:` is present and within the cap
-> of 3. Commits touching only artifact paths
+> name a defect; CPO 2026-08-01), `rounds:` is present and within the cap
+> of 3, every finding is `[blocking]` or `[nit]` with its class (a PASS carries
+> no blocking finding, a FAIL at least one), and past round 1 `## fixes` names
+> each fix's sweep and a test file the branch changes (`tests/**/test_*.py`,
+> `dbt_project/tests/**.sql` or `site_v2/**/*.test.mjs`), or holds the one entry `- none: <why>` after a
+> round of PASS verdicts. Commits touching only artifact paths
 > (.claude/task/**, .claude/active_work.md) are exempt. Stage with `git add`
 > then plain `git commit` as the SOLE command in its own call — commit flags
 > are allowlisted (message/quiet/verbose/sign only); any other flag, any
@@ -18,10 +22,12 @@
 
 diff_sha256: <64-hex; run `python .claude/hooks/git_discipline.py --staged-hash` (covers code + contract.md, excludes bookkeeping artifacts; CI recomputes the same — F11/#409)>
 
-rounds: <how many review rounds this branch has taken; 1 on the first. A merge of main that leaves the review hash unchanged is not a round (docs/working_agreement.md §2). The gate caps it at 3 — past that, STOP and bring the open findings to the CPO instead of looping. To proceed anyway on the CPO's say-so, add `rounds_cap_override: <their reason>`.>
+rounds: <how many review rounds this issue has taken, across sessions; 1 on the first. A merge of main that leaves the review hash unchanged is not a round (docs/working_agreement.md §2). The gate caps it at 3; at the cap the work is split. A further round is the CPO's call: add `rounds_cap_override: approved in chat, <date>`.>
 
 ## scope-auditor
 VERDICT: PASS
+findings:
+- [nit] <class>: <every place, file:line> — <what goes wrong>
 risks_checked:
 - <what you examined, and what you concluded — "checked X against Y, no defect"
   is a complete entry. One is enough. Do NOT invent a finding to fill a second.>
@@ -31,6 +37,11 @@ VERDICT: PASS
 risks_checked:
 - <what you examined, and what you concluded — "checked X against Y, no defect"
   is a complete entry. One is enough. Do NOT invent a finding to fill a second.>
+
+## fixes
+<!-- required when rounds: is above 1; one line per blocking class fixed, or the one
+     line `- none: <why>` when the round followed only PASS verdicts -->
+- <class> | sweep: <how every place was found> | test: <tests/file.py::test_name>
 
 ## escalations
 (none)
