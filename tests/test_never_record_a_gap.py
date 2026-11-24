@@ -94,7 +94,7 @@ def test_squads_incomplete_team_is_not_recorded(monkeypatch):
     monkeypatch.setattr(psq, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
 
     ctx = _ctx()
-    psq.load_player_squads_batch(ctx, "PL", {10, 11}, season=2025, require_complete=False)
+    psq.load_player_squads_batch(ctx, "PL", {10, 11}, season=2025)
 
     assert written, "the loader wrote nothing at all; the test is not exercising the write path"
     team_ids = [e["team_id"] for p in written for e in p["response"]]

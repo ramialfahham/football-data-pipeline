@@ -1,0 +1,657 @@
+diff --git a/.claude/task/37-squads-read-per-team/contract.md b/.claude/task/37-squads-read-per-team/contract.md
+new file mode 100644
+index 00000000..db14da0f
+--- /dev/null
++++ b/.claude/task/37-squads-read-per-team/contract.md
+@@ -0,0 +1,95 @@
++# Task contract - a squad is read per team, so no squad the loader wrote is dropped
++
++objective: >
++  Issue #37. RAW_APIF_SQUADS holds one row per fetch covering a subset of a league's teams.
++  stg_apif__squads keeps only the newest row per league_code, so every team that row does not carry
++  vanishes from base_apif__squads and from the Player page's national-team tab (measured in prod:
++  AFCON 16 teams current, 0 squads read; WCQAF 28, 0; WCQAS 37, 1 of which 16 hold a squad under
++  another league). Now staging reads every row (the loader accumulates, like the profiles and
++  career pulls; a team block with an empty list is kept as one row with no player),
++  base_apif__squads gives each team the players of its newest block in any row (grain team, player; league_code
++  is the league that capture was written under), and the two readers of it (int_player__page_profile
++  and the test that recomputes it) join on the team and no longer on the league. The loader stops
++  discarding a catch-up that the quota cut part-way: every team block it fetched is written, because
++  a block is read on its own. The data contract and the source description state the per-team read.
++  A new error test lists any team in RAW_APIF_SQUADS that staging does not carry and any team whose
++  base players differ from its newest block. A python test pins
++  that a quota-cut catch-up writes the teams it fetched.
++
++refs: >
++  #37 (the two candidate directions: read as accumulation, or write complete rows; this takes the
++  read, which is correct against the rows already stored and needs no provider call). Unblocks the
++  national-team Squad block of #342, which can read base_apif__squads by team.
++
++depends_on:
++  - none: every file this change edits is on gitlab/main (b62cd603)
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is changed
++
++scope_paths:
++  - dbt_project/models/1_staging/api_football/stg_apif__squads.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/1_staging/api_football/sources.yml
++  - dbt_project/models/2_base/api_football/base_apif__squads.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
++  - dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
++  - dbt_project/tests/assert_squads_read_per_team.sql
++  - tests/test_staging_key_tests_moved.py
++  - ingestion/api_football/loads/player_squads.py
++  - ingestion/api_football/loads/competition_runner.py
++  - docs/data_contract.md
++  - tests/test_player_squads_catchup.py
++  - tests/test_never_record_a_gap.py
++  - tests/test_squads_read_per_team.py
++  - .claude/task/37-squads-read-per-team/contract.md
++  - .claude/task/37-squads-read-per-team/review.md
++  - .claude/task/37-squads-read-per-team/review_input.patch
++
++impact_map: >
++  writers: the only writer of RAW_APIF_SQUADS is ingestion/api_football/loads/player_squads.py
++  (load_player_squads_batch), called from competition_runner.run_player_squads_for_competition
++  (in-season, every run) and run_player_squads_catchup (finished comps, require_complete=True today).
++  The loader's rows do not change shape; only the catch-up's discard of a quota-cut partial goes.
++  downstream: `dbt ls --select stg_apif__squads+ --resource-type model` (the .venv dbt, run on this
++  branch) printed 13 models: stg_apif__squads, base_apif__squads, int_player__page_profile,
++  int_player_page__window_seasons, int_player_squad_window__metrics, int_player_window__metrics,
++  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_index,
++  mart_player_profile, mart_player_squad_benchmarks, mart_player_window_metrics and
++  mart_team_momentum_window. A 14th line of that output, "snapshots.football_data_pipeline", is a
++  warning about an unused configuration path and is not a model. The only direct reader of
++  base_apif__squads is int_player__page_profile (national_team: a squad member of a current national
++  competition's team) and the singular test assert_player_page_choices_follow_the_rule, which
++  recomputes it. mart_roster does not read squads (it reads dim_player_team_season_mapping, club
++  competitions only).
++  layer_rules: staging reads all rows and flattens (no qualify, as stg_apif__player_profiles); the
++  newest block per team after the team-id override and the player grain are base;
++  check_layer_contract applies unchanged. No new model, no per-competition file.
++  deploy_order: one build; the nightly picks it up after merge. No raw rewrite, no provider call.
++  blast_radius: stg_apif__squads and base_apif__squads gain the teams the old read dropped (rows rise
++  from 95,974 in base); a national-team player whose team the old read lost now carries the national
++  tab the approved rule gives that player (the rule is unchanged, its input was short). A club squad read
++  from the newest block of the team across leagues can show the newest capture where the old read
++  showed the newest row of one league; no club mart reads it. Measured and compared in the MR with
++  ci_mr tables against prod.
++  recurring_cost: staging scans RAW_APIF_SQUADS once as before (1.16 GB, payload column); the new
++  test scans it once more per run, about 1.2 GB a night, about 36 GB a month, well under one dollar.
++
++decisions_taken: >
++  Engineering calls of the coordinating session's brief for #37, which names the defect and leaves
++  the route open (the issue lists two). Route: read the table as accumulation, the way
++  stg_apif__player_profiles and stg_apif__player_teams are read; the other route (carry stored
++  teams into each new row) changes ingestion and needs a read of the whole raw table on every run.
++  Table class: layering.md, unchanged, says a raw table is read as accumulation iff its loader is
++  skip-if-present. The squads catch-up loader is: captured_team_seasons lists what is stored and
++  select_squad_catchup_team_ids skips it. So RAW_APIF_SQUADS falls under the rule's own test, and
++  layering.md needs no edit. The sentences that state it (data_contract.md, the staging yml
++  header, the model headers) go in the MR head as text approved by the merge.
++  Loader: with every team block read on its own, the discard of a quota-cut catch-up has no purpose
++  and costs the fetches already paid for; it goes. Player page: the rule that gives a player the
++  national-team tab is unchanged; only its input, the squad list, is no longer short. The recompute
++  test drops the league join with the model and the national_seasons join, which cannot filter
++  anything because expected_current already holds national seasons only. Recurring cost: one extra
++  scan of RAW_APIF_SQUADS per run, about 1.2 GB a night, under the CPO's money threshold; stated
++  here so the CTO's recurring-cost item sees it.
+diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
+index 75210da9..bee360b0 100644
+--- a/dbt_project/models/1_staging/api_football/sources.yml
++++ b/dbt_project/models/1_staging/api_football/sources.yml
+@@ -167,8 +167,9 @@ sources:
+         description: >
+           Current squad membership and shirt numbers, per team. One row per
+           FETCH covering a SUBSET of a league's teams rather than the whole
+-          competition. Append-only, so the newest row per league_code is
+-          current.
++          competition. Append-only and ACCUMULATING: the newest row of a league
++          is not its whole squad set, so the current squad of a team is its
++          newest block in any row.
+           The provider sometimes lists the same player twice in one squad, so
+           one row per player per team is the intent and not a guarantee.
+         identifier: RAW_APIF_SQUADS
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 3aa13c44..56b0e448 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -13,13 +13,13 @@ version: 2
+ # they carry expected duplicates (multiple ingest snapshots, and for transfers the same move fetched
+ # under both involved teams); entity dedup is in base.
+ #
+-# INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS): their
+-# loaders are skip-if-already-ingested (PR-a), so a run's snapshot holds only that run's NEW
+-# players, NOT a complete snapshot. Their staging models therefore UNION ALL snapshots rather than
+-# selecting the latest per league_code (which would silently drop players landed on earlier
+-# backfill days). This is a faithful flatten (no dedup); base assembles current-per-player. The
+-# "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables; squads
+-# (re-fetched in full every run) follows it, profiles/teams do not. RAW_APIF_COACHES is a
++# INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS,
++# RAW_APIF_SQUADS): a run's row holds only what that run fetched (new players; the teams of
++# one fetch), NOT a complete snapshot. Their staging models therefore read all rows rather than
++# selecting the latest per league_code (which would silently drop what earlier rows landed).
++# This is a faithful flatten (no dedup); base assembles the current player or team squad. The
++# "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables.
++# RAW_APIF_COACHES is a
+ # COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league), for entity
+ # preservation: latest-per-league would drop coaches whose teams later leave a league's pull, so
+ # all snapshots are read and base dedups to one coach entity.
+@@ -552,12 +552,13 @@ models:
+ 
+   - name: stg_apif__squads
+     description: >
+-      One row per player per team from GET /players/squads (current squad + shirt number).
+-      Complete snapshot per run → latest ingestion snapshot selected per league_code, then
+-      faithful flatten of response[].squad_payload[].players[]. Nominal grain (league_code,
+-      team_id, player_id), but NO unique test — the provider occasionally lists a player twice
+-      in a squad (a handful of exact duplicates at that grain in real data); faithful staging
+-      keeps them and base dedups, exactly as the sibling complete-snapshot model stg_apif__players.
++      One row per player per team per fetch from GET /players/squads (current squad + shirt
++      number). ACCUMULATION source: a fetch writes only the teams it fetched, so no row is a
++      complete snapshot of its league → all rows are read (no latest-snapshot select), faithful
++      flatten of response[].squad_payload[].players[]; a team block with no player is kept as one
++      row with no player_id. Nominal grain (league_code, raw_ingested_at, team_id, player_id), but
++      NO unique test — the provider occasionally lists a player twice in a squad; faithful
++      staging keeps them and base takes each team's newest fetch and dedups.
+     columns:
+       - name: league_code
+         description: "{{ doc('league_code_ingest_provenance') }}"
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__squads.sql b/dbt_project/models/1_staging/api_football/stg_apif__squads.sql
+index ddc01aa8..6b8fa9b1 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__squads.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__squads.sql
+@@ -1,9 +1,10 @@
+ with src as (
++    -- ACCUMULATION: a fetch writes only the teams it fetched (an in-season comp every run, a
++    -- finished comp's teams once), so no row is a complete snapshot of its league and the newest
++    -- row per league_code would drop every team it does not carry. All rows are read; base picks
++    -- the newest block of each team. See dbt_project/docs/layering.md §1_staging.
+     select *
+     from {{ source('api_football', 'raw_apif_squads') }}
+-    -- Complete snapshot per run (/players/squads re-fetched every run per team), so select the
+-    -- latest ingestion snapshot per league_code before flattening — same as stg_apif__players.
+-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
+ ),
+ 
+ team_blocks as (
+@@ -16,15 +17,17 @@ team_blocks as (
+         unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as team_block
+ ),
+ 
++-- The left joins keep a team block whose list is empty as one row with no player, so base can see
++-- that a newer fetch found the squad empty and not fall back to an older list.
+ player_rows as (
+     select
+-        league_code,
+-        raw_ingested_at,
+-        team_id,
++        team_blocks.league_code,
++        team_blocks.raw_ingested_at,
++        team_blocks.team_id,
+         player_el
+-    from team_blocks,
+-        unnest(json_query_array(json_query(team_block, '$.squad_payload'), '$')) as squad_el,
+-        unnest(json_query_array(json_query(squad_el, '$.players'), '$')) as player_el
++    from team_blocks
++    left join unnest(json_query_array(json_query(team_blocks.team_block, '$.squad_payload'), '$')) as squad_el
++    left join unnest(json_query_array(json_query(squad_el, '$.players'), '$')) as player_el
+ )
+ 
+ select
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 416864b7..5eeb1f47 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -982,16 +982,17 @@ models:
+ 
+   - name: base_apif__squads
+     description: >
+-      The provider's current squad lists, deduped from stg_apif__squads: which player a team lists
+-      in a competition, on the latest snapshot. Grain: (league_code, team_api_id, player_api_id).
++      The provider's current squad list of each team, deduped from stg_apif__squads: the players the
++      team's newest fetch carried, whichever league's row that fetch was written under. A team whose
++      newest fetch found no player has none here. Grain: (team_api_id, player_api_id).
+     config:
+       tags: ["base", "api_football", "squads"]
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns: [league_code, team_api_id, player_api_id]
++          combination_of_columns: [team_api_id, player_api_id]
+     columns:
+       - name: league_code
+-        description: "{{ doc('league_code') }}"
++        description: "{{ doc('league_code_ingest_provenance') }}"
+         tests: [not_null]
+       - name: team_api_id
+         description: "{{ doc('team_api_id') }}"
+diff --git a/dbt_project/models/2_base/api_football/base_apif__squads.sql b/dbt_project/models/2_base/api_football/base_apif__squads.sql
+index 9521a516..6107ae2c 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__squads.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__squads.sql
+@@ -1,9 +1,28 @@
+ {#
+-  The provider's current squad lists: which player a team lists in a competition, on the latest
+-  snapshot. Grain: (league_code, team_api_id, player_api_id).
++  The provider's current squad list of each team: the players its newest fetch carried, whichever
++  league's row that fetch was written under. A team whose newest fetch found no player has none
++  here, and an older list is not read in its place. Grain: (team_api_id, player_api_id).
++  league_code is the league the newest fetch was written under, the smallest when two were written
++  at the same instant.
+ #}
+ 
+-with src as (
++with fetched as (
++    select
++        {{ team_id_override('team_id') }} as team_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__squads') }}
++    where team_id is not null
++),
++
++newest as (
++    select
++        team_id,
++        max(raw_ingested_at) as raw_ingested_at
++    from fetched
++    group by team_id
++),
++
++src as (
+     select
+         * except (player_id, team_id),
+         {{ player_id_override('player_id') }} as player_id,
+@@ -13,9 +32,11 @@ with src as (
+ )
+ 
+ select
+-    league_code,
+-    team_id as team_api_id,
+-    player_id as player_api_id,
+-    max(raw_ingested_at) as raw_ingested_at
++    src.team_id as team_api_id,
++    src.player_id as player_api_id,
++    src.raw_ingested_at,
++    min(src.league_code) as league_code
+ from src
+-group by league_code, team_id, player_id
++inner join newest
++    on src.team_id = newest.team_id and src.raw_ingested_at = newest.raw_ingested_at
++group by src.team_id, src.player_id, src.raw_ingested_at
+diff --git a/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql b/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
+index e0c1e839..e04fe04a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
+@@ -159,7 +159,7 @@ squad_members as (
+         cast(null as timestamp) as named_at
+     from {{ ref('base_apif__squads') }} as sq
+     inner join current_national as c
+-        on cast(sq.team_api_id as int64) = c.team_sk and sq.league_code = c.league_code
++        on cast(sq.team_api_id as int64) = c.team_sk
+ ),
+ 
+ national_team as (
+diff --git a/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql b/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
+index 5d9baba6..d5931a0d 100644
+--- a/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
++++ b/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
+@@ -217,8 +217,6 @@ expected_national as (
+     from {{ ref('base_apif__squads') }} as sq
+     inner join expected_current as c
+         on cast(sq.team_api_id as int64) = c.team_sk
+-    inner join national_seasons as n
+-        on c.season_sk = n.season_sk and sq.league_code = n.league_code
+ ),
+ 
+ edition_ends as (
+diff --git a/dbt_project/tests/assert_squads_read_per_team.sql b/dbt_project/tests/assert_squads_read_per_team.sql
+new file mode 100644
+index 00000000..c6d2a7e1
+--- /dev/null
++++ b/dbt_project/tests/assert_squads_read_per_team.sql
+@@ -0,0 +1,79 @@
++{#
++  Every team RAW_APIF_SQUADS holds a block for is in stg_apif__squads, and every team of
++  base_apif__squads has the players of its newest block. Returns one row per team the raw table
++  carries that staging lacks, and one row per team whose base players differ from those of its
++  newest staging block (a stale list, or an older list read in place of an empty newest one).
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with raw_teams as (
++    select distinct safe_cast(json_value(team_block, '$.team_id') as int64) as team_id
++    from {{ source('api_football', 'raw_apif_squads') }} as src,
++        unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as team_block
++    where json_value(team_block, '$.team_id') is not null
++),
++
++staged_teams as (
++    select distinct team_id
++    from {{ ref('stg_apif__squads') }}
++),
++
++dropped_by_staging as (
++    select
++        'raw team missing from staging' as failure,
++        cast(r.team_id as string) as grain
++    from raw_teams as r
++    left join staged_teams as s
++        on r.team_id = s.team_id
++    where s.team_id is null
++),
++
++newest as (
++    select
++        {{ team_id_override('team_id') }} as team_id,
++        max(raw_ingested_at) as raw_ingested_at
++    from {{ ref('stg_apif__squads') }}
++    where team_id is not null
++    group by 1
++),
++
++staged as (
++    select
++        {{ team_id_override('team_id') }} as team_id,
++        {{ player_id_override('player_id') }} as player_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__squads') }}
++    where team_id is not null and player_id is not null
++),
++
++expected as (
++    select distinct
++        s.team_id,
++        s.player_id
++    from staged as s
++    inner join newest as n
++        on s.team_id = n.team_id and s.raw_ingested_at = n.raw_ingested_at
++),
++
++held as (
++    select
++        team_api_id as team_id,
++        player_api_id as player_id
++    from {{ ref('base_apif__squads') }}
++),
++
++differs as (
++    select
++        'base squad differs from the newest block' as failure,
++        concat(
++            cast(coalesce(e.team_id, h.team_id) as string), ' ', cast(coalesce(e.player_id, h.player_id) as string)
++        ) as grain
++    from expected as e
++    full outer join held as h
++        on e.team_id = h.team_id and e.player_id = h.player_id
++    where e.team_id is null or h.team_id is null
++)
++
++select * from dropped_by_staging
++union all
++select * from differs
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 4392215a..6a3a141b 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -74,7 +74,7 @@ Reference tables — fixtures-next, coaches, leagues, squads, player-profiles, p
+ 2. The complete response is written as a new row with the current UTC timestamp.
+ 3. Prior rows are preserved. BigQuery retains the full ingest history.
+ 
+-The latest row always contains the complete picture because every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). This is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. The staging models that read a per-league snapshot table keep only the latest snapshot per league, with `league_code` as the sole partitioning key of the window:
++For fixtures-next, coaches, leagues, standings, teams and transfers the latest row holds the complete picture. Every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). The complete snapshot is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. Squads, player-profiles and player-teams rows hold only what their fetch reached. The staging models that read a per-league snapshot table keep only the latest snapshot per league, with `league_code` as the sole partitioning key of the window:
+ 
+ ```sql
+ qualify row_number() over (
+@@ -82,7 +82,7 @@ qualify row_number() over (
+ ) = 1
+ ```
+ 
+-This is what the six per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_squads`, `_standings`, `_teams`, `_transfers`. The other staging models deliberately do **not** apply it: `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` are keyed BELOW `league_code` (one row per fixture, one row per `(team, season)`), so a latest-per-league window there would keep one fixture or one team-season and drop every other. Those models read all rows and base resolves the entity.
++This is what the five per-league snapshot staging models do today — `stg_apif__fixtures_next`, `_leagues`, `_standings`, `_teams`, `_transfers`. `RAW_APIF_SQUADS` is not one of them: a row holds only the teams that fetch reached, so `stg_apif__squads` reads every row and `base_apif__squads` takes the newest block of each team. The other staging models deliberately do **not** apply it: `RAW_APIF_FIXTURE_DETAILS` and `RAW_APIF_PLAYERS` are keyed BELOW `league_code` (one row per fixture, one row per `(team, season)`), so a latest-per-league window there would keep one fixture or one team-season and drop every other. Those models read all rows and base resolves the entity.
+ 
+ **No staging model carries a `DATE(ingested_at)` pre-filter, and none should.** This document used to prescribe a 7-day one here. No model ever implemented it, and it would have been a live defect if one had — see the second bullet under raw partitioning above (#892). Ranking cannot prune a partition, so the pre-filter bought nothing it claimed to buy.
+ 
+@@ -182,7 +182,7 @@ Each fetch pass logs `to_fetch=N skipped_cached=M`, so a regression (skip silent
+ `/players/squads` is the squad-**membership** source (the full current roster, including selected players with no minutes) for **clubs and national teams alike**. A squad is a property of the **team**, not the competition, so capture is keyed by team and deduped across competitions:
+ 
+ 1. **In-season (Phase 3b)** — competitions running full phases (`upcoming_fixtures`) capture their teams' squads every run.
+-2. **Finished-comp catch-up (Phase 3c)** — competitions that have finished (`poll` / `idle_complete`) skip the per-team phases, so their teams are caught up here: for each finished comp's teams, capture the squad once if the team is **not** active in any full-mode comp this run and **not** already stored for that comp's last-recorded season. Deduped across comps (a club in a finished league + a finished cup is fetched once). Team lists come from the latest-season fixtures already fetched in the poll phase — no extra fixture calls. The catch-up row is written **complete per competition**: if quota is exhausted mid-competition the partial is discarded and the whole comp re-captures next run, so `stg_apif__squads` (latest snapshot per `league_code`) never selects a partial finished-comp snapshot. (In-season Phase 3b re-fetches whole every run, so its partials self-heal.)
++2. **Finished-comp catch-up (Phase 3c)** — competitions that have finished (`poll` / `idle_complete`) skip the per-team phases, so their teams are caught up here: for each finished comp's teams, capture the squad once if the team is **not** active in any full-mode comp this run and **not** already stored for that comp's last-recorded season. Deduped across comps (a club in a finished league + a finished cup is fetched once). Team lists come from the latest-season fixtures already fetched in the poll phase — no extra fixture calls. Each row holds only the teams its fetch reached. A row is read per team, not per league. `stg_apif__squads` reads every row. `base_apif__squads` gives each team the players of its newest block, whichever league's row carries it. A quota cut mid-competition writes the teams already fetched. The next run fetches the teams it did not reach. A team captured under one competition is read for every competition it is in. A team whose newest fetch holds no player has none.
+ 
+ Each snapshot is stamped with the team's last-recorded `season` (payload key `season`), so per-season coverage is exact and re-capture is avoided. The endpoint is current-only, so historical per-edition membership is **not** reconstructable from it (parked — see issue #477); the appearance fact (`fct_player_team_season`) is a complementary playing-time layer, never the roster.
+ 
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index ad0a7fc9..7db71422 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -199,8 +199,6 @@ def run_player_squads_catchup(
+     for league_code, season, team_ids in plan:
+         try:
+             _ingestion_phase(league_code, "player_squads catch-up (finished comp)")
+-            load_player_squads_batch(
+-                ctx, league_code, team_ids, season=season, require_complete=True
+-            )
++            load_player_squads_batch(ctx, league_code, team_ids, season=season)
+         except Exception as e:
+             ctx.errors.append(f"league {league_code} player_squads catch-up: {e}")
+diff --git a/ingestion/api_football/loads/player_squads.py b/ingestion/api_football/loads/player_squads.py
+index b54705b3..cec9fcae 100644
+--- a/ingestion/api_football/loads/player_squads.py
++++ b/ingestion/api_football/loads/player_squads.py
+@@ -19,7 +19,6 @@ def load_player_squads_batch(
+     league_code: str,
+     team_ids: set[int],
+     season: int | None = None,
+-    require_complete: bool = False,
+ ) -> None:
+     squads_payload = {"league_code": league_code, "season": season, "response": []}
+     if os.getenv("API_FOOTBALL_SKIP_PLAYER_SQUADS", "").strip().lower() in ("1", "true", "yes"):
+@@ -27,10 +26,8 @@ def load_player_squads_batch(
+             f"player_squads {league_code}: skipped (API_FOOTBALL_SKIP_PLAYER_SQUADS set — use on low-quota archive runs)"
+         )
+         return
+-    quota_cut = False
+     for team_id in sorted(team_ids):
+         if errors_quota._http_quota_exhausted:
+-            quota_cut = True
+             break
+         try:
+             squad_rows, complete = squads_response_for_team(
+@@ -57,13 +54,6 @@ def load_player_squads_batch(
+             ctx.errors.append(f"player_squads {league_code} team {team_id}: {e}")
+     if not squads_payload["response"]:
+         return
+-    if require_complete and quota_cut:
+-        # stg_apif__squads selects the latest snapshot per league_code and a finished comp is never
+-        # re-fetched whole, so a partial row would drop the unwritten teams from staging.
+-        ctx.errors.append(
+-            f"player_squads {league_code}: quota cut the catch-up mid-comp; partial discarded, retries next run"
+-        )
+-        return
+     try:
+         load_json_to_bq(
+             ctx.client,
+diff --git a/tests/test_never_record_a_gap.py b/tests/test_never_record_a_gap.py
+index 3b3aaa09..ad693ed9 100644
+--- a/tests/test_never_record_a_gap.py
++++ b/tests/test_never_record_a_gap.py
+@@ -94,7 +94,7 @@ def test_squads_incomplete_team_is_not_recorded(monkeypatch):
+     monkeypatch.setattr(psq, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
+ 
+     ctx = _ctx()
+-    psq.load_player_squads_batch(ctx, "PL", {10, 11}, season=2025, require_complete=False)
++    psq.load_player_squads_batch(ctx, "PL", {10, 11}, season=2025)
+ 
+     assert written, "the loader wrote nothing at all; the test is not exercising the write path"
+     team_ids = [e["team_id"] for p in written for e in p["response"]]
+diff --git a/tests/test_player_squads_catchup.py b/tests/test_player_squads_catchup.py
+index 7429e257..6407b4f1 100644
+--- a/tests/test_player_squads_catchup.py
++++ b/tests/test_player_squads_catchup.py
+@@ -140,9 +140,9 @@ def test_captured_team_seasons_query_is_fully_qualified():
+     assert "RAW_APIF_SQUADS" in ctx.client.last_sql
+ 
+ 
+-# --- load_player_squads_batch: catch-up writes must be complete per competition ---
+-# stg_apif__squads keeps only the latest snapshot per league_code and a finished comp is never
+-# re-fetched whole, so a partial snapshot is discarded under require_complete.
++# --- load_player_squads_batch: a row holds the teams that fetch reached, and nothing more ---
++# stg_apif__squads reads every row and base takes each team's newest block, so a quota cut
++# part-way writes the teams already fetched and the rest are fetched on the next run.
+ 
+ 
+ def _squad_ctx():
+@@ -164,20 +164,33 @@ def _patch_quota_cut_after_first(monkeypatch):
+ 
+     monkeypatch.setattr(ps, "squads_response_for_team", fake_squad)
+     written = []
+-    monkeypatch.setattr(ps, "load_json_to_bq", lambda *a, **k: written.append(k))
++    monkeypatch.setattr(ps, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
+     return ps, written
+ 
+ 
+-def test_catchup_discards_partial_when_require_complete(monkeypatch):
++def test_a_quota_cut_batch_writes_the_teams_it_fetched(monkeypatch):
+     ps, written = _patch_quota_cut_after_first(monkeypatch)
+     ctx = _squad_ctx()
+-    ps.load_player_squads_batch(ctx, "PL", {10, 11, 12}, season=2025, require_complete=True)
+-    assert written == []  # partial discarded, not persisted
+-    assert any("partial discarded" in e for e in ctx.errors)
++    ps.load_player_squads_batch(ctx, "PL", {10, 11, 12}, season=2025)
++    assert len(written) == 1
++    assert [block["team_id"] for block in written[0]["response"]] == [10]
++    assert written[0]["season"] == 2025
+ 
+ 
+-def test_inseason_writes_partial_when_not_require_complete(monkeypatch):
++def test_a_batch_cut_before_the_first_team_writes_nothing(monkeypatch):
++    from ingestion.api_football import quota as q
++
+     ps, written = _patch_quota_cut_after_first(monkeypatch)
+-    ctx = _squad_ctx()
+-    ps.load_player_squads_batch(ctx, "PL", {10, 11, 12}, season=2025, require_complete=False)
+-    assert len(written) == 1  # partial persisted (in-season behaviour, healed next run)
++    monkeypatch.setattr(q, "_http_quota_exhausted", True)
++    ps.load_player_squads_batch(_squad_ctx(), "PL", {10, 11}, season=2025)
++    assert written == []
++
++
++def test_the_catchup_runner_writes_the_teams_a_quota_cut_reached(monkeypatch):
++    from ingestion.api_football.loads import competition_runner as runner
++
++    ps, written = _patch_quota_cut_after_first(monkeypatch)
++    monkeypatch.setattr(runner, "captured_team_seasons", lambda ctx: set())
++    monkeypatch.setattr(runner, "_ingestion_phase", lambda *a, **k: None)
++    runner.run_player_squads_catchup(_squad_ctx(), [("PL", 2025, {10, 11, 12})], set())
++    assert [block["team_id"] for block in written[0]["response"]] == [10]
+diff --git a/tests/test_squads_read_per_team.py b/tests/test_squads_read_per_team.py
+new file mode 100644
+index 00000000..8098c3a1
+--- /dev/null
++++ b/tests/test_squads_read_per_team.py
+@@ -0,0 +1,57 @@
++"""A squad is read per team: no fetch row stands for its league, so no team is dropped with it.
++
++RAW_APIF_SQUADS holds one row per fetch covering only the teams that fetch reached. These pins keep
++staging reading every row, base taking the newest block of each team, and the readers of base
++joining on the team.
++"""
++
++import pathlib
++import re
++
++DBT = pathlib.Path(__file__).resolve().parents[1] / "dbt_project"
++STAGING = DBT / "models" / "1_staging" / "api_football" / "stg_apif__squads.sql"
++BASE = DBT / "models" / "2_base" / "api_football" / "base_apif__squads.sql"
++PAGE_PROFILE = DBT / "models" / "4_intermediate" / "shared" / "int_player__page_profile.sql"
++PAGE_TEST = DBT / "tests" / "assert_player_page_choices_follow_the_rule.sql"
++READ_PER_TEAM = DBT / "tests" / "assert_squads_read_per_team.sql"
++
++
++def _sql(path):
++    text = re.sub(r"\{#.*?#\}", " ", path.read_text(encoding="utf-8"), flags=re.DOTALL)
++    text = re.sub(r"--[^\n]*", " ", text)
++    return re.sub(r"\s+", " ", text).lower()
++
++
++def test_staging_reads_every_row_and_no_league_snapshot():
++    sql = _sql(STAGING)
++    assert "qualify" not in sql and "partition by" not in sql
++
++
++def test_staging_keeps_a_team_block_whose_list_is_empty():
++    sql = _sql(STAGING)
++    assert "left join unnest(json_query_array(json_query(team_blocks.team_block, '$.squad_payload'), '$')) as squad_el" in sql
++    assert "left join unnest(json_query_array(json_query(squad_el, '$.players'), '$')) as player_el" in sql
++
++
++def test_base_takes_each_teams_newest_block_after_the_team_id_override():
++    sql = _sql(BASE)
++    assert "max(raw_ingested_at) as raw_ingested_at from fetched group by team_id" in sql
++    assert "src.raw_ingested_at = newest.raw_ingested_at" in sql
++    assert "group by src.team_id, src.player_id, src.raw_ingested_at" in sql
++    assert "team_id_override('team_id')" in sql
++
++
++def test_a_reader_of_base_squads_does_not_join_on_the_league():
++    for path in (PAGE_PROFILE, PAGE_TEST):
++        sql = _sql(path)
++        assert "from {{ ref('base_apif__squads') }} as sq" in sql
++        body = sql.split("from {{ ref('base_apif__squads') }} as sq", 1)[1]
++        body = body.split("),", 1)[0]
++        assert "sq.league_code" not in body, path.name
++
++
++def test_the_per_team_error_test_checks_raw_staging_and_base():
++    sql = _sql(READ_PER_TEAM)
++    assert "source('api_football', 'raw_apif_squads')" in sql
++    assert "ref('stg_apif__squads')" in sql and "ref('base_apif__squads')" in sql
++    assert "severity = 'error'" in sql
+diff --git a/tests/test_staging_key_tests_moved.py b/tests/test_staging_key_tests_moved.py
+index 8b3a56ac..64aed1ac 100644
+--- a/tests/test_staging_key_tests_moved.py
++++ b/tests/test_staging_key_tests_moved.py
+@@ -60,6 +60,7 @@ BASE_READERS = [
+         ["fixture_id is not null", "team_id is not null"],
+     ),
+     ("base_apif__lineup_fetches.sql", "stg_apif__lineups", ["fixture_id is not null", "team_id is not null"]),
++    ("base_apif__squads.sql", "stg_apif__squads", ["team_id is not null"]),
+     ("base_apif__squads.sql", "stg_apif__squads", ["team_id is not null", "player_id is not null"]),
+     ("base_apif__standings.sql", "stg_apif__standings", ["team_id is not null", "season is not null"]),
+     ("base_apif__coaches.sql", "stg_apif__coaches", ["stg.coach_id is not null"]),
+@@ -269,6 +270,7 @@ TEST_EXEMPT = {
+     "assert_sheet_and_stats_player_join_on_shirt.sql",
+     "test_stg_fixture_statistics_non_empty.sql",
+     "assert_null_key_lines_listed.sql",
++    "assert_squads_read_per_team.sql",
+ }
+ 
+ 
+@@ -291,6 +293,7 @@ READS = {
+     "assert_sheet_and_stats_player_join_on_shirt.sql": 1,
+     "test_stg_fixture_statistics_non_empty.sql": 1,
+     "assert_null_key_lines_listed.sql": 5,
++    "assert_squads_read_per_team.sql": 3,
+     "players_with_conflicting_bio.sql": 1,
+ }
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/37-squads-read-per-team/review.md     |  36 ++
+#    .../37-squads-read-per-team/review_input.patch     | 648 +++++++++++++++++++++
+#    2 files changed, 684 insertions(+)
+# ============================================================================

@@ -159,7 +159,7 @@ squad_members as (
         cast(null as timestamp) as named_at
     from {{ ref('base_apif__squads') }} as sq
     inner join current_national as c
-        on cast(sq.team_api_id as int64) = c.team_sk and sq.league_code = c.league_code
+        on cast(sq.team_api_id as int64) = c.team_sk
 ),
 
 national_team as (

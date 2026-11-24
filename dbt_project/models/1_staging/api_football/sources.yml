@@ -167,8 +167,9 @@ sources:
         description: >
           Current squad membership and shirt numbers, per team. One row per
           FETCH covering a SUBSET of a league's teams rather than the whole
-          competition. Append-only, so the newest row per league_code is
-          current.
+          competition. Append-only and ACCUMULATING: the newest row of a league
+          is not its whole squad set, so the current squad of a team is its
+          newest block in any row.
           The provider sometimes lists the same player twice in one squad, so
           one row per player per team is the intent and not a guarantee.
         identifier: RAW_APIF_SQUADS

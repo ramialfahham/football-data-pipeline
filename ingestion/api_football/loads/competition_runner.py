@@ -199,8 +199,6 @@ def run_player_squads_catchup(
     for league_code, season, team_ids in plan:
         try:
             _ingestion_phase(league_code, "player_squads catch-up (finished comp)")
-            load_player_squads_batch(
-                ctx, league_code, team_ids, season=season, require_complete=True
-            )
+            load_player_squads_batch(ctx, league_code, team_ids, season=season)
         except Exception as e:
             ctx.errors.append(f"league {league_code} player_squads catch-up: {e}")

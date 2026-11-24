@@ -217,8 +217,6 @@ expected_national as (
     from {{ ref('base_apif__squads') }} as sq
     inner join expected_current as c
         on cast(sq.team_api_id as int64) = c.team_sk
-    inner join national_seasons as n
-        on c.season_sk = n.season_sk and sq.league_code = n.league_code
 ),
 
 edition_ends as (

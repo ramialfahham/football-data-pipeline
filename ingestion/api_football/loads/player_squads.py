@@ -19,7 +19,6 @@ def load_player_squads_batch(
     league_code: str,
     team_ids: set[int],
     season: int | None = None,
-    require_complete: bool = False,
 ) -> None:
     squads_payload = {"league_code": league_code, "season": season, "response": []}
     if os.getenv("API_FOOTBALL_SKIP_PLAYER_SQUADS", "").strip().lower() in ("1", "true", "yes"):
@@ -27,10 +26,8 @@ def load_player_squads_batch(
             f"player_squads {league_code}: skipped (API_FOOTBALL_SKIP_PLAYER_SQUADS set — use on low-quota archive runs)"
         )
         return
-    quota_cut = False
     for team_id in sorted(team_ids):
         if errors_quota._http_quota_exhausted:
-            quota_cut = True
             break
         try:
             squad_rows, complete = squads_response_for_team(
@@ -56,13 +53,6 @@ def load_player_squads_batch(
         except Exception as e:
             ctx.errors.append(f"player_squads {league_code} team {team_id}: {e}")
     if not squads_payload["response"]:
-        return
-    if require_complete and quota_cut:
-        # stg_apif__squads selects the latest snapshot per league_code and a finished comp is never
-        # re-fetched whole, so a partial row would drop the unwritten teams from staging.
-        ctx.errors.append(
-            f"player_squads {league_code}: quota cut the catch-up mid-comp; partial discarded, retries next run"
-        )
         return
     try:
         load_json_to_bq(

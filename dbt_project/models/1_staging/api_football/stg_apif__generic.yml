@@ -13,13 +13,13 @@ version: 2
 # they carry expected duplicates (multiple ingest snapshots, and for transfers the same move fetched
 # under both involved teams); entity dedup is in base.
 #
-# INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS): their
-# loaders are skip-if-already-ingested (PR-a), so a run's snapshot holds only that run's NEW
-# players, NOT a complete snapshot. Their staging models therefore UNION ALL snapshots rather than
-# selecting the latest per league_code (which would silently drop players landed on earlier
-# backfill days). This is a faithful flatten (no dedup); base assembles current-per-player. The
-# "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables; squads
-# (re-fetched in full every run) follows it, profiles/teams do not. RAW_APIF_COACHES is a
+# INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS,
+# RAW_APIF_SQUADS): a run's row holds only what that run fetched (new players; the teams of
+# one fetch), NOT a complete snapshot. Their staging models therefore read all rows rather than
+# selecting the latest per league_code (which would silently drop what earlier rows landed).
+# This is a faithful flatten (no dedup); base assembles the current player or team squad. The
+# "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables.
+# RAW_APIF_COACHES is a
 # COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league), for entity
 # preservation: latest-per-league would drop coaches whose teams later leave a league's pull, so
 # all snapshots are read and base dedups to one coach entity.
@@ -552,12 +552,13 @@ models:
 
   - name: stg_apif__squads
     description: >
-      One row per player per team from GET /players/squads (current squad + shirt number).
-      Complete snapshot per run → latest ingestion snapshot selected per league_code, then
-      faithful flatten of response[].squad_payload[].players[]. Nominal grain (league_code,
-      team_id, player_id), but NO unique test — the provider occasionally lists a player twice
-      in a squad (a handful of exact duplicates at that grain in real data); faithful staging
-      keeps them and base dedups, exactly as the sibling complete-snapshot model stg_apif__players.
+      One row per player per team per fetch from GET /players/squads (current squad + shirt
+      number). ACCUMULATION source: a fetch writes only the teams it fetched, so no row is a
+      complete snapshot of its league → all rows are read (no latest-snapshot select), faithful
+      flatten of response[].squad_payload[].players[]; a team block with no player is kept as one
+      row with no player_id. Nominal grain (league_code, raw_ingested_at, team_id, player_id), but
+      NO unique test — the provider occasionally lists a player twice in a squad; faithful
+      staging keeps them and base takes each team's newest fetch and dedups.
     columns:
       - name: league_code
         description: "{{ doc('league_code_ingest_provenance') }}"
