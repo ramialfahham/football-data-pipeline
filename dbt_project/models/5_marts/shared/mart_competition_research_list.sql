@@ -26,6 +26,11 @@
     base leaves it out, while a team of the match has no value base could otherwise have used
     (base_apif__fixture_lines_without_key). No seed fixes the row (seed none); a fetch that carries
     the team id removes it;
+  - team_season_off_standings: a team-season's results disagree with the provider's standings
+    (counts_withheld), so every value of the team-season is blank. One row per finished match of the
+    team-season: the results or the standings are wrong and nothing says which, and no seed fixes it
+    (seed none); a result in fixture_result_corrections or a points deduction in
+    standings_points_adjustments can settle it. team_sk is the team of the team-season;
   - correction_no_longer_needed: the provider's own data now carries the row's corrected values
     (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
   seed names the correction seed that fixes the row. research_tier is the research order of the
@@ -194,6 +199,20 @@ misfiled_items as (
         on m.provider_team_id = t.team_sk
 ),
 
+off_standings_items as (
+    select
+        'team_season_off_standings' as check_name,
+        'none' as seed,
+        r.fixture_sk,
+        r.team_sk,
+        cast(null as string) as correction,
+        cast(null as int64) as provider_team_id
+    from {{ ref('int_team_season_record') }} as r
+    inner join {{ ref('int_team_season__metrics') }} as m
+        on r.team_sk = m.team_sk and r.season_sk = m.season_sk
+    where m.counts_withheld
+),
+
 no_longer_needed as (
     select
         'correction_no_longer_needed' as check_name,
@@ -233,6 +252,19 @@ all_items as (
     from misfiled_items as m
     inner join fixtures as f
         on m.fixture_sk = f.fixture_sk
+    union all
+    select
+        s.check_name,
+        s.seed,
+        s.fixture_sk,
+        s.team_sk,
+        s.correction,
+        s.provider_team_id,
+        f.league_code,
+        f.season_api_year
+    from off_standings_items as s
+    inner join fixtures as f
+        on s.fixture_sk = f.fixture_sk
     union all
     select
         check_name,

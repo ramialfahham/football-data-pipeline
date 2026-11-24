@@ -118,6 +118,11 @@ match stats are good enough.
   line and on a line-up row, until sourced research stands in fixture_card_corrections.
 - A standings section that resolves to a league table beside group or conference tables is
   withheld until a standings_table_kinds pattern names it.
+- A team-season whose results disagree with the provider's standings has every season value
+  withheld. Its matches stand on mart_competition_research_list. A standings row that counts the
+  same games disagrees where a count differs from ours. Its points disagree where they differ from
+  ours plus the points the league took. Our games played below the most any standings row counts
+  disagree too.
 - A team's country that is missing, or that changed between deliveries, is withheld until a
   team_country_corrections row settles it.
 - A player's tied records can hold two real birth dates or two real nationalities. That value is

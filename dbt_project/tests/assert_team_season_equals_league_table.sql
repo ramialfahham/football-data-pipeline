@@ -1,96 +1,54 @@
 {#
-  A team-season equals the provider's league table wherever the table counts the same games: every
-  table section of the team-season whose played equals our season_games_played must carry our wins,
-  draws, losses, goals and goals against, and our points must equal the table's points plus the
-  points the league took, declared with its source in seeds/standings_points_adjustments.csv. A table row with a different played count (a
-  snapshot older than our last match, a section that counts other games) is not compared. A red row
-  is a result or an adjustment to research and declare in the seeds, never an exception.
+  A team-season whose counts differ from the provider's league table is withheld. Where a table
+  section counts the same games as our season (its played equals our games played), our wins,
+  draws, losses, goals and goals against must equal the section's, and our points must equal the
+  section's points plus the points the league took, declared with its source in
+  seeds/standings_points_adjustments.csv. A table row with a different played count (a snapshot
+  older than our last match, a section that counts other games) is not compared. Where they differ
+  the results or the table are wrong and nothing says which, so int_team_season__metrics holds the
+  team-season withheld: counts_withheld true and every season value blank.
 
-  Returns one row per disagreeing table row, with both sides.
+  The disagreement is derived here from the legs and fct_standings, never from the flag, by the
+  macro team_seasons_off_standings that assert_team_season_off_standings_answer_key pins to
+  hand-written rows. Returns one row per disagreeing team-season that is not withheld, a flag that
+  is not set, a value that is not blank, or a team-season missing from the model.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
-with ours as (
-    select
-        team_sk,
-        season_sk,
-        league_code,
-        season_api_year,
-        season_games_played,
-        wins_sum_season as wins,
-        draws_sum_season as draws,
-        losses_sum_season as losses,
-        goals,
-        goals_against,
-        points_won
-    from {{ ref('int_team_season__metrics') }}
+with leg_counts as (
+    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
 ),
 
-league_table as (
-    select
-        team_sk,
-        season_sk,
-        league_code,
-        season_api_year,
-        team_api_id,
-        group_name,
-        played,
-        wins,
-        draws,
-        losses,
-        goals_scored,
-        goals_conceded,
-        points
-    from {{ ref('fct_standings') }}
-),
-
-adjustments as (
-    select
-        league_code,
-        season,
-        team_id,
-        group_name,
-        sum(points_taken) as points_taken
-    from {{ ref('standings_points_adjustments') }}
-    group by league_code, season, team_id, group_name
+disagreeing as (
+    {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
 )
 
 select
-    o.league_code,
-    o.season_api_year,
-    o.team_sk,
-    t.group_name,
-    o.season_games_played as played,
-    o.wins,
-    t.wins as table_wins,
-    o.draws,
-    t.draws as table_draws,
-    o.losses,
-    t.losses as table_losses,
-    o.goals,
-    t.goals_scored as table_goals,
-    o.goals_against,
-    t.goals_conceded as table_goals_against,
-    o.points_won,
-    3 * t.wins + t.draws as table_points_from_results,
-    a.points_taken,
-    t.points as table_points
-from ours as o
-inner join league_table as t
-    on
-        o.team_sk = t.team_sk
-        and o.season_sk = t.season_sk
-        and o.season_games_played = t.played
-left join adjustments as a
-    on
-        t.league_code = a.league_code
-        and t.season_api_year = a.season
-        and t.team_api_id = a.team_id
-        and trim(t.group_name) = trim(a.group_name)
+    d.team_sk,
+    d.season_sk,
+    d.reason,
+    m.team_sk is not null as row_found,
+    m.counts_withheld,
+    m.season_games_played,
+    m.wins_sum_season,
+    m.draws_sum_season,
+    m.losses_sum_season,
+    m.goals,
+    m.goals_against,
+    m.points_won
+from disagreeing as d
+left join {{ ref('int_team_season__metrics') }} as m
+    on d.team_sk = m.team_sk and d.season_sk = m.season_sk
 where
-    o.wins is distinct from t.wins
-    or o.draws is distinct from t.draws
-    or o.losses is distinct from t.losses
-    or o.goals is distinct from t.goals_scored
-    or o.goals_against is distinct from t.goals_conceded
-    or o.points_won is distinct from t.points + coalesce(a.points_taken, 0)
+    d.reason = 'counts_differ'
+    and (
+        m.team_sk is null
+        or not coalesce(m.counts_withheld, false)
+        or m.season_games_played is not null
+        or m.wins_sum_season is not null
+        or m.draws_sum_season is not null
+        or m.losses_sum_season is not null
+        or m.goals is not null
+        or m.goals_against is not null
+        or m.points_won is not null
+    )

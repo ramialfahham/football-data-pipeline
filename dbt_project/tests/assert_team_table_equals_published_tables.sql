@@ -8,13 +8,30 @@
   took effect after that kick-off's day and by the snapshot's day, since the two tables then hold
   different deductions. A place the league's rule settles by last season's place, or of a team
   level on points where the rule version has provider_order_differs, is not compared: the
-  provider orders those teams another way. One row per team whose rebuilt place or table
-  points differ from the published ones, and one per rebuilt league-season with no comparable
-  published table.
+  provider orders those teams another way. A team-season withheld against the standings
+  (team_seasons_off_standings, derived here from the legs, never from the flag) is left out. Every
+  other team is a row where its rebuilt points or its rebuilt place differ from the published ones
+  (published_table_mismatches). A team's place is its rank less the withheld teams ranked above it,
+  so a withheld team's points cannot move the places of the others. A withheld team does not decide
+  whether a published section is comparable: the other teams' played counts do. One row per such
+  team, and one per rebuilt league-season with no comparable published table.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
-with snapshots as (
+with leg_counts as (
+    {{ team_season_counts_from_legs(ref('int_legs__team_match')) }}
+),
+
+withheld_team_seasons as (
+    select distinct
+        team_sk,
+        season_sk
+    from (
+        {{ team_seasons_off_standings('leg_counts', ref('fct_standings'), ref('standings_points_adjustments')) }}
+    )
+),
+
+snapshots as (
     select
         league_code,
         ingested_at
@@ -203,12 +220,17 @@ compared as (
         r.table_position as rebuilt_rank,
         r.table_points as rebuilt_points,
         coalesce(r.is_place_not_compared, false) as is_place_not_compared,
-        logical_and(r.played is not null and c.played = r.played) over (
+        logical_and(w.team_sk is not null or r.played is not null and c.played = r.played) over (
             partition by c.league_code, c.season_api_year, c.group_name, c.ingested_at
-        ) as is_comparable
+        ) as is_comparable,
+        w.team_sk is not null as is_withheld
     from corrected as c
     inner join league_seasons as ls
         on c.league_code = ls.league_code and c.season_api_year = ls.season_api_year
+    left join {{ ref('dim_competition_season') }} as cs
+        on c.league_code = cs.league_code and c.season_api_year = cs.season_api_year
+    left join withheld_team_seasons as w
+        on c.team_sk = w.team_sk and cs.season_sk = w.season_sk
     inner join comparable_moments as m
         on
             c.league_code = m.league_code
@@ -245,13 +267,7 @@ select
     rebuilt_rank,
     published_points,
     rebuilt_points
-from compared
-where
-    is_comparable
-    and (
-        rebuilt_points != published_points
-        or (rebuilt_rank is not null and rebuilt_rank != published_rank and not is_place_not_compared)
-    )
+from ({{ published_table_mismatches('compared') }})
 union all
 select
     league_code,
