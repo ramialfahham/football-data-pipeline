@@ -19,7 +19,10 @@ branch and the base, it verifies:
     OWN section (per-section pairing, mirroring the local commit gate — an
     answer elsewhere must not mask an unanswered escalation);
   - every "VERDICT: PASS" section says what it examined (>= 1 entry under
-    `risks_checked:`). It need not name a defect.
+    `risks_checked:`). It need not name a defect;
+  - every finding carries `[blocking]` or `[nit]` and a class, and a round past
+    the first lists its tested fixes or why none was needed
+    (`git_discipline._findings_gate`).
 
 Fails CLOSED (non-zero exit) — this is CI, not a guardrail hook.
 
@@ -202,6 +205,9 @@ def main() -> int:
     rounds_err = _rounds_error(text)
     if rounds_err:
         errors.append(rounds_err)
+    findings_err = _gd._findings_gate(text, paths, os.getcwd())
+    if findings_err:
+        errors.append(findings_err)
     errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
     if "VERDICT: FAIL" in text:
         errors.append("review.md contains VERDICT: FAIL — unresolved findings")

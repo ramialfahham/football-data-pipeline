@@ -17,14 +17,14 @@ import sentence_length_gate as gate  # noqa: E402
 
 # The pin: long sentences per document. A cleanup lowers a number or removes a row; nothing adds one.
 PINNED = {
-    ".claude/agents/analytics-engineer-reviewer.md": 5,
-    ".claude/agents/bi-analyst-reviewer.md": 16,
-    ".claude/agents/cto-reviewer.md": 16,
-    ".claude/agents/data-engineer-reviewer.md": 7,
-    ".claude/agents/football-analytics-expert-reviewer.md": 5,
-    ".claude/agents/platform-reviewer.md": 10,
-    ".claude/agents/scope-auditor.md": 10,
-    ".claude/agents/seo-expert-reviewer.md": 14,
+    ".claude/agents/analytics-engineer-reviewer.md": 4,
+    ".claude/agents/bi-analyst-reviewer.md": 15,
+    ".claude/agents/cto-reviewer.md": 15,
+    ".claude/agents/data-engineer-reviewer.md": 6,
+    ".claude/agents/football-analytics-expert-reviewer.md": 4,
+    ".claude/agents/platform-reviewer.md": 9,
+    ".claude/agents/scope-auditor.md": 9,
+    ".claude/agents/seo-expert-reviewer.md": 13,
     ".claude/skills/onboard-competition/SKILL.md": 10,
     ".claude/skills/onboard-endpoint/SKILL.md": 9,
     ".claude/skills/validate-local/SKILL.md": 6,

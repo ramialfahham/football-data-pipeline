@@ -692,10 +692,9 @@ def _rounds_gate(text: str) -> str | None:
 
     An unbounded review loop re-runs every reviewer over the whole diff until
     somebody stops it; a nine-round PR was the result once, and that costs too
-    much. `review.md` must declare `rounds: N`, and past
-    the cap the builder STOPS and brings the open findings to the product owner
-    instead of grinding on. To proceed past the cap anyway the review must carry a
-    `rounds_cap_override:` line recording the product owner's go-ahead and the reason
+    much. `review.md` must declare `rounds: N`, and at the cap the work is split
+    (docs/working_agreement.md §2). A further round needs a
+    `rounds_cap_override:` line recording the product owner's approval
     — a real sentence, not a bare marker.
     """
     # `[^\S\n]*` = horizontal whitespace only, so a keyless `rounds:` cannot swallow
@@ -721,10 +720,81 @@ def _rounds_gate(text: str) -> str | None:
         if not reason or _is_placeholder(reason):
             return (
                 f"REVIEW GATE: {raw} review rounds exceeds the cap of {ROUND_CAP}. "
-                "STOP and bring the open findings to the CPO rather than looping. "
-                "If the CPO says continue, record it as `rounds_cap_override: "
-                "<their reason>` in review.md, then commit."
+                "At the cap the work is split: what passed lands, and the rest is split "
+                "off into its own issue. A further round is the CPO's call; record it as "
+                "`rounds_cap_override: approved in chat, <date>` in review.md, then commit."
             )
+    return None
+
+
+FINDING_RE = re.compile(
+    r"^\[(blocking|nit)\][^\S\n]+([^:\n]+?):[^\S\n]+\S.*?[^\S\n](?:—|--|-)[^\S\n]+\S")
+FIX_RE = re.compile(
+    r"^\S[^|\n]*?[^\S\n]*\|[^\S\n]*sweep:[^\S\n]*\S[^|\n]*?[^\S\n]*\|"
+    r"[^\S\n]*test:[^\S\n]*([^\s:|]+)(?:::\S+)?[^\S\n]*$")
+TEST_PATH_RE = re.compile(
+    r"^(?:tests/(?:[^/]+/)*test_[^/]+\.py|dbt_project/tests/.+\.sql"
+    r"|site_v2/(?:[^/]+/)*[^/]+\.test\.mjs)$")
+
+
+def _findings_block(body: str) -> str:
+    """The lines under `findings:` up to the next unindented `key:` line such as `risks_checked:`."""
+    lines, keep = [], False
+    for line in body.splitlines():
+        if re.match(r"^[^\S\n]*findings[^\S\n]*:", line):
+            keep = True
+        elif keep and re.match(r"^[A-Za-z_][A-Za-z_ ]*:", line):
+            break
+        elif keep:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _findings_gate(text: str, branch_paths: list[str], root: str) -> str | None:
+    """Reason to deny on the findings and fixes in review.md, or None (§2 Cross-Examination)."""
+    for name, body in _review_sections(text).items():
+        if name == "fixes":
+            continue
+        found = _bullets(_findings_block(body))
+        for n, item in enumerate(found, 1):
+            if not FINDING_RE.match(item):
+                return (
+                    f"REVIEW GATE: finding {n} in `{name}` is not `[blocking] <class>: <every "
+                    "place> - <what goes wrong>` or the same with `[nit]`.")
+        blocking = [f for f in found if f.startswith("[blocking]")]
+        if "VERDICT: PASS" in body and blocking:
+            return (f"REVIEW GATE: `{name}` is a PASS with a blocking finding. "
+                    "A blocking finding is a FAIL.")
+        if "VERDICT: FAIL" in body and not blocking:
+            return (f"REVIEW GATE: `{name}` is a FAIL with no blocking finding. A nit never "
+                    "fails a round: record the verdict as PASS with its nits.")
+    m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(\d+)[^\S\n]*$", text, flags=re.MULTILINE)
+    if not m or int(m.group(1)) < 2:
+        return None
+    fixes = _bullets(_review_sections(text).get("fixes", ""))
+    if not fixes:
+        return ("REVIEW GATE: rounds: above 1 needs a `## fixes` section in review.md: "
+                "`- <class> | sweep: <how every place was found> | test: <test file>::<test>`, "
+                "or `- none: <why>` for a round that followed only PASS verdicts.")
+    nones = [f for f in fixes if re.match(r"^none[^\S\n]*:", f, flags=re.IGNORECASE)]
+    if nones:
+        reason = nones[0].split(":", 1)[1]
+        if len(fixes) > 1 or _is_placeholder(reason):
+            return ("REVIEW GATE: a `## fixes` entry `none: <why>` stands alone and says why "
+                    "the round followed only PASS verdicts.")
+        return None
+    for n, item in enumerate(fixes, 1):
+        fm = FIX_RE.match(item)
+        if not fm:
+            return f"REVIEW GATE: `## fixes` entry {n} lacks its class, sweep or test."
+        test = fm.group(1)
+        if not TEST_PATH_RE.match(test):
+            return (f"REVIEW GATE: the fix test `{test}` is not a test: it lives in "
+                    "`tests/**/test_*.py`, `dbt_project/tests/**.sql` or "
+                    "`site_v2/**/*.test.mjs`.")
+        if test not in branch_paths or not os.path.isfile(os.path.join(root, test)):
+            return (f"REVIEW GATE: the fix test `{test}` is not a file this branch changes. "
+                    "Each fix comes with a test that fails before the fix.")
     return None
 
 
@@ -931,6 +1001,14 @@ def _commit_gate(root: str) -> str | None:
     rounds_msg = _rounds_gate(text)
     if rounds_msg:
         return rounds_msg
+    try:
+        names = _cumulative_diff(root, ["--name-only", "-z"]).decode("utf-8", "replace")
+    except Exception:
+        return "REVIEW GATE: the branch's changed paths could not be listed (git diff failed)."
+    findings_msg = _findings_gate(
+        text, [p.replace("\\", "/") for p in names.split("\0") if p], root)
+    if findings_msg:
+        return findings_msg
     if "VERDICT: FAIL" in text:
         return "REVIEW GATE: a reviewer verdict is FAIL. Fix the findings and re-run the cycle."
     if text.count("VERDICT: ESCALATE") > text.count("CPO ANSWER:"):
