@@ -37,14 +37,22 @@ newest as (
     group by 1
 ),
 
+staged as (
+    select
+        {{ team_id_override('team_id') }} as team_id,
+        {{ player_id_override('player_id') }} as player_id,
+        raw_ingested_at
+    from {{ ref('stg_apif__squads') }}
+    where team_id is not null and player_id is not null
+),
+
 expected as (
     select distinct
-        {{ team_id_override('s.team_id') }} as team_id,
-        {{ player_id_override('s.player_id') }} as player_id
-    from {{ ref('stg_apif__squads') }} as s
+        s.team_id,
+        s.player_id
+    from staged as s
     inner join newest as n
-        on {{ team_id_override('s.team_id') }} = n.team_id and s.raw_ingested_at = n.raw_ingested_at
-    where s.team_id is not null and s.player_id is not null
+        on s.team_id = n.team_id and s.raw_ingested_at = n.raw_ingested_at
 ),
 
 held as (
