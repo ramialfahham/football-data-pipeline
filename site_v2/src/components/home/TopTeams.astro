@@ -19,8 +19,9 @@ import type { LandingTeamBoard } from "../../lib/types";
 interface Props {
   boards: LandingTeamBoard[];
   lang: Lang;
+  fallbackSeason?: string;
 }
-const { boards, lang } = Astro.props;
+const { boards, lang, fallbackSeason } = Astro.props;
 
 const leagueNames = [
   ...new Map(
@@ -31,7 +32,11 @@ const leagueNames = [
 
 <section>
   <SectionHead label={t(lang, "homeTopTeams")} />
-  <Explainer text={t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })} />
+  <Explainer
+    text={fallbackSeason
+      ? t(lang, "homeTopTeamsFallbackIntro", { season: fallbackSeason, leagues: leagueNames.join(", ") })
+      : t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })}
+  />
   {boards.map((board) => (
     <RankingBoard
       board={{ ...board, rows: board.rows.map((row, i) => ({ ...row, rank: i + 1 })) }}

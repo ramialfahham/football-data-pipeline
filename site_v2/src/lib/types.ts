@@ -568,6 +568,9 @@ export interface Landing {
   top_players?: LandingBoard[];
   /** Absent when no board had data, exactly as above (#41). */
   top_teams?: LandingTeamBoard[];
+  /** Present only when no slot is in season and the boards show the last completed season; the
+   *  season's label, which the intros name. */
+  fallback_season?: string;
 }
 
 /** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering

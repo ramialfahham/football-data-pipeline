@@ -190,6 +190,7 @@ const EN: Dict = {
   // carries every one of them equally.
   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
   homeTopPlayersIntro: "The top player from each league in this season's rankings: {leagues}.",
+  homeTopPlayersFallbackIntro: "The top player from each league in the rankings of the last completed season, {season}: {leagues}.",
   homeTopTeams: "Top teams",
   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
   // is a draft and nothing is awaiting sign-off.
@@ -203,6 +204,7 @@ const EN: Dict = {
   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
   // unapproved are the same accumulate-instead-of-replace failure. Replaced, not amended.
   homeTopTeamsIntro: "The top team from each league in this season's rankings: {leagues}.",
+  homeTopTeamsFallbackIntro: "The top team from each league in the rankings of the last completed season, {season}: {leagues}.",
   // A metric's second line: a value averaged over matches, or a share named by its count.
   perMatch: "per match",
   percentage: "percentage",
@@ -657,10 +659,12 @@ const DE: Dict = {
   // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
   homeTopPlayersIntro: "Der Top-Spieler jeder Liga in den Ranglisten dieser Saison: {leagues}.",
+  homeTopPlayersFallbackIntro: "Der Top-Spieler jeder Liga in den Ranglisten der letzten abgeschlossenen Saison {season}: {leagues}.",
   homeTopTeams: "Top-Mannschaften",
   // Approved copy (#41). It mirrors the DE players line above — both approved together — and
   // avoids "Führende", the German trap the "leader" rejection points at.
   homeTopTeamsIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten dieser Saison: {leagues}.",
+  homeTopTeamsFallbackIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten der letzten abgeschlossenen Saison {season}: {leagues}.",
   perMatch: "pro Spiel",
   percentage: "in Prozent",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
@@ -1107,10 +1111,12 @@ const FI: Dict = {
   homeNext: "Seuraavat ottelut",
   homeTopPlayers: "Kärkipelaajat",
   homeTopPlayersIntro: "Kunkin sarjan kärkipelaaja tämän kauden rankingeissa: {leagues}.",
+  homeTopPlayersFallbackIntro: "Kunkin sarjan kärkipelaaja viimeisimmän päättyneen kauden {season} rankingeissa: {leagues}.",
   homeTopTeams: "Kärkijoukkueet",
   // Approved copy (#41), mirroring the FI players line above — `kärkipelaaja` there,
   // `kärkijoukkue` here.
   homeTopTeamsIntro: "Kunkin sarjan kärkijoukkue tämän kauden rankingeissa: {leagues}.",
+  homeTopTeamsFallbackIntro: "Kunkin sarjan kärkijoukkue viimeisimmän päättyneen kauden {season} rankingeissa: {leagues}.",
   perMatch: "ottelua kohden",
   percentage: "prosentteina",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",

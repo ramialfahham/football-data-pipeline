@@ -1,0 +1,250 @@
+diff --git a/.claude/task/101-rotation-c-fallback-copy/contract.md b/.claude/task/101-rotation-c-fallback-copy/contract.md
+new file mode 100644
+index 00000000..b85a8bed
+--- /dev/null
++++ b/.claude/task/101-rotation-c-fallback-copy/contract.md
+@@ -0,0 +1,74 @@
++# Task contract — Home rotation, part C: the fallback intro copy
++
++objective: >
++  Issue #101, third of three merge requests. When no slot is in season, Home's Top players and
++  Top teams show the last completed season, and the intro says so by naming the season instead of
++  saying "this season's rankings". The page reads one optional key of landing.json,
++  fallback_season, which part B of the export will write; until then the key is absent and the
++  page reads exactly as it does today.
++
++refs: >
++  #101 (decision 2026-09-03 and its 2026-09-13 amendment: the fallback shows elite's last
++  completed season). The copy and the split into three merge requests are the coordinator's
++  rulings, 2026-11-23 and 2026-11-25. The sentences are in the MR head under "Core text,
++  approved by the merge".
++
++scope_paths:
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/components/home/TopPlayers.astro
++  - site_v2/src/components/home/TopTeams.astro
++  - site_v2/src/pages/*/index.astro
++  - site_v2/src/specs/index.spec.json
++  - site_v2/src/data/landing.json
++  - .claude/task/101-rotation-c-fallback-copy/contract.md
++  - .claude/task/101-rotation-c-fallback-copy/acceptance_evidence.md
++  - .claude/task/101-rotation-c-fallback-copy/review.md
++  - .claude/task/101-rotation-c-fallback-copy/review_input.patch
++
++impact_map: >
++  writers: none; the three i18n keys and one optional payload key are new. landing.json is in
++  scope only so the fallback render can be shown on the dev server with a temporary
++  fallback_season; it is restored and is not part of the diff.
++  downstream: the two components are leaves. `grep` over site_v2 finds homeTopPlayersIntro and
++  homeTopTeamsIntro only in strings.ts, the page spec index.spec.json and the two components, and
++  the components only in pages/[lang]/index.astro. Nothing else renders them.
++  layer_rules: the page composes served values and derives nothing; the season label is a served
++  string. check-page-specs.mjs, check_copy_gate.py and check_ui_i18n_metrics.py apply.
++  deploy_order: independent of the export. With the key absent the intros are unchanged, so this
++  can merge before or after part B.
++  blast_radius: none while landing.json has no fallback_season; with it, only the two intro
++  sentences of the home page change, in EN, DE and FI.
++
++acceptance_criteria:
++  - With the landing payload in fallback mode, Home's Top players intro names the season the board shows, in EN, DE and FI, in the rendered text of /en/, /de/ and /fi/.
++  - With the landing payload in fallback mode, Home's Top teams intro names the season the board shows, in EN, DE and FI.
++  - With the payload in season (no fallback key), both intros read exactly the sentence they read today, in all three locales.
++  - Both intros still name the leagues on the boards, in the order shown, in fallback and in season.
++
++approved_design:
++  - home: #127
++
++depends_on:
++  - none: the key is optional, so this needs no other merge request
++
++shared_files:
++  - none: no design baseline, component registry or font coverage file changes
++
++decisions_taken: >
++  The fallback intro is a second sentence per block and locale, naming the season and the leagues,
++  ruled by the coordinator on 2026-11-23 and shown to the CPO in the MR head under "Core text,
++  approved by the merge". The copy says "last completed season" and not "last season", because
++  an ingest gap can leave the fallback older than the season before the current one. No new
++  component, no new style, no recurring cost.
++
++decisions_reserved:
++  - none: the copy is core text approved by the merge, and nothing else is open.
++
++done_when:
++  - python scripts/check_copy_gate.py, check_ui_i18n_metrics.py and node site_v2/scripts/check-page-specs.mjs pass.
++  - node --test in site_v2 passes.
++  - python scripts/ci_local.py --mr is green, including validate:ui, apart from the known line-ending failure of tests/test_ci_local.py.
++  - acceptance_evidence.md shows the in-season and the fallback intros rendered in EN, DE and FI.
++
++amendments: (none)
+diff --git a/site_v2/src/components/home/TopPlayers.astro b/site_v2/src/components/home/TopPlayers.astro
+index 11337656..e84276f8 100644
+--- a/site_v2/src/components/home/TopPlayers.astro
++++ b/site_v2/src/components/home/TopPlayers.astro
+@@ -18,8 +18,9 @@ import type { LandingBoard } from "../../lib/types";
+ interface Props {
+   boards: LandingBoard[];
+   lang: Lang;
++  fallbackSeason?: string;
+ }
+-const { boards, lang } = Astro.props;
++const { boards, lang, fallbackSeason } = Astro.props;
+ 
+ const leagueNames = [
+   ...new Map(
+@@ -30,7 +31,11 @@ const leagueNames = [
+ 
+ <section>
+   <SectionHead label={t(lang, "homeTopPlayers")} />
+-  <Explainer text={t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })} />
++  <Explainer
++    text={fallbackSeason
++      ? t(lang, "homeTopPlayersFallbackIntro", { season: fallbackSeason, leagues: leagueNames.join(", ") })
++      : t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })}
++  />
+   {boards.map((board) => (
+     <RankingBoard
+       board={{ ...board, rows: board.rows.map((row, i) => ({ ...row, rank: i + 1 })) }}
+diff --git a/site_v2/src/components/home/TopTeams.astro b/site_v2/src/components/home/TopTeams.astro
+index 6a527c6a..08557811 100644
+--- a/site_v2/src/components/home/TopTeams.astro
++++ b/site_v2/src/components/home/TopTeams.astro
+@@ -19,8 +19,9 @@ import type { LandingTeamBoard } from "../../lib/types";
+ interface Props {
+   boards: LandingTeamBoard[];
+   lang: Lang;
++  fallbackSeason?: string;
+ }
+-const { boards, lang } = Astro.props;
++const { boards, lang, fallbackSeason } = Astro.props;
+ 
+ const leagueNames = [
+   ...new Map(
+@@ -31,7 +32,11 @@ const leagueNames = [
+ 
+ <section>
+   <SectionHead label={t(lang, "homeTopTeams")} />
+-  <Explainer text={t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })} />
++  <Explainer
++    text={fallbackSeason
++      ? t(lang, "homeTopTeamsFallbackIntro", { season: fallbackSeason, leagues: leagueNames.join(", ") })
++      : t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })}
++  />
+   {boards.map((board) => (
+     <RankingBoard
+       board={{ ...board, rows: board.rows.map((row, i) => ({ ...row, rank: i + 1 })) }}
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index dd411ed7..9ec0159a 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -190,6 +190,7 @@ const EN: Dict = {
+   // carries every one of them equally.
+   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
+   homeTopPlayersIntro: "The top player from each league in this season's rankings: {leagues}.",
++  homeTopPlayersFallbackIntro: "The top player from each league in the rankings of the last completed season, {season}: {leagues}.",
+   homeTopTeams: "Top teams",
+   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
+   // is a draft and nothing is awaiting sign-off.
+@@ -203,6 +204,7 @@ const EN: Dict = {
+   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
+   // unapproved are the same accumulate-instead-of-replace failure. Replaced, not amended.
+   homeTopTeamsIntro: "The top team from each league in this season's rankings: {leagues}.",
++  homeTopTeamsFallbackIntro: "The top team from each league in the rankings of the last completed season, {season}: {leagues}.",
+   // A metric's second line: a value averaged over matches, or a share named by its count.
+   perMatch: "per match",
+   percentage: "percentage",
+@@ -657,10 +659,12 @@ const DE: Dict = {
+   // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
+   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
+   homeTopPlayersIntro: "Der Top-Spieler jeder Liga in den Ranglisten dieser Saison: {leagues}.",
++  homeTopPlayersFallbackIntro: "Der Top-Spieler jeder Liga in den Ranglisten der letzten abgeschlossenen Saison {season}: {leagues}.",
+   homeTopTeams: "Top-Mannschaften",
+   // Approved copy (#41). It mirrors the DE players line above — both approved together — and
+   // avoids "Führende", the German trap the "leader" rejection points at.
+   homeTopTeamsIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten dieser Saison: {leagues}.",
++  homeTopTeamsFallbackIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten der letzten abgeschlossenen Saison {season}: {leagues}.",
+   perMatch: "pro Spiel",
+   percentage: "in Prozent",
+   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+@@ -1107,10 +1111,12 @@ const FI: Dict = {
+   homeNext: "Seuraavat ottelut",
+   homeTopPlayers: "Kärkipelaajat",
+   homeTopPlayersIntro: "Kunkin sarjan kärkipelaaja tämän kauden rankingeissa: {leagues}.",
++  homeTopPlayersFallbackIntro: "Kunkin sarjan kärkipelaaja viimeisimmän päättyneen kauden {season} rankingeissa: {leagues}.",
+   homeTopTeams: "Kärkijoukkueet",
+   // Approved copy (#41), mirroring the FI players line above — `kärkipelaaja` there,
+   // `kärkijoukkue` here.
+   homeTopTeamsIntro: "Kunkin sarjan kärkijoukkue tämän kauden rankingeissa: {leagues}.",
++  homeTopTeamsFallbackIntro: "Kunkin sarjan kärkijoukkue viimeisimmän päättyneen kauden {season} rankingeissa: {leagues}.",
+   perMatch: "ottelua kohden",
+   percentage: "prosentteina",
+   homeNoFixtures: "Ei otteluita tällä hetkellä.",
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 0ee8bba7..b5c6958d 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -568,6 +568,9 @@ export interface Landing {
+   top_players?: LandingBoard[];
+   /** Absent when no board had data, exactly as above (#41). */
+   top_teams?: LandingTeamBoard[];
++  /** Present only when no slot is in season and the boards show the last completed season; the
++   *  season's label, which the intros name. */
++  fallback_season?: string;
+ }
+ 
+ /** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering
+diff --git a/site_v2/src/pages/[lang]/index.astro b/site_v2/src/pages/[lang]/index.astro
+index 87a3050a..8aebda5f 100644
+--- a/site_v2/src/pages/[lang]/index.astro
++++ b/site_v2/src/pages/[lang]/index.astro
+@@ -70,7 +70,11 @@ const entity = {
+     {/* The KEY IS ABSENT, not empty, when no board had data (#40, #41) — the export omits it, so
+         each guard is the whole "block does not render" rule and neither block has an empty state.
+         This is the complete composition: next matches, Top players, Top teams (10_home.md §0). */}
+-    {data.top_players && <TopPlayers boards={data.top_players} lang={lang} />}
+-    {data.top_teams && <TopTeams boards={data.top_teams} lang={lang} />}
++    {data.top_players && (
++      <TopPlayers boards={data.top_players} lang={lang} fallbackSeason={data.fallback_season} />
++    )}
++    {data.top_teams && (
++      <TopTeams boards={data.top_teams} lang={lang} fallbackSeason={data.fallback_season} />
++    )}
+   </div>
+ </Layout>
+diff --git a/site_v2/src/specs/index.spec.json b/site_v2/src/specs/index.spec.json
+index d09061e3..700c6999 100644
+--- a/site_v2/src/specs/index.spec.json
++++ b/site_v2/src/specs/index.spec.json
+@@ -29,6 +29,7 @@
+       "i18n_keys": [
+         "homeTopPlayers",
+         "homeTopPlayersIntro",
++        "homeTopPlayersFallbackIntro",
+         "playerMetrics.scorerPoints.goals",
+         "playerMetrics.scorerPoints.assists",
+         "playerMetrics.passAccuracy.total",
+@@ -41,6 +42,7 @@
+       "i18n_keys": [
+         "homeTopTeams",
+         "homeTopTeamsIntro",
++        "homeTopTeamsFallbackIntro",
+         "metrics.goals_per_match.label",
+         "metrics.shots_on_target_per_match.label",
+         "metrics.passes_per_match.label",
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../101-rotation-c-fallback-copy/acceptance_evidence.md     | 13 +++++++++++++
+#    1 file changed, 13 insertions(+)
+# ============================================================================
