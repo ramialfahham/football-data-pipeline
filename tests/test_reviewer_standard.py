@@ -93,6 +93,28 @@ def test_section_2_states_every_rule():
         assert phrase in text, f"§2 lacks {phrase!r}"
 
 
+def test_section_2_states_the_tiers():
+    text = _flat(_section(_read(AGREEMENT), "**Blinding.**", "**Reviewer models.**"))
+    for phrase in (
+        "A text path (text, copy and docs) gets no AI reviewer",
+        "A territory path",
+        "gets one reviewer, the owner of the territory",
+        "A risk path (gates, hooks, CI, cost, prod writes, ingestion) gets the owner and one "
+        "specialist",
+        "never needs more than two reviewers",
+        "A branch's own tests and baselines add no reviewer",
+        "A test on a risk path keeps its reviewers; every other test adds none, a gate's own "
+        "test included",
+    ):
+        assert phrase in text, f"§2 Blinding lacks {phrase!r}"
+    assert "`scope-auditor` always" not in text
+
+
+def test_section_2_states_the_size_rule():
+    text = _flat(_section(_read(AGREEMENT), "### Review cycle", "**Blinding.**"))
+    assert "at most about 400 lines, tests and generated files not counted" in text
+
+
 def test_the_cap_is_one_rule():
     text = _flat(_read(AGREEMENT))
     split = ("the work is split: what passed lands, and the rest is split off into its own "

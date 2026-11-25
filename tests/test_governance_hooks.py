@@ -25,6 +25,9 @@ refs: test
 
 scope_paths:
   - dbt_project/models/allowed.sql
+  - dbt_project/models/new.sql
+  - dbt_project/models/t*st.sql
+  - tests/test_fix.py
   - docs/allowed_dir/
 
 depends_on:
@@ -492,7 +495,8 @@ def test_real_routing_parses_and_has_the_required_keys():
     for key in ("always", "paths", "artifact_only", "artifact_only_never",
                 "hash_exclude_paths"):
         assert key in r, f"review_routing.json lost its `{key}` key"
-    assert "scope-auditor" in r["always"]
+    assert r["always"] == []
+    assert r["max_reviewers"] == 2 and set(r["tiers"]) == {"risk", "territory"}
 
 
 def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
@@ -533,7 +537,6 @@ PINNED_CASES = [
     ("dbt_project/seeds/metric_catalogue.csv", "football-analytics-expert-reviewer"),
     ("ingestion/api_football/main.py", "data-engineer-reviewer"),
     ("docs/competition_registry.yml", "data-engineer-reviewer"),
-    ("docs/data_contract.md", "data-engineer-reviewer"),
     ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
     ("scripts/sync_dbt_vars.py", "platform-reviewer"),
     ("tests/test_governance_hooks.py", "platform-reviewer"),
@@ -558,9 +561,33 @@ PINNED_CASES = [
     ("scripts/design_inventory.py", "cto-reviewer"),
     ("tests/test_design_inventory.py", "cto-reviewer"),
     ("docs/design/components.yml", "cto-reviewer"),
-    ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
-    ("site/i18n/de.json", "bi-analyst-reviewer"),
     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
+    ("scripts/check_layer_contract.py", "cto-reviewer"),
+    ("scripts/security/scan.py", "cto-reviewer"),
+    ("scripts/merge_ready.py", "cto-reviewer"),
+    ("site_v2/scripts/check-dist.mjs", "cto-reviewer"),
+    ("scripts/ci_local.py", "cto-reviewer"),
+    ("deploy/nightly/README.md", "cto-reviewer"),
+    ("Dockerfile", "cto-reviewer"),
+    (".dockerignore", "cto-reviewer"),
+    (".gcloudignore", "cto-reviewer"),
+    (".gitleaks.toml", "cto-reviewer"),
+    (".pre-commit-config.yaml", "cto-reviewer"),
+    (".githooks/post-commit", "cto-reviewer"),
+    ("scripts/drop_legacy_tables.py", "cto-reviewer"),
+    ("scripts/diagnostics/probe.py", "cto-reviewer"),
+    ("scripts/cleanup_orphan_relations.py", "cto-reviewer"),
+    ("scripts/clear_apif_ingest_lock.py", "cto-reviewer"),
+    ("scripts/refetch_from_provider.py", "cto-reviewer"),
+    ("scripts/compare_fixture_statistics_live.py", "cto-reviewer"),
+    ("scripts/nightly_site_deploy.py", "cto-reviewer"),
+    ("scripts/sync_crests.py", "cto-reviewer"),
+    (".sqlfluff", "platform-reviewer"),
+    (".ruff-ci.toml", "platform-reviewer"),
+    (".gitattributes", "platform-reviewer"),
+    (".gitignore", "platform-reviewer"),
+    (".python-version", "platform-reviewer"),
+    (".nvmrc", "platform-reviewer"),
     # The build surface is named file by file because fnmatch's `*` crosses `/`.
     ("site_v2/package.json", "cto-reviewer"),
     ("site_v2/package-lock.json", "platform-reviewer"),
@@ -571,6 +598,20 @@ PINNED_CASES = [
     ("site_v2/integrations/seo-audit.mjs", "platform-reviewer"),
     ("site_v2/scripts/audit-seo.mjs", "platform-reviewer"),
     ("dbt_project/seeds/competition_registry.csv", "data-engineer-reviewer"),
+    ("docs/wireframes/block_standard.md", "cto-reviewer"),
+    ("docs/wireframes/approved_designs.yml", "bi-analyst-reviewer"),
+    ("design-mocks/gen_home.py", "bi-analyst-reviewer"),
+    ("design-mocks/check_handover.py", "cto-reviewer"),
+    (".gitleaksignore", "platform-reviewer"),
+    (".claude/skills/research-provider-errors/SKILL.md", "cto-reviewer"),
+    ("scripts/sync_metric_docs_blocks.py", "cto-reviewer"),
+    ("scripts/sync_dbt_vars.py", "cto-reviewer"),
+    ("scripts/get_new_league_codes.py", "cto-reviewer"),
+    ("scripts/wait_for_nightly.py", "cto-reviewer"),
+    ("scripts/stale_prod_nodes.py", "cto-reviewer"),
+    ("dbt_project/.sqlfluff", "cto-reviewer"),
+    ("dbt_project/packages.yml", "cto-reviewer"),
+    ("dbt_project/package-lock.yml", "analytics-engineer-reviewer"),
 ]
 
 
@@ -648,7 +689,7 @@ def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
     assert hits["seo-expert-reviewer"] == 0, (
         "a brief with no routing row must appear at zero, not be absent — that is "
         "the whole point of seeding the counter")
-    assert hits["scope-auditor"] == 2, "the always-on reviewer fires on every commit"
+    assert hits["scope-auditor"] == 0, "a brief with no routing row counts zero"
     assert hits["analytics-engineer-reviewer"] == 1 and hits["cto-reviewer"] == 1, (
         "the counting itself is now pinned, not only the roster")
 

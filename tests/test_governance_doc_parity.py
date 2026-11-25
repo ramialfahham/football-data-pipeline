@@ -122,22 +122,15 @@ def test_the_guard_path_counts_are_what_the_docs_claim():
     assert len(protected_paths()) == 14, (
         f"The guard set is now {sorted(protected_paths())}. Every prose site saying "
         "'fourteen' is stale; the count tests below name each one.")
-    assert len(shared_guard_paths()) == 7, (
-        f"platform-reviewer now shares {sorted(shared_guard_paths())} with the CTO.")
-    assert len(cto_alone_guard_paths()) == 7, (
-        f"The CTO now reviews {sorted(cto_alone_guard_paths())} alone.")
-    assert len(cto_routing_rows()) == 17, (
+    assert cto_alone_guard_paths() == {"docs/design/components.yml"}, (
+        f"platform-reviewer is missing from {sorted(cto_alone_guard_paths())}. A risk path "
+        "gets the owner and one specialist (working_agreement.md §2); platform owns every "
+        "guard path but the component registry, whose owner is bi-analyst-reviewer.")
+    assert _routing_paths()["docs/design/components.yml"] == [
+        "bi-analyst-reviewer", "cto-reviewer"]
+    assert len(cto_routing_rows()) == 54, (
         f"The CTO now has {len(cto_routing_rows())} routing rows, which is what "
         "north_star.md's role table counts.")
-    assert shared_guard_paths() == {
-        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml",
-        "scripts/check_design_inventory.py", "scripts/check_page_css.py",
-        "scripts/design_inventory.py", "tests/test_design_inventory.py"}, (
-        "The set platform-reviewer shares with the CTO changed. Widening it is a "
-        "RECURRING COST (a second opus specialist on every commit touching those "
-        "paths) and therefore CPO-class — .claude/review_routing.json's own _doc "
-        "records a review round that failed for widening it without a cost approval."
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -165,38 +158,29 @@ COUNT_SITES = (
     (".claude/agents/cto-reviewer.md",
      r"on any of the (\w+) guard paths", [_guard_total]),
     (".claude/agents/cto-reviewer.md",
-     r"routed alongside you, also at opus, on exactly (\w+) of them", [_shared]),
-    (".claude/agents/cto-reviewer.md",
-     r"On the other (\w+) you are the only", [_cto_alone]),
+     r"routed alongside you, also at opus, on (\w+) of them\.", [_shared]),
     (".claude/agents/cto-reviewer.md",
      r"spawned at opus on all (\w+) guard paths", [_guard_total]),
 
     (".claude/agents/platform-reviewer.md",
      r"on the (\w+) guard paths you are routed to", [_shared]),
-    (".claude/agents/platform-reviewer.md",
-     r"NOT routed to the other (\w+) guard paths", [_cto_alone]),
 
     (".claude/review_routing.json",
-     r"joins cto-reviewer on exactly (\w+) of the (\w+)", [_shared, _guard_total]),
-    (".claude/review_routing.json", r"docs must say (\w+)", [_shared]),
-    (".claude/review_routing.json", r"floor on those (\w+)", [_shared]),
-    (".claude/review_routing.json",
-     r"The other (\w+) go to cto-reviewer ALONE", [_cto_alone]),
+     r"reviews all (\w+) protected paths", [_guard_total]),
+    (".claude/review_routing.json", r"platform-reviewer joins it on (\w+),", [_shared]),
 
     ("docs/working_agreement.md",
-     r"means `cto-reviewer` on all (\w+),", [_guard_total]),
-    ("docs/working_agreement.md",
-     r"`platform-reviewer` on exactly (\w+) of them", [_shared]),
-    ("docs/working_agreement.md",
-     r"deliberately absent from the other (\w+),", [_cto_alone]),
+     r"means `cto-reviewer` on all (\w+), `platform-reviewer` on (\w+)",
+     [_guard_total, _shared]),
 
     ("docs/roles/platform_reliability.md",
-     r"On exactly (\w+) of the (\w+) guard paths", [_shared, _guard_total]),
-    ("docs/roles/platform_reliability.md",
-     r"the other (\w+) it is not routed at all", [_cto_alone]),
+     r"On (\w+) of the (\w+) guard paths\*\* this role", [_shared, _guard_total]),
 
     ("docs/north_star.md",
      r"\*\*(\d+) rows\*\*: the (\d+) guard paths", [_cto_rows, _guard_total]),
+    ("docs/north_star.md",
+     r"`\*requirements\*\.txt`, (\d+) of the (\d+) guard paths, the gate",
+     [_shared, _guard_total]),
 )
 
 
@@ -349,14 +333,14 @@ def test_known_incomplete_lists_have_not_been_fixed(key):
     )
 
 
-def test_the_platform_role_row_names_only_the_shared_guard_paths():
+def test_the_platform_role_row_counts_its_guard_paths():
     text = normalise("docs/north_star.md")
     row = re.search(r"\| \[Platform and Reliability\][^|]*\|[^|]*\|([^|]*)\|", text)
     assert row, "The Platform and Reliability row is no longer parseable in north_star.md."
     named = {p for p in protected_paths() if p in row.group(1)}
-    assert named == shared_guard_paths(), (
-        f"north_star.md's Platform row names guard paths {sorted(named)}, "
-        f"but routing gives it {sorted(shared_guard_paths())}."
+    assert not named, (
+        f"north_star.md's Platform row names guard paths {sorted(named)} one by one; "
+        "the count site above checks its number against routing."
     )
 
 

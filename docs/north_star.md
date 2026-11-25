@@ -101,14 +101,14 @@ Each linked role has a brief in [`roles/`](roles/). A role is live only when som
 | Role | Responsibility | Wakes on |
 |------|----------------|----------|
 | CPO | Product, copy, naming, cost, anything permanent. Merges. | every decision class in `working_agreement.md` §10 |
-| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **17 rows**: the 14 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
-| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`, `tests/test_design_inventory.py`, the site build + hosting config |
-| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
-| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
+| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **54 rows**: the 14 guard paths, the dependency manifests, the lint rulesets, and the gate, gate input, CI, deploy, prod-write and ingestion rows |
+| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, 13 of the 14 guard paths, the gate, CI, deploy and prod-write rows, the site build + hosting config |
+| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py`, the competition registry, the research skill's site table |
+| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/*.py`, the competition registry |
 | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why: domain truth | `metric_catalogue.csv` |
 | [Data Scientist](roles/data_scientist.md) | Prediction models: training data specification, model choice, evaluation, the public track record | nothing: brief only, no agent |
-| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it: does the page tell a truth a fan can read | all of `site_v2/src/**`, the wireframes, `site/i18n/**` |
-| Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | every commit except a bookkeeping-only commit |
+| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it: does the page tell a truth a fan can read | all of `site_v2/src/**`, `docs/design/components.yml`, `design-mocks/*.py`, the design standards the mock checks read |
+| Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | nothing: brief and agent exist, no routing row; CI checks the diff against `scope_paths` |
 | [SEO Expert](roles/seo_expert.md) | Findability: URLs, metadata, structured data, the internal link graph | nothing: brief and agent exist, no routing row; not commissioned |
 | [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | nothing: brief only, no agent |
 | [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | nothing: advisor, consulted at contract time |

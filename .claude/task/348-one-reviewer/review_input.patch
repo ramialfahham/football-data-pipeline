@@ -1,0 +1,1672 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index d27371cb..96ed519c 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -10,6 +10,9 @@ You are the Analytics-Engineer reviewer: the owner of warehouse correctness.
+ You are NOT the builder. Judge the change against the standard at the end of this brief; praise and positive adjectives are banned from your
+ output. Finding no violation is a legitimate outcome — report what you examined
+ and pass.
++You also own `.claude/skills/research-provider-errors/SKILL.md`, with `cto-reviewer` beside
++you. Its site table lists the sources a correction seed may cite, and a research-fix MR citing
++them merges itself.
+ 
+ ## Inputs
+ 
+diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
+index 9762e3f4..7d0e5bdb 100644
+--- a/.claude/agents/bi-analyst-reviewer.md
++++ b/.claude/agents/bi-analyst-reviewer.md
+@@ -1,6 +1,6 @@
+ ---
+ name: bi-analyst-reviewer
+-description: Adversarial display-contract reviewer (BI Analyst role). Reviews wireframe specs and the entire built frontend (site_v2/src/**) — pages, components, committed data, the metric row contract, formatting and i18n labels — against the locked metric display contract and the binding rule. Dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
++description: Adversarial display-contract reviewer (BI Analyst role). Reviews the entire built frontend (site_v2/src/**) — pages, components, committed data, the metric row contract, formatting and i18n labels — against the locked metric display contract and the binding rule. Dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
+ tools: Read, Grep, Glob
+ model: sonnet
+ effort: high
+@@ -9,8 +9,13 @@ effort: high
+ You are the BI-Analyst reviewer: owner of what fans are shown and how
+ honestly. You are NOT the builder. Judge the change against the standard at the end of this brief; praise banned. Finding none is a legitimate outcome —
+ report what you examined and pass. Your
+-territory: `docs/wireframes/`, ALL of the built frontend (`site_v2/src/**`), and
+-`site/i18n/`. Specs and pages both — the rule is written in one and broken in
++territory: ALL of the built frontend (`site_v2/src/**`) and the component registry
++(`docs/design/components.yml`). On the registry `cto-reviewer` sits beside you, and both of
++you are spawned at opus. You also own the mock scripts (`design-mocks/*.py`) and the
++two standards their checks read (`docs/wireframes/block_standard.md`,
++`docs/wireframes/approved_designs.yml`). On those standards and the `check_*.py` mock checks,
++`cto-reviewer` sits beside you. You judge pages against
++the specs in `docs/wireframes/`; the rule is written in one and broken in
+ the other. You READ `scripts/export_site_data.py` to verify field bindings, but
+ you are NOT routed to review it: export changes go to the analytics-engineer and
+ the CTO.
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index 1af18170..cecaf5a2 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -33,15 +33,13 @@ should not exist, or not without an approval that is missing".
+ > `scripts/check_page_css.py`, `scripts/design_inventory.py`,
+ > `tests/test_design_inventory.py`, `docs/design/components.yml`) — guard bypasses are the highest-stakes findings (the G3
+ > commit-gate bypasses were caught only at that depth, rounds 2-5).
+-> `platform-reviewer` is routed alongside you, also at opus, on exactly SEVEN of
+-> them: `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+-> `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
+-> `scripts/design_inventory.py` and `tests/test_design_inventory.py`. **On the other seven you are
+-> the only required specialist.** Only the always-on `scope-auditor` sits beside you.
++> `platform-reviewer` is routed alongside you, also at opus, on thirteen of them.
++> On `docs/design/components.yml` it is `bi-analyst-reviewer`.
+ > That includes `.claude/agents/**`, where the file under edit may be THIS ONE.
+-> You are therefore the whole specialist guard against a builder weakening its own adversary. Procedural rule, not hook-enforced. Re-check it
+-> against `review_routing.json` rather than restating it from memory: the split's
+-> own review caught this claim wrong twice.
++> Procedural rule, not hook-enforced. Re-check it against `review_routing.json`
++> rather than restating it from memory.
++> On the other risk paths (gates, CI, deploy, prod writes, ingestion) you are the
++> specialist beside the owner, at the sonnet floor.
+ 
+ ## Inputs
+ 
+@@ -74,8 +72,8 @@ should not exist, or not without an approval that is missing".
+    CPO-class and may never be absorbed silently.
+ 6. **Credentials and secrets**: anything resembling a key, token, password or
+    credential in the diff, or a workflow permission widening → FAIL. You keep
+-   this **in addition to** `platform-reviewer` and `scope-auditor`. The reason is
+-   coverage at depth. You are the only reviewer spawned at opus on all fourteen
++   this **in addition to** `platform-reviewer` and the `validate:secrets` CI job. The reason is
++   coverage at depth. You are spawned at opus on all fourteen
+    guard paths. `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
+    are precisely the file class that carries env blocks and tokens. The first
+    version of the split moved this item away from you, which left a secret in
+@@ -109,9 +107,8 @@ should not exist, or not without an approval that is missing".
+    cost can appear in ANY file, so no routing row can find them and you only see
+    them if the builder wrote them down. Read `decisions_taken:` and compare it to
+    the diff. A crossing that is not declared with its authority → FAIL. Be
+-   explicit that this is the weakest link in the system: no gate parses that
+-   field, so the declaration rests on the builder's honesty and on the always-on
+-   scope-auditor. Treat an absent declaration as a defect, never as an oversight
++   explicit that this is the weakest link in the system. No gate parses that
++   field, so the declaration rests on the builder's honesty. Treat an absent declaration as a defect, never as an oversight
+    to be excused.
+ 
+ ## Verdict rules (no free passes)
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+index 162c6e20..b7d95f21 100644
+--- a/.claude/agents/platform-reviewer.md
++++ b/.claude/agents/platform-reviewer.md
+@@ -26,22 +26,13 @@ page displays (`bi-analyst-reviewer`), what a number means
+ (`football-analytics-expert-reviewer`).
+ 
+ > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
+-> to `opus` at spawn time on the SEVEN guard paths you are routed to:
+-> `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+-> `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
+-> `scripts/design_inventory.py` and `tests/test_design_inventory.py`. Guard bypasses are the
++> to `opus` at spawn time on the thirteen guard paths you are routed to, beside
++> `cto-reviewer`. Guard bypasses are the
+ > highest-stakes findings (the G3 commit-gate bypasses were caught only at that
+ > depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
+ > YOUR items — that is why you are there at all.
+-> You are deliberately NOT routed to the other seven guard paths
+-> (`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
+-> `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `docs/design/components.yml`). Two reasons, and
+-> the second one binds: a brief or a routing table is a prompt rather than
+-> machinery, so none of your hunt items reach it and your verdict would be a rubber
+-> stamp; and adding you there would put two opus specialists where one ran, which
+-> is a recurring cost and therefore the CPO's to approve. Round 2 of this branch's
+-> own review widened those rows and was failed for exactly that. Procedural rule,
+-> not hook-enforced.
++> On a reviewer brief or a routing table, your item is whether a test pins the
++> changed behaviour. Procedural rule, not hook-enforced.
+ 
+ ## Inputs
+ 
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 843bd505..3e122922 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -1,6 +1,6 @@
+ ---
+ name: scope-auditor
+-description: Adversarial governance reviewer (the CPO's proxy). Reviews the cumulative branch diff against the task contract and the decision-rights table before any commit. Read-only. Invoked in step 2 (Blinding) of the review cycle — never for building.
++description: Adversarial governance reviewer (the CPO's proxy). Reviews the cumulative branch diff against the task contract and the decision-rights table before any commit. Read-only. NOT ROUTED — no MR requires it; CI checks the diff against scope_paths.
+ tools: Read, Grep, Glob
+ model: sonnet
+ effort: medium
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index b5ae1e46..03b7e492 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -342,16 +342,58 @@ def _load_routing(root: str) -> dict | None:
+         return None
+ 
+ 
+-def _required_reviewers(paths: list[str], routing: dict) -> set[str]:
++def _path_reviewers(path: str, routing: dict) -> set[str]:
++    import fnmatch
++    return {r for pattern, reviewers in (routing.get("paths") or {}).items()
++            if fnmatch.fnmatch(path, pattern) for r in reviewers}
++
++
++def _is_companion(path: str, routing: dict) -> bool:
++    """A test or baseline outside the risk tier: it adds no reviewer to a branch that has one."""
+     import fnmatch
++    top = max((t.get("reviewers", 0) for t in (routing.get("tiers") or {}).values()), default=0)
++    return (any(fnmatch.fnmatch(path, g) for g in routing.get("companion_paths") or [])
++            and _tier_of(path, routing) < top)
++
++
++def _required_reviewers(paths: list[str], routing: dict) -> set[str]:
+     required = set(routing.get("always") or [])
+     for path in paths:
+-        for pattern, reviewers in (routing.get("paths") or {}).items():
+-            if fnmatch.fnmatch(path, pattern):
+-                required.update(reviewers)
++        if not _is_companion(path, routing):
++            required |= _path_reviewers(path, routing)
++    if not required:
++        for path in paths:
++            required |= _path_reviewers(path, routing)
+     return required
+ 
+ 
++def _tier_of(path: str, routing: dict) -> int:
++    """The reviewer count a path's tier needs: the highest matching tier, 0 for a text path."""
++    import fnmatch
++    return max((t.get("reviewers", 0) for t in (routing.get("tiers") or {}).values()
++                if any(fnmatch.fnmatch(path, g) for g in t.get("paths") or [])), default=0)
++
++
++def _tier_gate(paths: list[str], routing: dict) -> str | None:
++    """Reason to deny on the review tiers (docs/working_agreement.md §2 Blinding), or None."""
++    cap = routing.get("max_reviewers")
++    if not routing.get("tiers") or cap is None:
++        return None
++    paths = [p.replace("\\", "/") for p in paths]
++    for path in paths:
++        want, got = _tier_of(path, routing), _path_reviewers(path, routing)
++        if len(got) != want:
++            return (f"REVIEW GATE: `{path}` needs {want} reviewer(s) by its tier in {ROUTING_REL}, "
++                    f"and its `paths` rows give {len(got)} ({', '.join(sorted(got)) or 'none'}). "
++                    "Fix its row in a governance task.")
++    need = _required_reviewers(paths, routing)
++    if len(need) > cap:
++        return (f"REVIEW GATE: this branch needs {len(need)} reviewers ({', '.join(sorted(need))}) "
++                f"and the most a branch may need is {cap}. Split it into MRs that merge one after "
++                "another (docs/working_agreement.md §2).")
++    return None
++
++
+ def _hash_exclude_pathspec(routing: dict | None) -> list[str]:
+     """Git pathspec excluding the bookkeeping artifacts from the review diff
+     (F11/#409): `-- . :(exclude)<path>...`. contract.md is deliberately NOT in
+@@ -962,6 +1004,19 @@ def _commit_gate(root: str) -> str | None:
+     acceptance_msg = _acceptance_gate(root, paths, folder)
+     if acceptance_msg:
+         return acceptance_msg
++    try:
++        names = _cumulative_diff(root, ["--name-only", "-z"]).decode("utf-8", "replace")
++    except Exception:
++        return ("REVIEW GATE: the branch's changed paths could not be listed and the review hash "
++                "could not be computed: the base commit did not resolve, or git diff failed. "
++                "Fetch the base branch (or set GOVERNANCE_BASE) and retry.")
++    branch_paths = [p.replace("\\", "/") for p in names.split("\0") if p]
++    tier_msg = _tier_gate(branch_paths, routing)
++    if tier_msg:
++        return tier_msg
++    required = _required_reviewers(branch_paths + paths, routing)
++    if not required:
++        return None                      # text only: no reviewer is required
+     review_rel = folder + REVIEW_NAME
+     review_path = os.path.join(root, review_rel)
+     if not os.path.isfile(review_path):
+@@ -1001,12 +1056,7 @@ def _commit_gate(root: str) -> str | None:
+     rounds_msg = _rounds_gate(text)
+     if rounds_msg:
+         return rounds_msg
+-    try:
+-        names = _cumulative_diff(root, ["--name-only", "-z"]).decode("utf-8", "replace")
+-    except Exception:
+-        return "REVIEW GATE: the branch's changed paths could not be listed (git diff failed)."
+-    findings_msg = _findings_gate(
+-        text, [p.replace("\\", "/") for p in names.split("\0") if p], root)
++    findings_msg = _findings_gate(text, branch_paths, root)
+     if findings_msg:
+         return findings_msg
+     if "VERDICT: FAIL" in text:
+@@ -1027,7 +1077,7 @@ def _commit_gate(root: str) -> str | None:
+                 "CPO ANSWER in that section. Record the answer next to the "
+                 "question, then commit."
+             )
+-    for reviewer in sorted(_required_reviewers(paths, routing)):
++    for reviewer in sorted(required):
+         body = sections.get(reviewer)
+         if body is None or ("VERDICT:" not in body):
+             return (
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index 3b4aa07b..6ebce488 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -92,54 +92,14 @@
+     "detects it. A test now asserts every pattern string appears exactly once in",
+     "the raw file text. Found by the pre-CPO plan challenge, not in review.",
+     "",
+-    "GUARD PATHS: platform-reviewer joins cto-reviewer on exactly SEVEN of the",
+-    "fourteen — .claude/hooks/**, .github/workflows/**, .gitlab-ci.yml and the four",
+-    "design-check files (scripts/check_design_inventory.py, scripts/check_page_css.py,",
+-    "scripts/design_inventory.py, tests/test_design_inventory.py) — and the",
+-    "docs must say SEVEN. The",
+-    "CTO rules on authority (is protected_override present, is this a new",
+-    "mechanism, may this guard weaken); platform reviews the implementation (does",
+-    "it fail open, do the tests cover it, is it re-run safe). Both carry the opus",
+-    "floor on those seven. The other seven go to cto-reviewer ALONE plus the",
+-    "always-on scope-auditor.",
+-    "",
+-    ".gitlab-ci.yml joined on the GitHub->GitLab migration (2026-08). It is the",
+-    "SAME authority .github/workflows/** carried — the file that decides what CI",
+-    "enforces — so it inherits the same two reviewers and the same opus floor;",
+-    "letting the CI gate move hosts and quietly lose two required reviewers is",
+-    "exactly the silent-downgrade this file exists to prevent. Both rows are kept",
+-    "while the GitHub repo still exists as a frozen mirror. When it is retired and",
+-    ".github/workflows/** is deleted, this returns to twelve paths and SIX — update",
+-    "these counts in the same commit that deletes the row.",
+-    "This was churned once and the churn is worth recording. Review round 1 caught",
+-    "three documents claiming BOTH reviewers on all EIGHT guard paths while routing",
+-    "gave platform two. There were two ways to fix that: widen the rows, or correct",
+-    "the prose. Round 2 widened the rows to six, and review round 2 correctly",
+-    "failed it — two opus specialists where one ran before is a RECURRING COST, and",
+-    "cost is CPO-class, so the cheap fix (correct the prose) was the right one and",
+-    "the rows went back to two. Do not widen them without a cost approval recorded in",
+-    "decisions_taken. A doc/row mismatch is fixed by editing whichever side is",
++    "GUARD PATHS: cto-reviewer reviews all fourteen protected paths at the opus",
++    "floor. platform-reviewer joins it on thirteen, and on docs/design/components.yml",
++    "the owner beside it is bi-analyst-reviewer, so a page that registers its",
++    "component needs two reviewers, not three. The CTO rules on authority (is",
++    "protected_override present, is this a new mechanism, may this guard weaken);",
++    "platform reviews the implementation (does it fail open, do the tests cover it,",
++    "is it re-run safe). A doc/row mismatch is fixed by editing whichever side is",
+     "wrong, and the wrong side is almost always the prose.",
+-    "They stand at THREE since 2026-08 — .gitlab-ci.yml, widened WITH the cost",
+-    "approval the sentence above demands (CPO 2026-08-06, quoted in that task's",
+-    "decisions_taken under RECURRING COST and recorded in escalations.log). Net",
+-    "against the pre-migration baseline that widening is zero: it restores what",
+-    ".github/workflows/** already carried onto the file that replaced it.",
+-    "Platform is deliberately absent from .claude/agents/** — a reviewer brief is a",
+-    "prompt, not machinery, so none of its hunt items apply and its verdict would",
+-    "be a rubber stamp, which is worse than absent. On that path the CTO is the",
+-    "whole specialist guard against a builder weakening its own adversary.",
+-    "KNOWN HOLE, stated rather than left implicit (platform-reviewer, round 2). The",
+-    "question 'does a test pin this changed behaviour' is platform's hunt item, and",
+-    "platform is not routed to .claude/agents/** or to this file. For the `paths`",
+-    "rows the hole is closed by machinery: test_every_routing_pattern_is_pinned_by",
+-    "_the_test_above forces any pattern change to also edit tests/**, which routes",
+-    "platform in. That mitigation does NOT exist for the `always` array or for an",
+-    "agent brief. So on a diff that removes scope-auditor from `always`, or edits a",
+-    "brief, no required specialist is asked whether a test pins it — only the CTO on",
+-    "authority and the always-on auditor on scope. Accepted for now; closing it",
+-    "means either routing platform to these paths (a cost the CPO must approve) or",
+-    "pinning the `always` array in a test the way the patterns are pinned.",
+     "The first draft gave platform the fail-open/fail-closed item at sonnet and",
+     "kept the CTO at opus on authority alone; the pre-CPO challenge showed that",
+     "hollows out the very depth the opus pin exists for, since the G3 commit-gate",
+@@ -164,7 +124,54 @@
+     "but not commissioned; it remains its own governance event. It fires on",
+     "nothing today. Do not read the split as having routed it."
+   ],
+-  "always": ["scope-auditor"],
++  "always": [],
++
++  "_doc_tiers": [
++    "REVIEW TIERS (docs/working_agreement.md §2 Blinding). A path's tier is the highest",
++    "tier whose `paths` glob matches it; a path no tier matches is TEXT and needs no",
++    "reviewer. A territory path needs its one owner; a risk path the owner and one",
++    "specialist. `git_discipline._tier_gate` refuses a changed path whose `paths` rows",
++    "give a different number of reviewers than its tier, and a branch that needs more",
++    "than `max_reviewers`. tests/test_review_tiers.py runs the same check on every",
++    "tracked file. `ingestion/*.py`, not `ingestion/**`, so the ingestion requirements",
++    "file gets the dependency pair and not three reviewers.",
++    "A `companion_paths` file (a test or a baseline) adds no reviewer to a branch whose",
++    "other paths need one; a branch of only companions and text needs their owners. A",
++    "companion in the risk tier (tests/test_design_inventory.py, site_v2/scripts/check-*.test.mjs)",
++    "keeps its reviewers; every other test adds none, a gate's own test included."
++  ],
++  "max_reviewers": 2,
++  "companion_paths": ["tests/**", "dbt_project/tests/**", "site_v2/**/*.test.mjs"],
++  "tiers": {
++    "risk": {"reviewers": 2, "paths": [
++      ".claude/hooks/**", ".claude/agents/**", ".claude/commands/**",
++      ".claude/settings.json", ".claude/review_routing.json", ".mcp.json",
++      ".cursor/mcp.json", ".github/workflows/**", ".gitlab-ci.yml",
++      "scripts/check_design_inventory.py", "scripts/check_page_css.py",
++      "scripts/design_inventory.py", "tests/test_design_inventory.py",
++      "docs/design/components.yml", "docs/wireframes/block_standard.md",
++      "docs/wireframes/approved_designs.yml", "design-mocks/check_*.py", ".gitleaksignore",
++      "*requirements*.txt", "site_v2/package.json", "site_v2/package-lock.json",
++      "scripts/check_*.py", "scripts/security/**", "scripts/merge_ready.py",
++      "site_v2/scripts/check-*.mjs", ".claude/skills/research-provider-errors/SKILL.md",
++      "scripts/sync_metric_docs_blocks.py", "scripts/sync_dbt_vars.py", ".ruff-ci.toml",
++      "dbt_project/.sqlfluff", ".python-version", ".nvmrc", "dbt_project/packages.yml",
++      "dbt_project/package-lock.yml", "scripts/get_new_league_codes.py",
++      "scripts/wait_for_nightly.py", "scripts/stale_prod_nodes.py",
++      "scripts/ci_local.py", "deploy/**", "Dockerfile", ".dockerignore", ".gcloudignore",
++      ".gitleaks.toml", ".pre-commit-config.yaml", ".githooks/**",
++      "scripts/drop_*.py", "scripts/diagnostics/**", "scripts/cleanup_orphan_relations.py",
++      "scripts/clear_apif_ingest_lock.py", "scripts/refetch_from_provider.py",
++      "scripts/compare_fixture_statistics_live.py", "scripts/nightly_site_deploy.py",
++      "scripts/sync_crests.py", "scripts/export_*.py",
++      "ingestion/**", "docs/competition_registry.yml",
++      "dbt_project/seeds/competition_registry.csv", "dbt_project/seeds/metric_catalogue.csv"
++    ]},
++    "territory": {"reviewers": 1, "paths": [
++      "dbt_project/**", "site_v2/**", "scripts/**", "tests/**", ".sqlfluff",
++      ".gitattributes", ".gitignore", "design-mocks/*.py"
++    ]}
++  },
+   "agent_merge_paths": [
+     "dbt_project/seeds/fixture_card_corrections.csv",
+     "dbt_project/seeds/fixture_goal_corrections.csv",
+@@ -187,13 +194,53 @@
+     "scripts/check_page_css.py": ["cto-reviewer", "platform-reviewer"],
+     "scripts/design_inventory.py": ["cto-reviewer", "platform-reviewer"],
+     "tests/test_design_inventory.py": ["cto-reviewer", "platform-reviewer"],
+-    "docs/design/components.yml": ["cto-reviewer"],
+-    ".claude/agents/**": ["cto-reviewer"],
+-    ".claude/commands/**": ["cto-reviewer"],
+-    ".claude/settings.json": ["cto-reviewer"],
+-    ".claude/review_routing.json": ["cto-reviewer"],
+-    ".mcp.json": ["cto-reviewer"],
+-    ".cursor/mcp.json": ["cto-reviewer"],
++    "docs/design/components.yml": ["bi-analyst-reviewer", "cto-reviewer"],
++    "docs/wireframes/block_standard.md": ["bi-analyst-reviewer", "cto-reviewer"],
++    "docs/wireframes/approved_designs.yml": ["bi-analyst-reviewer", "cto-reviewer"],
++    "design-mocks/*.py": ["bi-analyst-reviewer"],
++    "design-mocks/check_*.py": ["bi-analyst-reviewer", "cto-reviewer"],
++    ".claude/agents/**": ["cto-reviewer", "platform-reviewer"],
++    ".claude/commands/**": ["cto-reviewer", "platform-reviewer"],
++    ".claude/settings.json": ["cto-reviewer", "platform-reviewer"],
++    ".claude/review_routing.json": ["cto-reviewer", "platform-reviewer"],
++    ".mcp.json": ["cto-reviewer", "platform-reviewer"],
++    ".cursor/mcp.json": ["cto-reviewer", "platform-reviewer"],
++    "scripts/check_*.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/security/**": ["cto-reviewer", "platform-reviewer"],
++    "scripts/merge_ready.py": ["cto-reviewer", "platform-reviewer"],
++    ".claude/skills/research-provider-errors/SKILL.md": ["analytics-engineer-reviewer", "cto-reviewer"],
++    "site_v2/scripts/check-*.mjs": ["cto-reviewer", "platform-reviewer"],
++    "scripts/ci_local.py": ["cto-reviewer", "platform-reviewer"],
++    "deploy/**": ["cto-reviewer", "platform-reviewer"],
++    "Dockerfile": ["cto-reviewer", "platform-reviewer"],
++    ".dockerignore": ["cto-reviewer", "platform-reviewer"],
++    ".gcloudignore": ["cto-reviewer", "platform-reviewer"],
++    ".gitleaks.toml": ["cto-reviewer", "platform-reviewer"],
++    ".gitleaksignore": ["cto-reviewer", "platform-reviewer"],
++    ".pre-commit-config.yaml": ["cto-reviewer", "platform-reviewer"],
++    ".githooks/**": ["cto-reviewer", "platform-reviewer"],
++    "scripts/drop_*.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/diagnostics/**": ["cto-reviewer", "platform-reviewer"],
++    "scripts/cleanup_orphan_relations.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/clear_apif_ingest_lock.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/refetch_from_provider.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/compare_fixture_statistics_live.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/nightly_site_deploy.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/sync_crests.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/sync_metric_docs_blocks.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/sync_dbt_vars.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/get_new_league_codes.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/wait_for_nightly.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/stale_prod_nodes.py": ["cto-reviewer", "platform-reviewer"],
++    "dbt_project/.sqlfluff": ["analytics-engineer-reviewer", "cto-reviewer"],
++    "dbt_project/packages.yml": ["analytics-engineer-reviewer", "cto-reviewer"],
++    "dbt_project/package-lock.yml": ["analytics-engineer-reviewer", "cto-reviewer"],
++    ".sqlfluff": ["platform-reviewer"],
++    ".ruff-ci.toml": ["cto-reviewer", "platform-reviewer"],
++    ".gitattributes": ["platform-reviewer"],
++    ".gitignore": ["platform-reviewer"],
++    ".python-version": ["cto-reviewer", "platform-reviewer"],
++    ".nvmrc": ["cto-reviewer", "platform-reviewer"],
+     "site_v2/package.json": ["cto-reviewer", "platform-reviewer"],
+     "site_v2/package-lock.json": ["cto-reviewer", "platform-reviewer"],
+     "site_v2/astro.config.mjs": ["platform-reviewer"],
+@@ -202,11 +249,8 @@
+     "site_v2/.gitignore": ["platform-reviewer"],
+     "site_v2/integrations/**": ["platform-reviewer"],
+     "site_v2/scripts/**": ["platform-reviewer"],
+-    "ingestion/**": ["data-engineer-reviewer"],
+-    "docs/competition_registry.yml": ["data-engineer-reviewer"],
+-    "docs/data_contract.md": ["data-engineer-reviewer"],
+-    "docs/wireframes/**": ["bi-analyst-reviewer"],
+-    "site/i18n/**": ["bi-analyst-reviewer"],
++    "ingestion/*.py": ["data-engineer-reviewer", "cto-reviewer"],
++    "docs/competition_registry.yml": ["data-engineer-reviewer", "analytics-engineer-reviewer"],
+     "site_v2/src/**": ["bi-analyst-reviewer"]
+   },
+   "artifact_only": [
+diff --git a/.claude/task/348-one-reviewer/contract.md b/.claude/task/348-one-reviewer/contract.md
+new file mode 100644
+index 00000000..ef34d089
+--- /dev/null
++++ b/.claude/task/348-one-reviewer/contract.md
+@@ -0,0 +1,198 @@
++# Task contract — review effort weighted by risk: tiers and the two-reviewer cap (#348, MR A)
++
++objective: >
++  Review effort follows risk. Text, copy and docs get no AI reviewer; a territory path (site pages,
++  dbt, scripts, tests, the site build, the mock scripts) gets its one owner; a risk path (gates and
++  their inputs, hooks, CI, cost, prod writes, ingestion) gets the owner and one specialist; no
++  branch needs more than two reviewers. A
++  branch's own tests and baselines add no reviewer. The commit gate and its CI backstop check the
++  tiers; the CI backstop also checks the diff against scope_paths, the scope-auditor's first item.
++refs: "#348, MR A of two; MR B (the proof rule, closing a finding, the round cap of 2) follows after this merges; #349 is separate and not built here"
++
++scope_paths:
++  - .claude/review_routing.json
++  - .claude/agents/analytics-engineer-reviewer.md
++  - .claude/agents/bi-analyst-reviewer.md
++  - .claude/agents/cto-reviewer.md
++  - .claude/agents/data-engineer-reviewer.md
++  - .claude/agents/football-analytics-expert-reviewer.md
++  - .claude/agents/platform-reviewer.md
++  - .claude/agents/scope-auditor.md
++  - .claude/agents/seo-expert-reviewer.md
++  - .claude/hooks/git_discipline.py
++  - scripts/check_task_artifacts.py
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
++  - docs/north_star.md
++  - docs/roles/platform_reliability.md
++  - .claude/task/REVIEW_TEMPLATE.md
++  - .claude/task/TEMPLATE.md
++  - tests/test_review_tiers.py
++  - tests/test_reviewer_standard.py
++  - tests/test_governance_hooks.py
++  - tests/test_governance_doc_parity.py
++  - tests/test_sentence_length_in_docs.py
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_task_folders.py
++  - tests/test_hooks_resolve_worktree.py
++  - .claude/task/348-one-reviewer/contract.md
++  - .claude/task/348-one-reviewer/review.md
++  - .claude/task/348-one-reviewer/review_input.patch
++
++protected_override: >
++  .claude/review_routing.json, .claude/agents/*.md and .claude/hooks/git_discipline.py: the
++  redesign in issue #348, approved in chat, 2026-11-24. The MR head lists the three as locked
++  files; the merge is the approval.
++
++impact_map: >
++  writers: none; no table or model. The protected paths are `.claude/review_routing.json`, four
++  reviewer briefs (bi-analyst, cto, platform, scope-auditor) and `.claude/hooks/git_discipline.py`.
++  downstream: `review_routing.json` is read by `git_discipline._load_routing` (commit gate, every
++  Bash PreToolUse via `.claude/settings.json`), `scripts/check_task_artifacts.py` (CI job
++  `validate:governance` in `.gitlab-ci.yml`), `scripts/report_process_health.py` (read-only
++  report, uses `always` and `paths` with `.get`, so an empty `always` is valid) and the tests
++  `test_governance_hooks.py`, `test_governance_doc_parity.py`, `test_task_folders.py`,
++  `test_hooks_resolve_worktree.py`, `test_research_fix_merge_hook.py`, `test_tracker_snapshot.py`
++  (`grep -rln "review_routing\|import git_discipline" --include=*.py`). `git_discipline` is imported
++  by `task_contract_gate.py` (`_base_commit` only) and `check_task_artifacts.py`. The new
++  `_tier_gate` and `_is_companion` are called by `_commit_gate` and `check_task_artifacts.main`
++  (through `_required_reviewers`); nothing else changes. The briefs are read only when a reviewer
++  is spawned; `test_reviewer_standard.py`, `test_governance_doc_parity.py` and the two doc pins
++  parse them.
++  layer_rules: the hook fails open on its own exceptions (existing handler) and on a routing file
++  without `tiers` or `max_reviewers`; the CI backstop fails closed. `tests/test_review_tiers.py`
++  pins both keys on the real routing file, so dropping one fails CI.
++  deploy_order: `glab mr list` shows no open MR. Branches in progress meet the new rules on their
++  next commit: a branch needing three reviewers (for example a page, its export and a mart) is
++  refused and split; a branch whose diff leaves `scope_paths` reddens `validate:governance`.
++  blast_radius: every future review round and every MR's CI. No data, model, page or cost change
++  beyond the reviewer spawns in decisions_taken.
++
++depends_on:
++  - "none: gitlab/main b3722fd5, no open MR"
++
++shared_files:
++  - "none: no design baseline or shared fixture changes"
++
++approved_design:
++  - "none: no page output changes"
++
++tier_map: >
++  The tier of a path is the highest tier glob it matches in `tiers` of review_routing.json; a path
++  matching none is text. Reviewers come from `paths` (fnmatch, union of matching rows). Checked
++  against every tracked file by tests/test_review_tiers.py (`git ls-files`, full output).
++
++  | Tier | Paths | Reviewers |
++  |---|---|---|
++  | risk | 13 of the 14 protected paths | platform-reviewer + cto-reviewer |
++  | risk | `docs/design/components.yml`, the component registry a page registers its parts in | bi-analyst-reviewer + cto-reviewer |
++  | risk (dependencies, lint) | `*requirements*.txt`, `site_v2/package.json`, `site_v2/package-lock.json`, `.python-version`, `.nvmrc`, `.ruff-ci.toml` | platform + cto |
++  | risk (dependencies, lint) | `dbt_project/packages.yml`, `dbt_project/package-lock.yml`, `dbt_project/.sqlfluff` | analytics-engineer + cto |
++  | risk (gates) | `scripts/check_*.py`, `scripts/security/**`, `scripts/merge_ready.py`, `site_v2/scripts/check-*.mjs`, and the scripts CI runs as a check or a data-build guard: `scripts/sync_metric_docs_blocks.py`, `scripts/sync_dbt_vars.py` (the registry check imports it), `scripts/get_new_league_codes.py`, `scripts/wait_for_nightly.py`, `scripts/stale_prod_nodes.py` | platform + cto |
++  | risk (gate input) | `.claude/skills/research-provider-errors/SKILL.md`: its site table is the host allowlist of `scripts/check_research_fix_mr.py`, the self-merge route for correction seeds | analytics-engineer + cto |
++  | risk (design gate inputs) | `docs/wireframes/block_standard.md` and `docs/wireframes/approved_designs.yml` (read by the mock and page checks), `design-mocks/check_*.py` | bi-analyst + cto |
++  | risk (CI, deploy) | `scripts/ci_local.py`, `deploy/**`, `Dockerfile`, `.dockerignore`, `.gcloudignore`, `.gitleaks.toml`, `.gitleaksignore` (untracked today; gitleaks reads it), `.pre-commit-config.yaml`, `.githooks/**` | platform + cto |
++  | risk (prod writes) | `scripts/drop_*.py`, `scripts/diagnostics/**`, `scripts/cleanup_orphan_relations.py`, `scripts/clear_apif_ingest_lock.py`, `scripts/refetch_from_provider.py`, `scripts/compare_fixture_statistics_live.py`, `scripts/nightly_site_deploy.py`, `scripts/sync_crests.py` | platform + cto |
++  | risk (prod writes) | `scripts/export_*.py` | analytics-engineer + platform |
++  | risk (ingestion) | `ingestion/**` (`ingestion/*.py` row; its `requirements.txt` by the requirements row) | data-engineer + cto |
++  | risk (cost) | `docs/competition_registry.yml`, `dbt_project/seeds/competition_registry.csv` | data-engineer + analytics-engineer |
++  | risk (metric definitions) | `dbt_project/seeds/metric_catalogue.csv` | analytics-engineer + football-analytics-expert |
++  | territory | `site_v2/src/**`, `design-mocks/*.py` | bi-analyst |
++  | territory | `dbt_project/**` | analytics-engineer |
++  | territory | `scripts/**`, `tests/**`, the rest of `site_v2/**`, `.sqlfluff`, `.gitattributes`, `.gitignore` | platform |
++  | text | everything else: `docs/**` but the three above, `design-mocks/**` but its scripts, `site/**` (the frozen legacy site; its CI jobs check JSON syntax and i18n keys, and nothing deploys it), `.claude/skills/**` but the research skill, `.claude/task/**`, `.claude/launch.json`, `.cursor/rules/**`, `.github/**` but workflows, `.gitlab/**`, `.vscode/**`, root `*.md`, `LICENSE`, `.env.example`, `.gate-verification-touchfile` | none |
++
++  Companions (`companion_paths`): `tests/**`, `dbt_project/tests/**`, `site_v2/**/*.test.mjs`. A
++  companion adds no reviewer to a branch whose other paths need one; a branch of only companions
++  and text needs their owners. A companion in the risk tier (`tests/test_design_inventory.py`,
++  `site_v2/scripts/check-*.test.mjs`) keeps its reviewers. Every other test is a companion, a
++  gate's or hook's own test included: changed beside its gate it adds no reviewer, and changed
++  alone platform-reviewer reviews it, as on main.
++
++edge_cases: >
++  One test per case, in tests/test_review_tiers.py.
++  Paths and tiers: E1 every tracked file's reviewer count equals its tier's; E2 a path under a
++  territory root with no row (0 reviewers) is refused; E3 a path in both a risk and a territory
++  glob is risk; E4 no tracked file gets three reviewers (the ingestion requirements file is the
++  case); E5 fnmatch `*` crosses `/`: `scripts/check_*.py` misses `scripts/security/check_no_secrets.py`
++  (own row), `site_v2/scripts/check-*.mjs` takes the gates' own `.test.mjs` files, `ingestion/*.py`
++  takes nested loaders, `Dockerfile`, `.gitignore` and `.sqlfluff` match the root only
++  (`deploy/site/Dockerfile`, `site_v2/.gitignore`, `dbt_project/.sqlfluff` have their own rows);
++  E6 a rename counts both its old and new path (`--no-renames`), so moving a hook into `docs/`
++  keeps its reviewers; E7 a deleted path keeps its tier; E8 a Windows backslash path is
++  normalised; E9 a branch needing three reviewers is refused with the split rule; E10 a text-only
++  branch commits and passes CI with no review.md; E11 a text plus territory branch needs only the
++  owner; E12 the gate uses the cumulative branch paths, so a staged text-only commit on a branch
++  with reviewed code still needs review; E13 a routing file without `tiers`, or without
++  `max_reviewers`, skips the tier check in the hook and is refused by the real-routing test;
++  E14 a contract-only branch is text and needs no reviewer; E15 an untracked routed path
++  (`.cursor/mcp.json`, `.gitleaksignore`) is checked against its row although no file exists;
++  E16 a research-skill change with its dbt macros (the provider-check MRs) needs
++  analytics-engineer and cto, two, not three; E17 every tracked file named by an exact path in
++  gate code (`.claude/hooks/*.py`, `scripts/check_*.py`, `design-mocks/check_*.py`,
++  `.gitlab-ci.yml`) is a risk path or is listed in `NOT_GATE_INPUTS` with its reason, and an
++  entry no gate names any more fails the test.
++  Companions: T1 a page with its Python tests, its `.test.mjs` and its design baselines needs only
++  bi-analyst; T2 a model with its dbt test and a Python test needs only analytics-engineer, in the
++  gate and in CI; T3 a tests-only branch needs platform, and a text plus baseline branch too;
++  T4 a page with `tests/test_design_inventory.py` or a gate's `.test.mjs` keeps cto and platform;
++  T5 a page with its component registry row and the registry baseline needs bi-analyst and cto.
++  Scope (CI): S1 a changed path outside scope_paths is refused; S2 the task folder is exempt;
++  S3 a directory entry with a trailing `/` covers its files.
++
++decisions_taken: >
++  The rules are issue #348's list, approved in chat, 2026-11-24; the changed sentences of
++  working_agreement.md, agent_guardrails.md, north_star.md and the briefs are quoted in the MR head
++  for approval by the merge. The split into MR A and MR B is the coordinator's call under the
++  400-line rule.
++  No new mechanism: `_tier_gate` and the companion rule are checks inside the existing commit gate
++  and its CI backstop, named in the issue's How step 2; `tiers`, `max_reviewers` and
++  `companion_paths` are keys in the existing routing file (How step 1).
++  RECURRING COST, down: scope-auditor leaves `always`, so every MR spawns one reviewer fewer and a
++  docs-only MR spawns none; a branch's tests no longer add platform-reviewer. Up, on rare paths:
++  platform-reviewer joins cto-reviewer at opus on the six protected paths it was absent from (the
++  agents, commands, settings, routing, the two MCP files), which the issue's "owner plus one
++  specialist" requires; bi-analyst-reviewer joins cto-reviewer at opus on components.yml;
++  cto-reviewer joins the gate, gate input, CI, deploy, prod-write and ingestion rows at sonnet;
++  bi-analyst-reviewer takes the mock scripts. Net per MR: the reviewer count is equal or lower,
++  except a branch on `design-mocks/check_*.py`, the research skill, the CI-run guard scripts,
++  the dependency pins or the lint rulesets, which goes from one (scope-auditor) to two; the two
++  wireframe standards stay at two with other reviewers. The model tier rises on seven paths (the
++  six protected paths and components.yml).
++  Known gap, a follow-up on the issue: an inline `gitleaks:allow` comment on a text path silences
++  `validate:secrets` with no reviewer; `--ignore-gitleaks-allow` would close it.
++  Measured on the last 60 merged MRs (`git log --merges --first-parent -n 60 gitlab/main`, task
++  folders left out): none needs no reviewer, 23 one, 14 two, 23 three or more. The 23 combine a
++  page with a gate, a mock check, an export or a mart, or a mart with ingestion; under this
++  routing they are split.
++  Beyond the issue's words, each quoted in the MR head: the tier map above (which path is which
++  tier, and who is owner and specialist on each, the gate inputs and the mock scripts included);
++  the companion rule, a gate's own test included; the metric catalogue and the
++  competition registry keep two reviewers as risk paths; "never more than two" applies to the
++  whole branch, so a branch needing three is split; a text-only branch needs no review.md; the
++  gate counts a rename on both sides; the CI backstop refuses a changed path outside scope_paths
++  (the scope-auditor's first item); the 400-line rule stands in §2 with no gate, since "about" is
++  no threshold.
++  The scope-auditor's other items (§10 classes, doc-sync, decisions_reserved, impact-map honesty
++  on territory paths, undeclared thresholds on territory paths, the approved_design `none` line)
++  need judgment, not a gate; they go to the issue as a follow-up comment.
++
++decisions_reserved:
++  - "none: the tier map, the companion rule and the sentences beyond the issue are declared above and quoted in the MR head; the CPO approves them by the merge"
++
++acceptance_criteria:
++  - "AC1 Text, copy and docs: a branch whose paths match no tier glob needs no AI reviewer; the commit gate and CI pass without review.md. Tests: tests/test_review_tiers.py::test_a_text_only_branch_commits_without_review and ::test_ci_passes_a_text_only_branch."
++  - "AC2 Site pages and dbt models: every tracked `site_v2/src/**` file routes to bi-analyst-reviewer alone and every `dbt_project/**` file outside the risk rows (two seeds, the package manifests, the lint config) to analytics-engineer-reviewer alone. Test: ::test_every_tracked_file_matches_its_tier."
++  - "AC3 Gates, hooks, CI, cost, prod writes, ingestion: every tracked risk file routes to exactly two reviewers, the owner and one specialist, per the tier map; every file a gate names is a risk path or a listed non-input. Tests: ::test_every_tracked_file_matches_its_tier, ::test_the_risk_pairs_are_the_tier_map, ::test_every_file_a_gate_names_is_a_risk_path."
++  - "AC4 The gate and CI refuse a changed path whose reviewer count is not its tier's, and a branch that needs more than two reviewers; a rename counts both paths. Tests: ::test_gate_refuses_a_path_without_its_reviewers, ::test_gate_refuses_three_reviewers, ::test_ci_refuses_three_reviewers, ::test_a_rename_keeps_its_reviewers, ::test_a_staged_text_commit_on_a_reviewed_branch_needs_review."
++  - "AC5 A branch's own tests and baselines add no reviewer; a tests-only branch needs their owner; a risk-tier test keeps its reviewers. Tests: ::test_a_branch_s_own_tests_add_no_reviewer, ::test_a_model_and_its_test_need_only_the_owner, ::test_a_tests_only_branch_needs_their_owner, ::test_ci_passes_a_model_and_its_test_with_only_the_owner."
++  - "AC6 §2 states that an MR changes at most about 400 lines, tests and generated files not counted. Test: tests/test_reviewer_standard.py::test_section_2_states_the_size_rule."
++  - "AC7 §2 states the tiers. Test: tests/test_reviewer_standard.py::test_section_2_states_the_tiers."
++  - "AC8 CI refuses a changed path outside the contract's scope_paths; the task folder is exempt. Tests: tests/test_review_tiers.py::test_ci_refuses_a_path_outside_scope, ::test_ci_exempts_the_task_folder."
++
++done_when:
++  - "`python -m pytest tests/test_review_tiers.py` passes; run before the code, the new tests fail."
++  - "`python -m pytest` (full suite) passes."
++  - "`python scripts/ci_local.py --mr` passes."
++
++amendments: (none)
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 1a9068e4..03f1022c 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -27,7 +27,7 @@ match, because a hook that cries wolf gets ignored.
+ |---|---|---|
+ | `git_discipline.py` | PreToolUse Bash | Blocks `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing. Blocks `glab mr merge` except for an MR with a green pipeline, `scripts/merge_ready.py` ready and a diff that touches only paths in `agent_merge_paths`. The list is in `.claude/review_routing.json` and is read from `gitlab/main`. Asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review passed and the task folder's `review.md` binds the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in the task folder's `acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
+ | `git_workflow.py` | PostToolUse Bash | After a commit, reminds: push the feature branch, open the MR. |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Each task keeps its files in its own folder, `.claude/task/<issue>-<slug>/`: the one folder the branch touches. It denies a write to another task's folder, a merged task's folder or the old shared `.claude/task/` files. `scripts/check_task_artifacts.py` refuses the same in CI. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`. It denies any edit under a contract without `depends_on:` and `shared_files:` (`working_agreement.md` §12). It denies an edit to a shared file the contract does not list, by Edit or by shell write. The gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. An `approved_design` line `none: no page output changes` is checked by `scope-auditor` alone, by no machine: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Each task keeps its files in its own folder, `.claude/task/<issue>-<slug>/`: the one folder the branch touches. It denies a write to another task's folder, a merged task's folder or the old shared `.claude/task/` files. `scripts/check_task_artifacts.py` refuses the same in CI. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`. It denies any edit under a contract without `depends_on:` and `shared_files:` (`working_agreement.md` §12). It denies an edit to a shared file the contract does not list, by Edit or by shell write. The gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. No reviewer and no machine checks an `approved_design` line `none: no page output changes`: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Injects the layer contract when a dbt model or a consumption file (`scripts/export_*.py`, `site/`, `site_v2/`) is edited. `scripts/check_layer_contract.py` enforces it in CI. |
+ | `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies an edit that adds history to a code comment or a Markdown document. History is a date, an issue or MR number, a review credit or round, or a story phrase. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines left; the counts only go down. |
+ | `sentence_length_gate.py` | PreToolUse Edit/Write/MultiEdit | Denies an edit that adds a sentence over 25 words to a Markdown document, or over 20 in a numbered step. `tests/test_sentence_length_in_docs.py` pins the long sentences left; the counts only go down. |
+@@ -52,11 +52,11 @@ assumption that there is a defect. Which agent reviews which path is
+ 
+ | Agent | Reviews |
+ |---|---|
+-| `scope-auditor` | every commit: the diff against the contract, §10 classes, secrets, undeclared thresholds, an `approved_design` none line |
+-| `analytics-engineer-reviewer` | dbt models and seeds, export data handling |
+-| `platform-reviewer` | scripts, tests, hooks, CI, dependencies, the site build and hosting |
+-| `data-engineer-reviewer` | ingestion, competition onboarding, the data contract |
+-| `bi-analyst-reviewer` | wireframes, `site_v2/src/**`, `site/i18n/**` |
++| `scope-auditor` | nothing: not routed |
++| `analytics-engineer-reviewer` | dbt models and seeds, export data handling, the competition registry, `.claude/skills/research-provider-errors/SKILL.md` |
++| `platform-reviewer` | scripts, tests, hooks, CI, dependencies, the site build and hosting, every guard path but `docs/design/components.yml` |
++| `data-engineer-reviewer` | ingestion, competition onboarding |
++| `bi-analyst-reviewer` | `site_v2/src/**`, `docs/design/components.yml`, `design-mocks/*.py`, `docs/wireframes/block_standard.md`, `docs/wireframes/approved_designs.yml` |
+ | `football-analytics-expert-reviewer` | `metric_catalogue.csv` |
+ | `cto-reviewer` | a new mechanism, a dependency, a guard invariant, a recurring cost |
+ | `seo-expert-reviewer` | nothing: not routed |
+diff --git a/docs/north_star.md b/docs/north_star.md
+index 893315ad..832a0fdd 100644
+--- a/docs/north_star.md
++++ b/docs/north_star.md
+@@ -101,14 +101,14 @@ Each linked role has a brief in [`roles/`](roles/). A role is live only when som
+ | Role | Responsibility | Wakes on |
+ |------|----------------|----------|
+ | CPO | Product, copy, naming, cost, anything permanent. Merges. | every decision class in `working_agreement.md` §10 |
+-| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **17 rows**: the 14 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
+-| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`, `tests/test_design_inventory.py`, the site build + hosting config |
+-| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
+-| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
++| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **54 rows**: the 14 guard paths, the dependency manifests, the lint rulesets, and the gate, gate input, CI, deploy, prod-write and ingestion rows |
++| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, 13 of the 14 guard paths, the gate, CI, deploy and prod-write rows, the site build + hosting config |
++| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py`, the competition registry, the research skill's site table |
++| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/*.py`, the competition registry |
+ | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why: domain truth | `metric_catalogue.csv` |
+ | [Data Scientist](roles/data_scientist.md) | Prediction models: training data specification, model choice, evaluation, the public track record | nothing: brief only, no agent |
+-| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it: does the page tell a truth a fan can read | all of `site_v2/src/**`, the wireframes, `site/i18n/**` |
+-| Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | every commit except a bookkeeping-only commit |
++| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it: does the page tell a truth a fan can read | all of `site_v2/src/**`, `docs/design/components.yml`, `design-mocks/*.py`, the design standards the mock checks read |
++| Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | nothing: brief and agent exist, no routing row; CI checks the diff against `scope_paths` |
+ | [SEO Expert](roles/seo_expert.md) | Findability: URLs, metadata, structured data, the internal link graph | nothing: brief and agent exist, no routing row; not commissioned |
+ | [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | nothing: brief only, no agent |
+ | [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | nothing: advisor, consulted at contract time |
+diff --git a/docs/roles/platform_reliability.md b/docs/roles/platform_reliability.md
+index 2e8862ef..8bb15b81 100644
+--- a/docs/roles/platform_reliability.md
++++ b/docs/roles/platform_reliability.md
+@@ -64,15 +64,10 @@ that carries it from a commit to a served page without anyone having to remember
+ recurring cost is *allowed* is the CTO's ruling. This role reviews the implementation of what was
+ allowed.
+ 
+-**On exactly seven of the fourteen guard paths** this role and the CTO review the same diff. The
+-seven are `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+-`scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py` and
+-`tests/test_design_inventory.py`. The two roles review it for different things, both at the opus
+-floor. The G3 commit-gate bypasses were fail-open and test-coverage findings, and those are this
+-role's items. **On the other seven it is not routed at all**: `.claude/agents/**`,
+-`.claude/commands/**`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
+-`.cursor/mcp.json`, `docs/design/components.yml`. A brief or a config is a prompt rather than
+-machinery. A second opus specialist there is a recurring cost only the CPO may approve. Do not restate this from memory — check
++**On thirteen of the fourteen guard paths** this role and the CTO review the same diff. The two
++roles review it for different things, both at the opus floor. On `docs/design/components.yml` the
++BI Analyst stands in for this role. The G3 commit-gate bypasses were fail-open and
++test-coverage findings, and those are this role's items. Do not restate this from memory — check
+ `.claude/review_routing.json`. This file is `platform-reviewer.md`'s third Input, so a wrong claim
+ here is fed to the reviewer on every run, which is how review round 2 caught it.
+ 
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 69e2f1a1..25f1e6f5 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -96,8 +96,7 @@ escalated, never answered by drawing it.
+   `- home: #127`.
+ - The page and its issue stand in `docs/wireframes/approved_designs.yml` on `main`. A page enters
+   that list in the MR that closes its design review; the CPO's merge is the approval.
+-- A task that changes no page output says `- none: no page output changes`. `scope-auditor`
+-  checks that line against the diff.
++- A task that changes no page output says `- none: no page output changes`.
+ - The contract gate denies a page-surface edit without the field.
+ - The contract gate and `scripts/check_task_artifacts.py` fail when a named page and issue are not
+   in that list on the base branch. The copy in the MR's own branch does not count.
+@@ -155,6 +154,9 @@ The protected paths are `.claude/hooks/**`, `.claude/agents/**`, `.claude/comman
+ 
+ Every substantive commit passes four serialized steps. The commit gate enforces them.
+ 
++An MR changes at most about 400 lines, tests and generated files not counted. Bigger work is split
++into MRs that merge one after another.
++
+ | Step | What happens |
+ |---|---|
+ | 1. Code Lock | The builder declares the implementation complete and stages everything with `git add`. No further edits happen in this cycle. |
+@@ -164,8 +166,17 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ 
+ **Blinding.**
+ 
+-- `.claude/review_routing.json` names the required reviewers for the staged paths:
+-  `scope-auditor` always, plus the path-routed specialists.
++- `.claude/review_routing.json` gives every path a tier and names the reviewers for the branch's
++  paths.
++- A text path (text, copy and docs) gets no AI reviewer. A branch of text paths needs green checks
++  and the CPO's merge.
++- A territory path (site pages, dbt, scripts, tests, the site build) gets one reviewer, the owner
++  of the territory.
++- A risk path (gates, hooks, CI, cost, prod writes, ingestion) gets the owner and one specialist.
++- A branch never needs more than two reviewers. A branch that needs more is split.
++- A branch's own tests and baselines add no reviewer. A branch of only tests and text needs their
++  owner. A test on a risk path keeps its reviewers; every other test adds none, a gate's own test
++  included.
+ - Each reviewer gets read-only tools and no builder context.
+ - Each reviewer judges the cumulative branch diff from the base branch, never the staged
+   increment alone. The diff is in the task folder's `review_input.patch`.
+@@ -181,15 +192,9 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+   floor.
+ - When the staged diff touches a guard path, every specialist that routing requires for it is
+   spawned at **opus**.
+-- `scope-auditor` is exempt from the opus promotion. It never runs below the **sonnet** floor.
+-  Its tier is a recurring cost and a CPO decision (§10).
+-- For the guard paths, that means `cto-reviewer` on all fourteen, plus `platform-reviewer` on exactly
+-  seven of them: `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+-  `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`
+-  and `tests/test_design_inventory.py`.
++- For the guard paths, that means `cto-reviewer` on all fourteen, `platform-reviewer` on thirteen
++  and `bi-analyst-reviewer` on `docs/design/components.yml`.
+ - The CTO rules on authority. Platform reviews the implementation.
+-- `platform-reviewer` is deliberately absent from the other seven, `.claude/agents/**` above all. A
+-  reviewer brief is a prompt, not machinery.
+ - The orchestrator applies this rule at spawn time. No hook enforces it.
+ - Never state this rule in prose without checking it against the routing rows. Fix a mismatch on
+   whichever side is wrong, which is almost always the prose.
+@@ -241,7 +246,8 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ - The hash leaves out the bookkeeping artifacts that `hash_exclude_paths` lists. They include the
+   two evidence artifacts, `acceptance_evidence.md` and `rendered_page_evidence.md`.
+ - CI recomputes the hash from `git diff base...HEAD`.
+-- `contract.md` is hashed and is never artifact-exempt. Every contract change goes through review.
++- `contract.md` is hashed and is never artifact-exempt, so a branch with code reviews its contract
++  with the code. A contract-only branch is text and needs no reviewer.
+ - A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
+   the round count and needs no new review.
+ - The round cap is 3 reviewer rounds per issue, counted across sessions. A new session or branch
+@@ -254,7 +260,9 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ 
+ `git_discipline.py` denies `git commit` when any of these is true:
+ 
+-- `review.md` is missing.
++- A changed path gets a different number of reviewers than its tier needs.
++- The branch needs more than two reviewers.
++- The branch needs a reviewer, and `review.md` is missing.
+ - Its hash does not match the live hash, or the live hash cannot be computed.
+ - Any verdict is FAIL.
+ - An ESCALATE has no recorded `CPO ANSWER:` in its own section.
+@@ -285,7 +293,8 @@ The commit form:
+ - `git commit` is the sole command in its shell call. A chained sibling such as
+   `git add x && git commit` could restage content after the hash check.
+ 
+-CI re-checks the artifacts on every MR with `scripts/check_task_artifacts.py`.
++CI re-checks the artifacts on every MR with `scripts/check_task_artifacts.py`. It also refuses a
++changed path outside the contract's `scope_paths`, except in the task folder.
+ 
+ ---
+ 
+@@ -435,7 +444,7 @@ standards, the metric catalogue and the task contract.
+ 
+ **Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
+ 
+-A core-doc sentence that only restates a rule the CPO already approved, or describes code that implements one, needs no new approval. The scope-auditor checks that it matches.
++A core-doc sentence that only restates a rule the CPO already approved, or describes code that implements one, needs no new approval.
+ 
+ ---
+ 
+diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
+index 2adb1dc9..65ef36cc 100644
+--- a/scripts/check_task_artifacts.py
++++ b/scripts/check_task_artifacts.py
+@@ -9,7 +9,10 @@ branch and the base, it verifies:
+     task's folder, and adds or changes no old shared `.claude/task/` file;
+   - artifact-only PRs (only bookkeeping paths) pass — but a PR touching
+     a task's contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
+-  - otherwise the task folder's contract.md and review.md must exist;
++  - otherwise the task folder's contract.md must exist, every changed path outside the task
++    folder is in its scope_paths, every changed path has its tier's reviewer count and the PR
++    needs at most `max_reviewers` (`git_discipline._tier_gate`; renames count both paths);
++  - a PR whose paths need no reviewer passes; otherwise review.md must exist;
+   - review.md carries a well-formed 64-hex diff_sha256 that MATCHES the recomputed
+     hash of `git diff base...HEAD` excluding the bookkeeping artifacts — binding the
+     review to this PR's code + contract (F11/#409);
+@@ -83,7 +86,7 @@ def changed_paths(base: str) -> list[str]:
+     # -z (NUL-split) mirrors the local gate: quotePath-escaped non-ASCII
+     # paths would match no routing pattern and drop a required reviewer
+     out = subprocess.run(
+-        ["git", "diff", "--name-only", "-z", f"{base}...HEAD"],
++        ["git", "diff", "--name-only", "--no-renames", "-z", f"{base}...HEAD"],
+         capture_output=True, text=True, check=True,
+     ).stdout
+     return [p.replace("\\", "/") for p in out.split("\0") if p]
+@@ -166,8 +169,21 @@ def main() -> int:
+         contract, review = folder + _tcg.CONTRACT_NAME, folder + _gd.REVIEW_NAME
+         if not os.path.isfile(contract):
+             errors.append(f"missing {contract} (every code PR carries its task contract)")
+-        if not os.path.isfile(review):
+-            errors.append(f"missing {review} (every code PR carries its review verdicts)")
++    if errors:
++        print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
++        return 1
++
++    scope = (_tcg._parse_contract(contract) or {}).get("scope") or []
++    errors.extend(f"`{p}` is outside the contract's scope_paths" for p in paths
++                  if not p.startswith(_tcg.TASK_DIR_REL) and not _tcg._matches_scope(p, scope))
++    errors.extend(e for e in [_gd._tier_gate(paths, routing)] if e)
++    errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
++    required = _gd._required_reviewers(paths, routing)
++    if not required and not errors:
++        print(f"check_task_artifacts: OK ({len(paths)} changed paths, text only: no reviewer)")
++        return 0
++    if not os.path.isfile(review):
++        errors.append(f"missing {review} (every code PR carries its review verdicts)")
+     if errors:
+         print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
+         return 1
+@@ -208,7 +224,6 @@ def main() -> int:
+     findings_err = _gd._findings_gate(text, paths, os.getcwd())
+     if findings_err:
+         errors.append(findings_err)
+-    errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
+     if "VERDICT: FAIL" in text:
+         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
+     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
+@@ -225,11 +240,6 @@ def main() -> int:
+             errors.append(
+                 f"section `{name}` has an ESCALATE without a CPO ANSWER in that section")
+ 
+-    required = set(routing.get("always") or [])
+-    for path in paths:
+-        for pattern, reviewers in (routing.get("paths") or {}).items():
+-            if fnmatch.fnmatch(path, pattern):
+-                required.update(reviewers)
+     for reviewer in sorted(required):
+         body = sections.get(reviewer)
+         if body is None or "VERDICT:" not in body:
+diff --git a/tests/test_governance_doc_parity.py b/tests/test_governance_doc_parity.py
+index 3fc23b83..d8b74b47 100644
+--- a/tests/test_governance_doc_parity.py
++++ b/tests/test_governance_doc_parity.py
+@@ -122,22 +122,15 @@ def test_the_guard_path_counts_are_what_the_docs_claim():
+     assert len(protected_paths()) == 14, (
+         f"The guard set is now {sorted(protected_paths())}. Every prose site saying "
+         "'fourteen' is stale; the count tests below name each one.")
+-    assert len(shared_guard_paths()) == 7, (
+-        f"platform-reviewer now shares {sorted(shared_guard_paths())} with the CTO.")
+-    assert len(cto_alone_guard_paths()) == 7, (
+-        f"The CTO now reviews {sorted(cto_alone_guard_paths())} alone.")
+-    assert len(cto_routing_rows()) == 17, (
++    assert cto_alone_guard_paths() == {"docs/design/components.yml"}, (
++        f"platform-reviewer is missing from {sorted(cto_alone_guard_paths())}. A risk path "
++        "gets the owner and one specialist (working_agreement.md §2); platform owns every "
++        "guard path but the component registry, whose owner is bi-analyst-reviewer.")
++    assert _routing_paths()["docs/design/components.yml"] == [
++        "bi-analyst-reviewer", "cto-reviewer"]
++    assert len(cto_routing_rows()) == 54, (
+         f"The CTO now has {len(cto_routing_rows())} routing rows, which is what "
+         "north_star.md's role table counts.")
+-    assert shared_guard_paths() == {
+-        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml",
+-        "scripts/check_design_inventory.py", "scripts/check_page_css.py",
+-        "scripts/design_inventory.py", "tests/test_design_inventory.py"}, (
+-        "The set platform-reviewer shares with the CTO changed. Widening it is a "
+-        "RECURRING COST (a second opus specialist on every commit touching those "
+-        "paths) and therefore CPO-class — .claude/review_routing.json's own _doc "
+-        "records a review round that failed for widening it without a cost approval."
+-    )
+ 
+ 
+ # --------------------------------------------------------------------------- #
+@@ -165,38 +158,29 @@ COUNT_SITES = (
+     (".claude/agents/cto-reviewer.md",
+      r"on any of the (\w+) guard paths", [_guard_total]),
+     (".claude/agents/cto-reviewer.md",
+-     r"routed alongside you, also at opus, on exactly (\w+) of them", [_shared]),
+-    (".claude/agents/cto-reviewer.md",
+-     r"On the other (\w+) you are the only", [_cto_alone]),
++     r"routed alongside you, also at opus, on (\w+) of them\.", [_shared]),
+     (".claude/agents/cto-reviewer.md",
+      r"spawned at opus on all (\w+) guard paths", [_guard_total]),
+ 
+     (".claude/agents/platform-reviewer.md",
+      r"on the (\w+) guard paths you are routed to", [_shared]),
+-    (".claude/agents/platform-reviewer.md",
+-     r"NOT routed to the other (\w+) guard paths", [_cto_alone]),
+ 
+     (".claude/review_routing.json",
+-     r"joins cto-reviewer on exactly (\w+) of the (\w+)", [_shared, _guard_total]),
+-    (".claude/review_routing.json", r"docs must say (\w+)", [_shared]),
+-    (".claude/review_routing.json", r"floor on those (\w+)", [_shared]),
+-    (".claude/review_routing.json",
+-     r"The other (\w+) go to cto-reviewer ALONE", [_cto_alone]),
++     r"reviews all (\w+) protected paths", [_guard_total]),
++    (".claude/review_routing.json", r"platform-reviewer joins it on (\w+),", [_shared]),
+ 
+     ("docs/working_agreement.md",
+-     r"means `cto-reviewer` on all (\w+),", [_guard_total]),
+-    ("docs/working_agreement.md",
+-     r"`platform-reviewer` on exactly (\w+) of them", [_shared]),
+-    ("docs/working_agreement.md",
+-     r"deliberately absent from the other (\w+),", [_cto_alone]),
++     r"means `cto-reviewer` on all (\w+), `platform-reviewer` on (\w+)",
++     [_guard_total, _shared]),
+ 
+     ("docs/roles/platform_reliability.md",
+-     r"On exactly (\w+) of the (\w+) guard paths", [_shared, _guard_total]),
+-    ("docs/roles/platform_reliability.md",
+-     r"the other (\w+) it is not routed at all", [_cto_alone]),
++     r"On (\w+) of the (\w+) guard paths\*\* this role", [_shared, _guard_total]),
+ 
+     ("docs/north_star.md",
+      r"\*\*(\d+) rows\*\*: the (\d+) guard paths", [_cto_rows, _guard_total]),
++    ("docs/north_star.md",
++     r"`\*requirements\*\.txt`, (\d+) of the (\d+) guard paths, the gate",
++     [_shared, _guard_total]),
+ )
+ 
+ 
+@@ -349,14 +333,14 @@ def test_known_incomplete_lists_have_not_been_fixed(key):
+     )
+ 
+ 
+-def test_the_platform_role_row_names_only_the_shared_guard_paths():
++def test_the_platform_role_row_counts_its_guard_paths():
+     text = normalise("docs/north_star.md")
+     row = re.search(r"\| \[Platform and Reliability\][^|]*\|[^|]*\|([^|]*)\|", text)
+     assert row, "The Platform and Reliability row is no longer parseable in north_star.md."
+     named = {p for p in protected_paths() if p in row.group(1)}
+-    assert named == shared_guard_paths(), (
+-        f"north_star.md's Platform row names guard paths {sorted(named)}, "
+-        f"but routing gives it {sorted(shared_guard_paths())}."
++    assert not named, (
++        f"north_star.md's Platform row names guard paths {sorted(named)} one by one; "
++        "the count site above checks its number against routing."
+     )
+ 
+ 
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index e4333f8f..f1e3a9a8 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -25,6 +25,9 @@ refs: test
+ 
+ scope_paths:
+   - dbt_project/models/allowed.sql
++  - dbt_project/models/new.sql
++  - dbt_project/models/t*st.sql
++  - tests/test_fix.py
+   - docs/allowed_dir/
+ 
+ depends_on:
+@@ -492,7 +495,8 @@ def test_real_routing_parses_and_has_the_required_keys():
+     for key in ("always", "paths", "artifact_only", "artifact_only_never",
+                 "hash_exclude_paths"):
+         assert key in r, f"review_routing.json lost its `{key}` key"
+-    assert "scope-auditor" in r["always"]
++    assert r["always"] == []
++    assert r["max_reviewers"] == 2 and set(r["tiers"]) == {"risk", "territory"}
+ 
+ 
+ def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
+@@ -533,7 +537,6 @@ PINNED_CASES = [
+     ("dbt_project/seeds/metric_catalogue.csv", "football-analytics-expert-reviewer"),
+     ("ingestion/api_football/main.py", "data-engineer-reviewer"),
+     ("docs/competition_registry.yml", "data-engineer-reviewer"),
+-    ("docs/data_contract.md", "data-engineer-reviewer"),
+     ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
+     ("scripts/sync_dbt_vars.py", "platform-reviewer"),
+     ("tests/test_governance_hooks.py", "platform-reviewer"),
+@@ -558,9 +561,33 @@ PINNED_CASES = [
+     ("scripts/design_inventory.py", "cto-reviewer"),
+     ("tests/test_design_inventory.py", "cto-reviewer"),
+     ("docs/design/components.yml", "cto-reviewer"),
+-    ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
+-    ("site/i18n/de.json", "bi-analyst-reviewer"),
+     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
++    ("scripts/check_layer_contract.py", "cto-reviewer"),
++    ("scripts/security/scan.py", "cto-reviewer"),
++    ("scripts/merge_ready.py", "cto-reviewer"),
++    ("site_v2/scripts/check-dist.mjs", "cto-reviewer"),
++    ("scripts/ci_local.py", "cto-reviewer"),
++    ("deploy/nightly/README.md", "cto-reviewer"),
++    ("Dockerfile", "cto-reviewer"),
++    (".dockerignore", "cto-reviewer"),
++    (".gcloudignore", "cto-reviewer"),
++    (".gitleaks.toml", "cto-reviewer"),
++    (".pre-commit-config.yaml", "cto-reviewer"),
++    (".githooks/post-commit", "cto-reviewer"),
++    ("scripts/drop_legacy_tables.py", "cto-reviewer"),
++    ("scripts/diagnostics/probe.py", "cto-reviewer"),
++    ("scripts/cleanup_orphan_relations.py", "cto-reviewer"),
++    ("scripts/clear_apif_ingest_lock.py", "cto-reviewer"),
++    ("scripts/refetch_from_provider.py", "cto-reviewer"),
++    ("scripts/compare_fixture_statistics_live.py", "cto-reviewer"),
++    ("scripts/nightly_site_deploy.py", "cto-reviewer"),
++    ("scripts/sync_crests.py", "cto-reviewer"),
++    (".sqlfluff", "platform-reviewer"),
++    (".ruff-ci.toml", "platform-reviewer"),
++    (".gitattributes", "platform-reviewer"),
++    (".gitignore", "platform-reviewer"),
++    (".python-version", "platform-reviewer"),
++    (".nvmrc", "platform-reviewer"),
+     # The build surface is named file by file because fnmatch's `*` crosses `/`.
+     ("site_v2/package.json", "cto-reviewer"),
+     ("site_v2/package-lock.json", "platform-reviewer"),
+@@ -571,6 +598,20 @@ PINNED_CASES = [
+     ("site_v2/integrations/seo-audit.mjs", "platform-reviewer"),
+     ("site_v2/scripts/audit-seo.mjs", "platform-reviewer"),
+     ("dbt_project/seeds/competition_registry.csv", "data-engineer-reviewer"),
++    ("docs/wireframes/block_standard.md", "cto-reviewer"),
++    ("docs/wireframes/approved_designs.yml", "bi-analyst-reviewer"),
++    ("design-mocks/gen_home.py", "bi-analyst-reviewer"),
++    ("design-mocks/check_handover.py", "cto-reviewer"),
++    (".gitleaksignore", "platform-reviewer"),
++    (".claude/skills/research-provider-errors/SKILL.md", "cto-reviewer"),
++    ("scripts/sync_metric_docs_blocks.py", "cto-reviewer"),
++    ("scripts/sync_dbt_vars.py", "cto-reviewer"),
++    ("scripts/get_new_league_codes.py", "cto-reviewer"),
++    ("scripts/wait_for_nightly.py", "cto-reviewer"),
++    ("scripts/stale_prod_nodes.py", "cto-reviewer"),
++    ("dbt_project/.sqlfluff", "cto-reviewer"),
++    ("dbt_project/packages.yml", "cto-reviewer"),
++    ("dbt_project/package-lock.yml", "analytics-engineer-reviewer"),
+ ]
+ 
+ 
+@@ -648,7 +689,7 @@ def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
+     assert hits["seo-expert-reviewer"] == 0, (
+         "a brief with no routing row must appear at zero, not be absent — that is "
+         "the whole point of seeding the counter")
+-    assert hits["scope-auditor"] == 2, "the always-on reviewer fires on every commit"
++    assert hits["scope-auditor"] == 0, "a brief with no routing row counts zero"
+     assert hits["analytics-engineer-reviewer"] == 1 and hits["cto-reviewer"] == 1, (
+         "the counting itself is now pinned, not only the roster")
+ 
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 7ea233d6..1507b5e6 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -23,7 +23,6 @@ PINNED = {
+     ".claude/agents/bi-analyst-reviewer.md": 6,
+     ".claude/agents/cto-reviewer.md": 8,
+     ".claude/agents/data-engineer-reviewer.md": 2,
+-    ".claude/agents/platform-reviewer.md": 1,
+     ".claude/agents/scope-auditor.md": 5,
+     ".claude/agents/seo-expert-reviewer.md": 1,
+     ".claude/commands/status.md": 1,
+diff --git a/tests/test_review_tiers.py b/tests/test_review_tiers.py
+new file mode 100644
+index 00000000..cf0852e4
+--- /dev/null
++++ b/tests/test_review_tiers.py
+@@ -0,0 +1,492 @@
++"""Review tiers: text needs no reviewer, a territory path its owner, a risk path the owner and one specialist."""
++# ruff: noqa: F811  (the imported fixtures are requested by name as test parameters)
++
++from __future__ import annotations
++
++import fnmatch
++import json
++import re
++import subprocess
++import sys
++from pathlib import Path
++
++import pytest
++
++from test_governance_hooks import (  # noqa: F401  (fixtures are used by name)
++    COMMIT_CMD,
++    CONTRACT,
++    ROUTING,
++    SCRIPTS,
++    TASK_ID,
++    _gd,
++    _repo_template,
++    bash_event,
++    branch_hash,
++    ci_repo,
++    denied,
++    real_routing,
++    repo,
++    run_ci_check,
++    run_hook,
++    staged_hash,
++    tracked,
++    write_review,
++)
++
++AE, BI, CTO = "analytics-engineer-reviewer", "bi-analyst-reviewer", "cto-reviewer"
++DE, FA, PL = "data-engineer-reviewer", "football-analytics-expert-reviewer", "platform-reviewer"
++
++# One or more tracked files per row of the contract's tier map, with the reviewers each must get.
++TIER_MAP = {
++    # risk: the protected paths
++    ".claude/hooks/git_discipline.py": {PL, CTO},
++    ".claude/agents/scope-auditor.md": {PL, CTO},
++    ".claude/commands/status.md": {PL, CTO},
++    ".claude/settings.json": {PL, CTO},
++    ".claude/review_routing.json": {PL, CTO},
++    ".mcp.json": {PL, CTO},
++    ".cursor/mcp.json": {PL, CTO},
++    ".github/workflows/README.md": {PL, CTO},
++    ".gitlab-ci.yml": {PL, CTO},
++    "scripts/check_design_inventory.py": {PL, CTO},
++    "scripts/check_page_css.py": {PL, CTO},
++    "scripts/design_inventory.py": {PL, CTO},
++    "tests/test_design_inventory.py": {PL, CTO},
++    "docs/design/components.yml": {BI, CTO},
++    # risk: dependencies
++    "requirements.txt": {PL, CTO},
++    "requirements-dev.txt": {PL, CTO},
++    "ingestion/api_football/requirements.txt": {PL, CTO},
++    "site_v2/package.json": {PL, CTO},
++    "site_v2/package-lock.json": {PL, CTO},
++    # risk: gates; `*` crosses `/`, so the nested secrets check needs its own row
++    "scripts/check_layer_contract.py": {PL, CTO},
++    "scripts/check_task_artifacts.py": {PL, CTO},
++    "scripts/security/check_no_secrets.py": {PL, CTO},
++    "scripts/merge_ready.py": {PL, CTO},
++    "site_v2/scripts/check-built-pages.mjs": {PL, CTO},
++    "site_v2/scripts/check-built-pages.test.mjs": {PL, CTO},
++    ".claude/skills/research-provider-errors/SKILL.md": {AE, CTO},
++    # risk: gate inputs found by test_every_file_a_gate_names_is_a_risk_path
++    "scripts/sync_metric_docs_blocks.py": {PL, CTO},
++    "scripts/sync_dbt_vars.py": {PL, CTO},
++    "scripts/get_new_league_codes.py": {PL, CTO},
++    "scripts/wait_for_nightly.py": {PL, CTO},
++    "scripts/stale_prod_nodes.py": {PL, CTO},
++    ".ruff-ci.toml": {PL, CTO},
++    ".python-version": {PL, CTO},
++    ".nvmrc": {PL, CTO},
++    "dbt_project/.sqlfluff": {AE, CTO},
++    "dbt_project/packages.yml": {AE, CTO},
++    "dbt_project/package-lock.yml": {AE, CTO},
++    # risk: CI and deploy
++    "scripts/ci_local.py": {PL, CTO},
++    "deploy/nightly/entrypoint.sh": {PL, CTO},
++    "deploy/site/Dockerfile": {PL, CTO},
++    "Dockerfile": {PL, CTO},
++    ".dockerignore": {PL, CTO},
++    ".gcloudignore": {PL, CTO},
++    ".gitleaks.toml": {PL, CTO},
++    ".pre-commit-config.yaml": {PL, CTO},
++    ".githooks/post-commit": {PL, CTO},
++    ".gitleaksignore": {PL, CTO},
++    # risk: design gate inputs
++    "docs/wireframes/block_standard.md": {BI, CTO},
++    "docs/wireframes/approved_designs.yml": {BI, CTO},
++    "design-mocks/check_handover.py": {BI, CTO},
++    "design-mocks/check_mock_css.py": {BI, CTO},
++    # risk: prod writes
++    "scripts/drop_legacy_raw_tables.py": {PL, CTO},
++    "scripts/diagnostics/drop_orphaned_coverage_table.py": {PL, CTO},
++    "scripts/diagnostics/restore_from_time_travel.py": {PL, CTO},
++    "scripts/cleanup_orphan_relations.py": {PL, CTO},
++    "scripts/clear_apif_ingest_lock.py": {PL, CTO},
++    "scripts/refetch_from_provider.py": {PL, CTO},
++    "scripts/compare_fixture_statistics_live.py": {PL, CTO},
++    "scripts/nightly_site_deploy.py": {PL, CTO},
++    "scripts/sync_crests.py": {PL, CTO},
++    "scripts/export_site_data.py": {AE, PL},
++    "scripts/export_pages_data.py": {AE, PL},
++    # risk: ingestion, cost, metric definitions
++    "ingestion/__init__.py": {DE, CTO},
++    "ingestion/api_football/main.py": {DE, CTO},
++    "ingestion/api_football/loads/fixtures.py": {DE, CTO},
++    "docs/competition_registry.yml": {DE, AE},
++    "dbt_project/seeds/competition_registry.csv": {DE, AE},
++    "dbt_project/seeds/metric_catalogue.csv": {AE, FA},
++    # territory
++    "site_v2/src/lib/metricRows.ts": {BI},
++    "design-mocks/gen_home.py": {BI},
++    "design-mocks/render.py": {BI},
++    "dbt_project/models/5_marts/shared/mart_team_profile.sql": {AE},
++    "dbt_project/seeds/fixture_goal_corrections.csv": {AE},
++    "dbt_project/dbt_project.yml": {AE},
++    "scripts/export_matchday_insights.ps1": {PL},
++    "tests/test_governance_hooks.py": {PL},
++    "tests/fixtures/apif/fixture_details_sample.json": {PL},
++    "site_v2/astro.config.mjs": {PL},
++    "site_v2/.gitignore": {PL},
++    "site_v2/scripts/audit-seo.mjs": {PL},
++    ".sqlfluff": {PL},
++    ".gitattributes": {PL},
++    ".gitignore": {PL},
++    # text
++    "docs/working_agreement.md": set(),
++    "docs/data_contract.md": set(),
++    "docs/wireframes/00_overview.md": set(),
++    "docs/portable_guardrails/hooks/handover_in.py": set(),
++    "site/i18n/de.json": set(),
++    "design-mocks/README.md": set(),
++    ".claude/skills/validate-local/SKILL.md": set(),
++    ".claude/task/TEMPLATE.md": set(),
++    ".claude/launch.json": set(),
++    ".cursor/rules/dbt.mdc": set(),
++    ".github/pull_request_template.md": set(),
++    ".gitlab/issue_templates/Task.md": set(),
++    ".vscode/settings.json": set(),
++    ".env.example": set(),
++    "README.md": set(),
++    "CLAUDE.md": set(),
++}
++
++# A protected path with no tracked file today; routing must still cover it.
++UNTRACKED = {".cursor/mcp.json", ".gitleaksignore"}
++
++
++def _all_tracked() -> list[str]:
++    return tracked(".")
++
++
++def _reviewers(path: str, routing: dict) -> set:
++    return _gd()._path_reviewers(path, routing)
++
++
++def test_real_routing_declares_the_tiers():
++    r = real_routing()
++    assert r["always"] == [], "no reviewer runs on every MR: a text-only MR needs none"
++    assert r["max_reviewers"] == 2
++    assert r["tiers"]["risk"]["reviewers"] == 2
++    assert r["tiers"]["territory"]["reviewers"] == 1
++
++
++def test_every_tracked_file_matches_its_tier():
++    r, files = real_routing(), _all_tracked()
++    assert len(files) > 2000, f"only {len(files)} tracked files: the listing was cut short"
++    wrong = {f: msg for f in files if (msg := _gd()._tier_gate([f], r))}
++    assert not wrong, f"{len(wrong)} files whose reviewer count is not their tier's: {wrong}"
++
++
++def test_no_tracked_file_needs_three_reviewers():
++    r = real_routing()
++    over = {f: sorted(_reviewers(f, r)) for f in _all_tracked() if len(_reviewers(f, r)) > 2}
++    assert not over, f"files routed to more than two reviewers: {over}"
++
++
++def test_the_risk_pairs_are_the_tier_map():
++    r, files = real_routing(), set(_all_tracked())
++    imagined = sorted(p for p in TIER_MAP if p not in files and p not in UNTRACKED)
++    assert not imagined, f"tier map samples that are not tracked files: {imagined}"
++    wrong = {p: (sorted(want), sorted(_reviewers(p, r)))
++             for p, want in TIER_MAP.items() if _reviewers(p, r) != want}
++    assert not wrong, f"path: (expected, routed): {wrong}"
++    tiers = {p: msg for p in UNTRACKED if (msg := _gd()._tier_gate([p], r))}
++    assert not tiers, f"untracked routed paths whose tier is wrong: {tiers}"
++
++
++ROOT = Path(__file__).resolve().parent.parent
++GATE_CODE = (".claude/hooks/*.py", "scripts/check_*.py", "design-mocks/check_*.py", ".gitlab-ci.yml")
++
++# Files the gate code names that are not its inputs, each with the reason.
++NOT_GATE_INPUTS = {
++    ".claude/task/REVIEW_TEMPLATE.md": "named in a refusal message",
++    ".claude/task/TEMPLATE.md": "named in a refusal message",
++    "docs/agent_guardrails.md": "named in a docstring and a message",
++    "docs/working_agreement.md": "named in messages; the sentence gate checks it as a subject",
++    "docs/roles/platform_reliability.md": "named in a docstring",
++    "docs/operations_guide.md": "named in a CI comment",
++    "dbt_project/docs/engineering_standards.md": "named in refusal messages",
++    "dbt_project/docs/layering.md": "named in refusal messages",
++    "README.md": "a file name in a `find` command, not the root README",
++    ".sqlfluff": "named in a CI comment about dbt_project/.sqlfluff; CI lints inside dbt_project",
++    ".env.example": "in a CI `changes:` list: a change adds the setup check",
++    "dbt_project/profiles.example.yml": "in a CI `changes:` list: a change adds the setup check",
++    "scripts/bootstrap.py": "the setup script a CI job proves; a check runs it, never reads it",
++    "scripts/list_mr_scratch.py": "named in a CI comment",
++    "scripts/snapshot_tracker.py": "named in a refusal message",
++    "scripts/build_match_preview_site.sh": "the frozen legacy site, in a CI `changes:` list",
++    "scripts/build_match_preview_site.ps1": "the frozen legacy site, in a CI `changes:` list",
++    "site/i18n/de.json": "the frozen legacy site, a subject of CI's JSON and i18n checks",
++    "site/i18n/en.json": "the frozen legacy site, a subject of CI's JSON and i18n checks",
++    "site/i18n/fi.json": "the frozen legacy site, a subject of CI's JSON and i18n checks",
++    "site/match-preview/index.html": "the frozen legacy site, a subject of a CI check",
++    "site/match-preview/metric_definitions.json": "the frozen legacy site, a subject of a CI check",
++    "site/match-preview/metric_manifest.json": "the frozen legacy site, a subject of a CI check",
++    "dbt_project/models/1_staging/api_football/sources.yml":
++        "the dbt source list, the subject of the freshness check",
++    "dbt_project/models/docs/metric_columns.md": "generated; the check compares it with its generator",
++    "dbt_project/seeds/competition_types.csv": "the seed the check compares with the registry",
++    "design-mocks/renders/competition-overview_2026-09-16_01.html": "an example in a docstring",
++    "site_v2/src/lib/addressWords.mjs": "named in a docstring",
++    "site_v2/src/lib/chartTheme.ts": "the subject the chart check checks",
++    "site_v2/src/styles/system.css": "the site's stylesheet, page code; the mock checks compare with it",
++    "tests/fixtures/component_registry/baseline.json": "a generated baseline, a companion",
++    "tests/fixtures/design_inventory/baseline_quick.json": "a generated baseline, a companion",
++    "tests/fixtures/design_inventory/baseline_quick_fi.json": "a generated baseline, a companion",
++    "tests/fixtures/font_coverage/baseline.json": "a generated baseline, a companion",
++}
++
++
++# Exact paths only: a glob in gate code names the files the gate checks, not what it reads.
++# A test a gate names is a companion, so it adds no reviewer.
++def _gate_named_files() -> dict[str, set[str]]:
++    files = _all_tracked()
++    known = set(files)
++    named: dict[str, set[str]] = {}
++    for code in (f for f in files if any(fnmatch.fnmatch(f, g) for g in GATE_CODE)):
++        text = (ROOT / code).read_text(encoding="utf-8", errors="replace")
++        for token in re.findall(r"[\w.\-/]+", text):
++            token = token.removeprefix("./").rstrip(".")
++            if token in known and not token.startswith("tests/test_"):
++                named.setdefault(token, set()).add(code)
++    return named
++
++
++def test_every_file_a_gate_names_is_a_risk_path():
++    r, named = real_routing(), _gate_named_files()
++    low = {p: sorted(c) for p, c in named.items()
++           if _gd()._tier_of(p, r) < 2 and p not in NOT_GATE_INPUTS}
++    assert not low, f"files a gate names that are below the risk tier: {low}"
++    stale = sorted(p for p in NOT_GATE_INPUTS if p not in named or _gd()._tier_of(p, r) == 2)
++    assert not stale, f"NOT_GATE_INPUTS entries no gate names, or already risk: {stale}"
++
++
++@pytest.mark.parametrize("paths,want", [
++    (["site_v2/src/pages/[lang]/index.astro", "tests/fixtures/design_inventory/baseline.json",
++      "tests/test_x.py", "site_v2/src/lib/format.test.mjs"], {BI}),
++    (["dbt_project/models/5_marts/x.sql", "dbt_project/tests/assert_x.sql", "tests/test_y.py"],
++     {AE}),
++    (["tests/test_x.py"], {PL}),
++    (["docs/x.md", "tests/fixtures/x.json"], {PL}),
++    (["site_v2/src/pages/[lang]/index.astro", "docs/design/components.yml",
++      "tests/fixtures/component_registry/baseline.json"], {BI, CTO}),
++    (["site_v2/src/pages/[lang]/index.astro", "tests/test_design_inventory.py"], {BI, CTO, PL}),
++    (["site_v2/src/pages/[lang]/index.astro", "site_v2/scripts/check-built-pages.test.mjs"],
++     {BI, CTO, PL}),
++    (["tests/test_governance_hooks.py"], {PL}),
++    (["design-mocks/check_mock_css.py", "tests/test_mock_css.py"], {BI, CTO}),
++    ([".claude/skills/research-provider-errors/SKILL.md", "dbt_project/macros/x.sql",
++      "tests/test_x.py"], {AE, CTO}),
++])
++def test_a_branch_s_own_tests_add_no_reviewer(paths, want):
++    assert _gd()._required_reviewers(paths, real_routing()) == want
++
++
++@pytest.mark.parametrize("drop", ["tiers", "max_reviewers"])
++def test_a_routing_file_without_a_tier_key_skips_the_tier_check(drop):
++    routing = {k: v for k, v in TIER_ROUTING.items() if k != drop}
++    assert _gd()._tier_gate(["scripts/x.py"], routing) is None
++    assert _gd()._tier_gate(["scripts/x.py"], TIER_ROUTING) is not None
++
++
++def test_a_backslash_path_is_normalised():
++    msg = _gd()._tier_gate(["scripts\\x.py"], TIER_ROUTING)
++    assert msg and "scripts/x.py" in msg, msg
++
++
++def test_a_contract_only_branch_needs_no_reviewer():
++    paths = [".claude/task/348-one-reviewer/contract.md"]
++    assert _gd()._required_reviewers(paths, real_routing()) == set()
++
++
++# --- the commit gate and the CI backstop on a synthetic repo ---
++TIER_ROUTING = dict(
++    ROUTING,
++    always=[],
++    max_reviewers=2,
++    tiers={"risk": {"reviewers": 2, "paths": [".claude/hooks/**"]},
++           "territory": {"reviewers": 1, "paths": ["dbt_project/**", "scripts/**", "tests/**"]}},
++    companion_paths=["tests/**"],
++    paths={"dbt_project/**": [AE], ".claude/hooks/**": [CTO, PL], "tests/**": [PL]},
++)
++
++TIER_CONTRACT = CONTRACT.replace(
++    "scope_paths:\n",
++    "scope_paths:\n  - .claude/hooks/h.py\n  - scripts/x.py\n  - dbt_project/models/new.sql\n")
++
++
++def _pass(name: str) -> str:
++    return f"## {name}\nVERDICT: PASS\nrisks_checked:\n- checked the diff\n\n"
++
++
++def _setup(repo) -> None:
++    (repo / ".claude" / "review_routing.json").write_text(json.dumps(TIER_ROUTING))
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(TIER_CONTRACT)
++    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "routing+contract"], cwd=repo, check=True)
++
++
++def _stage(repo, *rels: str) -> None:
++    for rel in rels:
++        target = repo / rel
++        target.parent.mkdir(parents=True, exist_ok=True)
++        target.write_text("changed\n")
++        subprocess.run(["git", "add", rel], cwd=repo, check=True)
++
++
++def _commit_gate(repo) -> str:
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    return out
++
++
++def test_a_text_only_branch_commits_without_review(repo):
++    _setup(repo)
++    _stage(repo, "docs/allowed_dir/x.md")
++    out = _commit_gate(repo)
++    assert not denied(out), out
++
++
++def test_text_and_territory_need_only_the_owner(repo):
++    _setup(repo)
++    _stage(repo, "docs/allowed_dir/x.md", "dbt_project/models/allowed.sql")
++    write_review(repo, staged_hash(repo), _pass(AE))
++    out = _commit_gate(repo)
++    assert not denied(out), out
++
++
++def test_a_model_and_its_test_need_only_the_owner(repo):
++    _setup(repo)
++    _stage(repo, "dbt_project/models/allowed.sql", "tests/test_fix.py")
++    write_review(repo, staged_hash(repo), _pass(AE))
++    out = _commit_gate(repo)
++    assert not denied(out), out
++
++
++def test_a_tests_only_branch_needs_their_owner(repo):
++    _setup(repo)
++    _stage(repo, "tests/test_fix.py")
++    out = _commit_gate(repo)
++    assert denied(out) and "review" in out
++
++
++def test_gate_refuses_a_path_without_its_reviewers(repo):
++    _setup(repo)
++    _stage(repo, "scripts/x.py")
++    out = _commit_gate(repo)
++    assert denied(out) and "scripts/x.py" in out and "tier" in out
++
++
++def test_gate_refuses_three_reviewers(repo):
++    _setup(repo)
++    _stage(repo, "dbt_project/models/allowed.sql", ".claude/hooks/h.py")
++    write_review(repo, staged_hash(repo), _pass(AE) + _pass(CTO) + _pass(PL))
++    out = _commit_gate(repo)
++    assert denied(out) and "split" in out.lower()
++
++
++def test_a_staged_text_commit_on_a_reviewed_branch_needs_review(repo):
++    _setup(repo)
++    _stage(repo, ".claude/hooks/h.py")
++    subprocess.run(["git", "commit", "-qm", "reviewed hook"], cwd=repo, check=True)
++    _stage(repo, "docs/allowed_dir/x.md")
++    out = _commit_gate(repo)
++    assert denied(out) and "review" in out
++
++
++def _ci_setup(ci_repo, base_files: tuple[str, ...] = ()) -> None:
++    """Commits the tier routing (and `base_files`) on main, then returns to the feature branch."""
++    subprocess.run(["git", "checkout", "-q", "main"], cwd=ci_repo, check=True)
++    (ci_repo / ".claude" / "review_routing.json").write_text(json.dumps(TIER_ROUTING))
++    for rel in base_files:
++        (ci_repo / rel).parent.mkdir(parents=True, exist_ok=True)
++        (ci_repo / rel).write_text("base\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "tier routing"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "checkout", "-q", "-B", "feature"], cwd=ci_repo, check=True)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(TIER_CONTRACT)
++
++
++def _ci_commit(ci_repo, *rels: str) -> None:
++    for rel in rels:
++        (ci_repo / rel).parent.mkdir(parents=True, exist_ok=True)
++        (ci_repo / rel).write_text("changed\n")
++    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "work"], cwd=ci_repo, check=True)
++
++
++def test_ci_passes_a_text_only_branch(ci_repo):
++    _ci_setup(ci_repo)
++    _ci_commit(ci_repo, "docs/allowed_dir/x.md")
++    code, out = run_ci_check(ci_repo)
++    assert code == 0, out
++
++
++def test_ci_refuses_three_reviewers(ci_repo):
++    _ci_setup(ci_repo)
++    _ci_commit(ci_repo, "dbt_project/models/allowed.sql", ".claude/hooks/h.py")
++    code, out = run_ci_check(ci_repo)
++    assert code == 1 and "split" in out.lower()
++
++
++def test_ci_passes_a_model_and_its_test_with_only_the_owner(ci_repo):
++    _ci_setup(ci_repo)
++    _ci_commit(ci_repo, "dbt_project/models/allowed.sql", "tests/test_fix.py")
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
++        "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 1\n\n" + _pass(AE))
++    _ci_commit(ci_repo)
++    code, out = run_ci_check(ci_repo)
++    assert code == 0, out
++
++
++def test_ci_refuses_a_path_outside_scope(ci_repo):
++    _ci_setup(ci_repo)
++    _ci_commit(ci_repo, "docs/elsewhere.md")
++    code, out = run_ci_check(ci_repo)
++    assert code == 1 and "scope_paths" in out and "docs/elsewhere.md" in out
++
++
++def test_ci_exempts_the_task_folder(ci_repo):
++    _ci_setup(ci_repo)
++    _ci_commit(ci_repo, f".claude/task/{TASK_ID}/notes.md", "docs/allowed_dir/x.md")
++    code, out = run_ci_check(ci_repo)
++    assert code == 0, out
++
++
++def _ci_paths(ci_repo, monkeypatch) -> list[str]:
++    sys.path.insert(0, SCRIPTS)
++    import check_task_artifacts as ci
++    monkeypatch.chdir(ci_repo)
++    return ci.changed_paths("main")
++
++
++def test_a_rename_keeps_its_reviewers(ci_repo, monkeypatch):
++    _ci_setup(ci_repo, base_files=(".claude/hooks/h.py",))
++    (ci_repo / "docs" / "allowed_dir").mkdir(parents=True, exist_ok=True)
++    subprocess.run(["git", "mv", ".claude/hooks/h.py", "docs/allowed_dir/h.py"],
++                   cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "move"], cwd=ci_repo, check=True)
++    paths = _ci_paths(ci_repo, monkeypatch)
++    assert ".claude/hooks/h.py" in paths, paths
++    assert _gd()._required_reviewers(paths, TIER_ROUTING) == {CTO, PL}
++
++
++def test_a_deleted_path_keeps_its_reviewers(ci_repo, monkeypatch):
++    _ci_setup(ci_repo, base_files=(".claude/hooks/h.py",))
++    subprocess.run(["git", "rm", "-q", ".claude/hooks/h.py"], cwd=ci_repo, check=True)
++    subprocess.run(["git", "commit", "-qm", "delete"], cwd=ci_repo, check=True)
++    paths = _ci_paths(ci_repo, monkeypatch)
++    assert _gd()._required_reviewers(paths, TIER_ROUTING) == {CTO, PL}
++
++
++@pytest.mark.parametrize("path,tier", [
++    ("scripts/security/check_no_secrets.py", 2),
++    ("site_v2/scripts/check-built-pages.test.mjs", 2),
++    ("ingestion/api_football/loads/fixtures.py", 2),
++    ("deploy/site/Dockerfile", 2),
++    ("site_v2/.gitignore", 1),
++    ("dbt_project/.sqlfluff", 2),
++    ("dbt_project/dbt_project.yml", 1),
++    ("dbt_project/seeds/metric_catalogue.csv", 2),
++    ("docs/data_contract.md", 0),
++])
++def test_a_path_takes_its_highest_tier(path, tier):
++    assert _gd()._tier_of(path, real_routing()) == tier
+diff --git a/tests/test_reviewer_standard.py b/tests/test_reviewer_standard.py
+index ef21bd18..a46eb6ee 100644
+--- a/tests/test_reviewer_standard.py
++++ b/tests/test_reviewer_standard.py
+@@ -93,6 +93,28 @@ def test_section_2_states_every_rule():
+         assert phrase in text, f"§2 lacks {phrase!r}"
+ 
+ 
++def test_section_2_states_the_tiers():
++    text = _flat(_section(_read(AGREEMENT), "**Blinding.**", "**Reviewer models.**"))
++    for phrase in (
++        "A text path (text, copy and docs) gets no AI reviewer",
++        "A territory path",
++        "gets one reviewer, the owner of the territory",
++        "A risk path (gates, hooks, CI, cost, prod writes, ingestion) gets the owner and one "
++        "specialist",
++        "never needs more than two reviewers",
++        "A branch's own tests and baselines add no reviewer",
++        "A test on a risk path keeps its reviewers; every other test adds none, a gate's own "
++        "test included",
++    ):
++        assert phrase in text, f"§2 Blinding lacks {phrase!r}"
++    assert "`scope-auditor` always" not in text
++
++
++def test_section_2_states_the_size_rule():
++    text = _flat(_section(_read(AGREEMENT), "### Review cycle", "**Blinding.**"))
++    assert "at most about 400 lines, tests and generated files not counted" in text
++
++
+ def test_the_cap_is_one_rule():
+     text = _flat(_read(AGREEMENT))
+     split = ("the work is split: what passed lands, and the rest is split off into its own "
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index c414be2e..fa2853cf 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -19,10 +19,10 @@ import sentence_length_gate as gate  # noqa: E402
+ PINNED = {
+     ".claude/agents/analytics-engineer-reviewer.md": 4,
+     ".claude/agents/bi-analyst-reviewer.md": 15,
+-    ".claude/agents/cto-reviewer.md": 15,
++    ".claude/agents/cto-reviewer.md": 14,
+     ".claude/agents/data-engineer-reviewer.md": 6,
+     ".claude/agents/football-analytics-expert-reviewer.md": 4,
+-    ".claude/agents/platform-reviewer.md": 9,
++    ".claude/agents/platform-reviewer.md": 8,
+     ".claude/agents/scope-auditor.md": 9,
+     ".claude/agents/seo-expert-reviewer.md": 13,
+     ".claude/skills/onboard-competition/SKILL.md": 10,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/348-one-reviewer/review_input.patch | 1545 ++++++++++++++++++++++
+#    .claude/task/REVIEW_TEMPLATE.md                  |    5 +-
+#    .claude/task/TEMPLATE.md                         |    4 +-
+#    3 files changed, 1550 insertions(+), 4 deletions(-)
+# ============================================================================
