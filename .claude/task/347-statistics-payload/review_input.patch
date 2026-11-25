@@ -1,0 +1,679 @@
+diff --git a/.claude/task/347-statistics-payload/contract.md b/.claude/task/347-statistics-payload/contract.md
+new file mode 100644
+index 00000000..25f6d672
+--- /dev/null
++++ b/.claude/task/347-statistics-payload/contract.md
+@@ -0,0 +1,69 @@
++# Task contract — Statistics pages, step 1b: the export of the full ranked field
++
++objective: >
++  Issue #347 (build of the Statistics pages; design approved on #139 and #140), step 1 of its
++  How, second of two merge requests (the first, !537, gave the two goals metrics their place in
++  the catalogue). The `leaderboards/{league_code}/{season}.json` export entity serves, for every
++  competition of the Statistics dropdown, the full ranked field of every board of the Players
++  tab and the Teams tab, as the two leaderboard marts rank it. No page reads the payload yet; the
++  pages are step 2 of #347.
++
++refs: >
++  #347; #139 approved design and notes of 2026-11-10 and 2026-11-12; #140; the earlier data
++  build (0175ee42, "every player and team ranked") that made the marts complete.
++
++scope_paths:
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - tests/test_catalogue_order.py
++  - tests/test_leaderboard_board_sets.py
++  - tests/test_statistics_payload.py
++  - docs/site_architecture.md
++  - .claude/task/347-statistics-payload/contract.md
++  - .claude/task/347-statistics-payload/review.md
++  - .claude/task/347-statistics-payload/review_input.patch
++
++depends_on:
++  - none: !537 (the catalogue order) is merged; the marts it reads are on main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++approved_design:
++  - statistics: #139
++
++impact_map: >
++  writers: no ingestion, dbt model or seed changes.
++  downstream: the export reads mart_leaderboards and mart_team_leaderboards, which
++  `dbt ls --select metric_catalogue+ --resource-type model` lists with
++  mart_player_competition_benchmarks and mart_team_competition_benchmarks; none of them changes.
++  Consumption: scripts/export_site_data.py. The `leaderboards` entity had no reader (it is
++  outside DEPLOY_ENTITIES and tests/test_deploy_entities.py pins that); its old payload (thirteen
++  boards, rank <= 10) is replaced, nothing else reads it. The fetch_metric_rows and
++  fetch_player_metric_rows row sets are filters and do not change
++  (tests/test_form_comparison_metric_set.py).
++  layer_rules: check_layer_contract.py does not apply (no model changes).
++  deploy_order: additive. The payload is written by the export only; the pages of step 2 read it.
++  blast_radius: the export's nightly read of mart_leaderboards and mart_team_leaderboards gains
++  one query each over the Statistics board sets (bytes measured in the MR). No page output
++  changes in this MR.
++
++decisions_taken: >
++  The board sets, forms and ranking directions are the #139 design (approved in chat,
++  2026-11-10); the marts serve exactly those boards (tests/test_leaderboard_board_sets.py pins
++  the tuples to the marts' lists). The page prints the shown value: the marts' display_value, as
++  the earlier data build's contract decided so that the rank and the page cannot disagree
++  (approved in chat, 2026-11-11, on #230). The dropdown's order is the statistics_competitions
++  seed and its Clubs and National teams groups are the competition's entity_type, as that seed's
++  description says. Only the current season of a competition is exported, the rows the marts
++  serve with is_current_season, as the season control lists "today the current one" (#139). The
++  boards follow the catalogue's metric_order. A competition whose latest season serves no board
++  has no payload.
++
++decisions_reserved:
++  - none: every rule applied is named in decisions_taken with its approval
++
++done_when:
++  - full pytest passes
++  - the payload of one real competition is exported and its size and the query bytes are reported in the MR
++  - tests/test_deploy_entities.py is unchanged and passes
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 12dd0d40..95a0f07f 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -282,7 +282,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
+ | Player profile ⭐ | `players/{player_api_id}.json`, `player_peers/{league_code}/{season}/{position_group}.json`, `player_metric_rows.json`, `player_pages.json` | `mart_player_profile`, `mart_player_window_metrics`, `mart_player_competition_benchmarks`, `mart_player_squad_benchmarks`, `mart_player_fixture_stats` (the matches of the season shown), `mart_team_fixtures` (next matches), `mart_team_profile` (team names and slugs). Read `fetch_player_payloads`. |
+ | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
+-| Leaderboards | `leaderboards/{league_code}/{season}.json` | `mart_leaderboards`, player catalogue metrics |
++| Statistics pages | `leaderboards/{league_code}/{season}.json`, the current season of each competition in the `statistics_competitions` seed | `mart_leaderboards` and `mart_team_leaderboards`: every ranked player and team of every board of the Players and Teams tabs. A board's rows are `[rank, shown value, index]` into the file's `players` or `teams`. Read `fetch_statistics_payloads`. |
+ | Head-to-head | `h2h/{pair_key}.json` (not exported) | `mart_head_to_head` |
+ | Metric glossary | `metrics.json` | `metric_catalogue` seed (descriptions, formulas, labels) |
+ 
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 97e9c08d..35e8b667 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -121,12 +121,39 @@ _MATCH_PLAYER_BOARDS = (
+ # Five rows per board on a competition page (#129 board rules); the warehouse ranks and orders,
+ # this is the cut.
+ _COMPETITION_BOARD_ROWS = 5
+-# Player leaderboards (the per-league `leaderboards/` payload): every board mart_leaderboards
+-# ranks, in the catalogue's order — the same thirteen the Rankings tab shows.
+-_LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
++# The Statistics pages' boards, one per metric and form, as filters over the boards the two marts
++# rank; the payload carries every ranked row of each, in the catalogue's order.
++_STATISTICS_PLAYER_BOARDS = (
++    "goals_player", "goals_per90", "assists_player", "assists_per90",
++    "scorer_points_player", "scorer_points_per90", "goals_penalty_player", "contribution_player_pct",
++    "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "finishing_efficiency_player_pct",
++    "passes_per90", "passes_accurate_per90", "passes_accuracy_player_pct", "passes_key_per90",
++    "ball_actions_per90",
++    "dribbles_attempts_per90", "dribbles_success_per90", "dribbles_success_player_pct",
++    "duels_per90", "duels_won_per90", "duels_won_player_pct",
++    "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90",
++    "saves_player", "saves_per90", "saves_player_pct", "goals_against_per90",
++    "cards_yellow_player", "cards_red_player", "penalty_committed_player", "fouls_per90", "offsides_per90",
++)
++_STATISTICS_TEAM_BOARDS = (
++    "goals", "goals_per_match", "goals_against", "goals_against_per_match",
++    "clean_sheets", "clean_sheets_pct", "goals_penalty",
++    "shots_per_match", "shots_on_goal_per_match", "shots_inside_box_per_match", "shots_inside_box_pct",
++    "shots_on_goal_pct", "finishing_efficiency_pct",
++    "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match",
++    "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_key_per_match",
++    "passes_share_pct",
++    "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct",
++    "duels_per_match", "duels_won_per_match", "duels_won_pct",
++    "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match",
++    "saves_per_match", "saves_pct",
++    "corners_per_match", "corners_against_per_match",
++    "cards_yellow", "cards_red", "fouls_per_match", "offsides_per_match",
++)
++STATISTICS_COMPETITIONS_SEED_PATH = "dbt_project/seeds/statistics_competitions.csv"
+ # The HOME page's Top players boards: four boards, one metric each, carried in the catalogue's order.
+-# ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
+-# different consumer with a different board set. Sharing one list would couple two surfaces that
++# ⚠ SEPARATE from _STATISTICS_PLAYER_BOARDS above, which serves the per-league leaderboards payload —
++# a different consumer with a different board set. Sharing one list would couple two surfaces that
+ # have changed independently (the home set was cut from nine boards to four while the leaderboards
+ # set was not).
+ # ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
+@@ -143,13 +170,6 @@ _HOME_TEAM_BOARDS = (
+ # Top 7 per board, raised from 5, and applying to Top teams as well.
+ _HOME_BOARD_ROWS = 7
+ 
+-_LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
+-            "appearances", "minutes", "rank", "sort_value",
+-            "goals_player", "assists_player", "shots_on_goal_player", "dribbles_success_player", "dribbles_attempts_player",
+-            "passes_player", "passes_key_player", "duels_won_player", "duels_player",
+-            "tackles_player", "interceptions_player", "blocks_player",
+-            "cards_yellow_player", "cards_red_player", "saves_player",
+-            "scorer_points_player", "defensive_actions_player", "cards_player")
+ 
+ # Join/identity keys dropped from each per-side block in the fixture payload
+ # (they live at the fixture top level or are join plumbing, not display data).
+@@ -2217,48 +2237,135 @@ def fetch_competition_payloads(client, sample: int = 0) -> list[dict]:
+     return payloads
+ 
+ 
+-def shape_leaderboards(rows: list[dict], metrics=_LEADERBOARD_METRICS,
+-                       limit: int = 10) -> dict:
+-    """Per-board player leaderboards from mart_leaderboards (LONG): the warehouse already
+-    ranked (DENSE_RANK, top-10 inclusive of ties) and tagged each row with metric_key + rank.
+-    The export groups by metric_key and orders by rank — it does not rank. Ties share a rank,
+-    so a board may exceed `limit` when ranks tie at the cut."""
+-    boards: dict = {m: [] for m in metrics}
+-    for r in rows:
+-        m = r.get("metric_key")
+-        if m in boards and r.get("rank") is not None and r["rank"] <= limit:
+-            boards[m].append(r)
+-    for m in boards:
+-        boards[m] = [{k: r.get(k) for k in _LB_KEEP}
+-                     for r in sorted(boards[m], key=lambda r: r["rank"])]
+-    return boards
++def shape_statistics_boards(rows: list[dict], boards: tuple[str, ...], catalogue: dict[str, dict],
++                            entity: str) -> tuple[list[dict], list[dict]]:
++    """One competition-season's Statistics boards of one entity (team or player), from the served
++    rows of its leaderboard mart: (boards in the order given, the entities they rank).
+ 
++    Every ranked row of a board is kept, in the order the warehouse served it (its tie-broken
++    league_leader_order). A board lists each row as [rank, shown value, index into the entities],
++    because one player or team stands on many boards and its name, crest and slug are said once.
++    The rank and the shown value are the mart's rank and display_value; nothing is ranked or
++    rounded here. A board with no rows is omitted."""
++    by_board: dict[str, list[list]] = {key: [] for key in boards}
++    rank_order: dict[str, str] = {}
++    entities: list[dict] = []
++    index: dict[tuple, int] = {}
++    for row in rows:
++        key = row.get("metric_key")
++        if key not in by_board:
++            continue
++        rank_order.setdefault(key, row.get("rank_order") or "desc")
++        if entity == "team":
++            identity = (row.get("team_sk"),)
++            ref = {"slug": row.get("team_slug"), "name": row.get("team_name"), "crest": row.get("team_logo_url")}
++        else:
++            identity = (row.get("player_sk"), row.get("team_slug"))
++            ref = {
++                "slug": player_slug_with_id(row.get("player_name"), row.get("player_sk")),
++                "name": row.get("player_name"),
++                "club": row.get("team_name"),
++                "club_slug": row.get("team_slug"),
++                "crest": row.get("team_logo_url"),
++            }
++        if identity not in index:
++            index[identity] = len(entities)
++            entities.append(ref)
++        by_board[key].append([row.get("rank"), row.get("display_value"), index[identity]])
++    out = []
++    for key in boards:
++        if not by_board[key]:
++            continue
++        out.append({
++            "metric_key": key,
++            "label_i18n_key": catalogue[key]["label_i18n_key"],
++            "format": catalogue[key]["format"],
++            "metric_group": catalogue[key]["metric_group"],
++            "per_match": catalogue[key]["per_match"],
++            "rank_order": rank_order[key],
++            "rows": by_board[key],
++        })
++    return out, entities
+ 
+-def fetch_leaderboard_payloads(client, sample: int = 0) -> list[dict]:
+-    meta = {
+-        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+-        for c in _warehouse_competitions(client)
++
++def _statistics_competitions(seed_path: str = STATISTICS_COMPETITIONS_SEED_PATH) -> dict[str, int]:
++    """league_code -> its place in the Statistics competition dropdown, from the seed that holds it."""
++    import csv
++
++    with open(seed_path, encoding="utf-8") as f:
++        return {r["league_code"]: int(r["statistics_order"]) for r in csv.DictReader(f)}
++
++
++def fetch_statistics_payloads(client, sample: int = 0) -> list[dict]:
++    """leaderboards/{league_code}/{season}.json — one per competition of the Statistics dropdown
++    whose current season serves a board: the full ranked field of every board of the Players tab
++    and of the Teams tab, in the catalogue's order, from the two leaderboard marts' current-season
++    rows (their is_current_season). The dropdown's order is the seed's; its Clubs and National
++    teams groups are the competition's entity_type."""
++    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
++    places = _statistics_competitions()
++    codes = ", ".join(f"'{lc}'" for lc in sorted(places))
++    identity = {c["league_code"]: c for c in _warehouse_competitions(client)}
++    served = _warehouse_competition_meta(client)
++    page_meta = _competition_page_meta(client)
++    season_labels = {
++        (r["league_code"], int(r["season_api_year"])): r.get("season_label")
++        for r in _query(client, f"select distinct league_code, season_api_year, season_label "
++                                f"from `{marts}.mart_competition_fixtures` where league_code in ({codes})")
+     }
+-    grouped = _group2(
+-        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` "
+-                       f"where window_type = 'season_to_date'"),
++    player_keys = ", ".join(f"'{k}'" for k in _STATISTICS_PLAYER_BOARDS)
++    team_keys = ", ".join(f"'{k}'" for k in _STATISTICS_TEAM_BOARDS)
++    player_rows = _group2(
++        _query(client, f"""
++            select league_code, season_api_year, metric_key, rank_order, rank, display_value,
++                   player_sk, player_name, team_name, team_slug, team_logo_url
++            from `{marts}.mart_leaderboards`
++            where window_type = 'season_to_date' and is_current_season
++              and league_code in ({codes}) and metric_key in ({player_keys})
++            order by league_code, season_api_year, metric_key, league_leader_order
++        """),
+         "league_code", "season_api_year",
+     )
+-    keys = sorted(grouped.keys())
+-    if sample:
+-        keys = keys[:sample]
++    team_rows = _group2(
++        _query(client, f"""
++            select league_code, season_api_year, metric_key, rank_order, rank, display_value,
++                   team_sk, team_name, team_slug, team_logo_url
++            from `{marts}.mart_team_leaderboards`
++            where is_current_season
++              and league_code in ({codes}) and metric_key in ({team_keys})
++            order by league_code, season_api_year, metric_key, league_leader_order
++        """),
++        "league_code", "season_api_year",
++    )
++    player_catalogue = _board_catalogue(_STATISTICS_PLAYER_BOARDS, "player")
++    team_catalogue = _board_catalogue(_STATISTICS_TEAM_BOARDS, "team")
++    player_order = _in_catalogue_order(_STATISTICS_PLAYER_BOARDS, "player")
++    team_order = _in_catalogue_order(_STATISTICS_TEAM_BOARDS, "team")
++    keys = sorted(set(player_rows) | set(team_rows), key=lambda k: places[k[0]])
++    seasons: dict[str, int] = {}
++    for lc, season in keys:
++        if seasons.setdefault(lc, season) != season:
++            raise ValueError(f"the leaderboard marts name two current seasons for {lc}: "
++                             f"{seasons[lc]} and {season}")
+     out = []
+     for (lc, season) in keys:
+-        boards = shape_leaderboards(grouped[(lc, season)],
+-                                    _in_catalogue_order(_LEADERBOARD_METRICS, "player"))
+-        if not any(boards.values()):
++        player_boards, players = shape_statistics_boards(
++            player_rows.get((lc, season), []), player_order, player_catalogue, "player")
++        team_boards, teams = shape_statistics_boards(
++            team_rows.get((lc, season), []), team_order, team_catalogue, "team")
++        if not player_boards and not team_boards:
+             continue
+         out.append({
+             "type": "leaderboards", "league_code": lc, "season": season,
+-            "slug": (meta.get(lc) or {}).get("slug"),
+-            "name": (meta.get(lc) or {}).get("name"), "boards": boards,
++            "season_label": season_labels.get((lc, season)),
++            "slug": (identity.get(lc) or {}).get("slug"),
++            "name": (served.get(lc) or {}).get("name") or (identity.get(lc) or {}).get("name"),
++            "entity_type": (page_meta.get(lc) or {}).get("entity_type"),
++            "statistics_order": places[lc],
++            "player_boards": player_boards, "players": players,
++            "team_boards": team_boards, "teams": teams,
+         })
+-    return out
++    return out[:sample] if sample else out
+ 
+ 
+ def group_upcoming_fixtures(rows: list[dict], meta: dict) -> list[dict]:
+@@ -2771,7 +2878,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+         entries.append({"type": "nav", "id": "nav", "slug": None,
+                         "path": "nav.json", "sha256": sha})
+     if "leaderboards" in entities:
+-        for p in fetch_leaderboard_payloads(client, sample):
++        for p in fetch_statistics_payloads(client, sample):
+             relpath = f"leaderboards/{p['league_code']}/{p['season']}.json"
+             sha = write_file(out_root, relpath, p)
+             entries.append({"type": "leaderboards",
+diff --git a/tests/test_catalogue_order.py b/tests/test_catalogue_order.py
+index 6b48a621..a5d02ff4 100644
+--- a/tests/test_catalogue_order.py
++++ b/tests/test_catalogue_order.py
+@@ -19,6 +19,8 @@ SURFACES = {
+     "Home player": (export._HOME_PLAYER_BOARDS, "player"),
+     "Match leaders": (export._MATCH_PLAYER_BOARDS, "player"),
+     "Players to watch": (export._MATCH_WATCH_BOARDS, "player"),
++    "Statistics team": (export._STATISTICS_TEAM_BOARDS, "team"),
++    "Statistics player": (export._STATISTICS_PLAYER_BOARDS, "player"),
+ }
+ 
+ 
+@@ -98,8 +100,6 @@ def test_the_fetched_rankings_and_leaderboards_follow_the_catalogue(monkeypatch)
+     for key, (boards, entity) in (("team_boards", SURFACES["Rankings team"]),
+                                   ("player_boards", SURFACES["Rankings player"])):
+         assert [b["metric_key"] for b in payload[key]] == list(export._in_catalogue_order(boards, entity)), key
+-    (lb,) = export.fetch_leaderboard_payloads(object())
+-    assert list(lb["boards"]) == list(export._in_catalogue_order(export._LEADERBOARD_METRICS, "player"))
+ 
+ 
+ def test_a_board_without_a_place_fails_the_export():
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index d0ea86b3..b31d5762 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -24,7 +24,6 @@ from scripts.export_site_data import (
+     shape_season_summary,
+     shape_fixture_payload,
+     shape_next_match,
+-    shape_leaderboards,
+     shape_player_payload,
+     shape_player_peers,
+     shape_team_payload,
+@@ -43,20 +42,6 @@ def _mark_featured(rows: list[dict]) -> list[dict]:
+     return rows
+ 
+ 
+-def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
+-    # mart_leaderboards is long: the warehouse sets metric_key and rank, so the export never ranks.
+-    rows = [
+-        {"metric_key": "goals_player", "rank": 2, "player_sk": 3, "player_name": "C"},
+-        {"metric_key": "goals_player", "rank": 1, "player_sk": 2, "player_name": "B"},
+-        {"metric_key": "scorer_points_player", "rank": 1, "player_sk": 1, "player_name": "A"},
+-        {"metric_key": "goals_player", "rank": 99, "player_sk": 4, "player_name": "D"},   # beyond the limit
+-    ]
+-    boards = shape_leaderboards(rows, metrics=("goals_player", "scorer_points_player"), limit=10)
+-    assert [p["player_name"] for p in boards["goals_player"]] == ["B", "C"]   # by rank; D dropped (> limit)
+-    assert [p["player_name"] for p in boards["scorer_points_player"]] == ["A"]
+-    assert len(boards["goals_player"]) == 2
+-
+-
+ def test_display_group_of_type_reads_seed():
+     m = _display_group_of_type()                       # reads the real seed (offline, no BQ)
+     assert m["domestic_league"] == "leagues"
+diff --git a/tests/test_leaderboard_board_sets.py b/tests/test_leaderboard_board_sets.py
+index 5716bc9c..1ca687cf 100644
+--- a/tests/test_leaderboard_board_sets.py
++++ b/tests/test_leaderboard_board_sets.py
+@@ -18,6 +18,8 @@ from scripts.export_site_data import (
+     _HOME_PLAYER_BOARDS,
+     _HOME_TEAM_BOARDS,
+     _MATCH_PLAYER_BOARDS,
++    _STATISTICS_PLAYER_BOARDS,
++    _STATISTICS_TEAM_BOARDS,
+     _in_catalogue_order,
+ )
+ 
+@@ -83,6 +85,8 @@ def test_team_boards_agree_in_the_mart_the_yml_and_the_export():
+     accepted = _accepted_values("mart_team_leaderboards")
+     assert _check(mart, accepted, _COMPETITION_TEAM_BOARDS, "team") == []
+     assert _check(mart, accepted, _HOME_TEAM_BOARDS, "team home") == []
++    assert _check(mart, accepted, _STATISTICS_TEAM_BOARDS, "team statistics") == []
++    assert set(_STATISTICS_TEAM_BOARDS) == set(mart), "the Teams tab shows every board the team mart ranks"
+ 
+ 
+ def test_player_boards_agree_in_the_mart_the_yml_and_the_export():
+@@ -96,6 +100,7 @@ def test_player_boards_agree_in_the_mart_the_yml_and_the_export():
+     season_accepted = sorted(set(accepted) - (set(match_boards) - set(season)))
+     assert _check(season, season_accepted, _COMPETITION_PLAYER_BOARDS, "player") == []
+     assert _check(season, season_accepted, _HOME_PLAYER_BOARDS, "player home") == []
++    assert _check(season, season_accepted, _STATISTICS_PLAYER_BOARDS, "player statistics") == []
+ 
+ 
+ def test_the_export_match_boards_are_ranked_by_the_mart():
+diff --git a/tests/test_statistics_payload.py b/tests/test_statistics_payload.py
+new file mode 100644
+index 00000000..12b981bc
+--- /dev/null
++++ b/tests/test_statistics_payload.py
+@@ -0,0 +1,245 @@
++"""The Statistics pages' payload: the full ranked field of every board of the Players and Teams tabs."""
++from __future__ import annotations
++
++import csv
++import os
++import sys
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++import export_site_data as export  # noqa: E402
++
++PLAYER_TOTALS = {
++    "goals_player", "assists_player", "scorer_points_player", "goals_penalty_player", "saves_player",
++    "cards_yellow_player", "cards_red_player", "penalty_committed_player",
++}
++PLAYER_PERCENTAGES = {
++    "shots_on_goal_player_pct", "finishing_efficiency_player_pct", "passes_accuracy_player_pct",
++    "dribbles_success_player_pct", "duels_won_player_pct", "saves_player_pct", "contribution_player_pct",
++}
++TEAM_TOTALS = {"goals", "goals_against", "clean_sheets", "goals_penalty", "cards_yellow", "cards_red"}
++
++
++def _catalogue(entity: str) -> dict[str, dict[str, str]]:
++    path = REPO / export.CATALOGUE_SEED_PATH
++    with path.open(newline="", encoding="utf-8") as f:
++        return {r["metric_id"]: r for r in csv.DictReader(f) if r["entity"] == entity}
++
++
++def test_the_player_boards_have_the_forms_the_design_lists():
++    totals = {k for k in export._STATISTICS_PLAYER_BOARDS if k.endswith("_player")}
++    per90 = {k for k in export._STATISTICS_PLAYER_BOARDS if k.endswith("_per90")}
++    percentages = {k for k in export._STATISTICS_PLAYER_BOARDS if k.endswith("_pct")}
++    assert totals == PLAYER_TOTALS
++    assert percentages == PLAYER_PERCENTAGES
++    assert len(per90) == 21
++    assert {"goals_per90", "assists_per90", "scorer_points_per90", "saves_per90"} <= per90
++    assert "goals_against_per90" in per90
++    assert len(totals | per90 | percentages) == len(export._STATISTICS_PLAYER_BOARDS) == 36
++
++
++def test_the_player_boards_leave_out_what_the_design_leaves_out():
++    kept = set(export._STATISTICS_PLAYER_BOARDS)
++    assert not kept & {
++        "goals_open_play_player", "penalty_won_player", "dribbles_past_player", "dribbles_past_per90",
++        "cards_player", "appearances", "minutes_per_appearance", "passes_player", "shots_player",
++        "shots_on_goal_player", "duels_player", "dribbles_attempts_player", "defensive_actions_player",
++    }
++
++
++def test_the_team_boards_have_the_forms_the_design_lists():
++    kept = set(export._STATISTICS_TEAM_BOARDS)
++    assert {k for k in kept if not k.endswith(("_per_match", "_pct"))} == TEAM_TOTALS
++    assert {"goals_per_match", "goals_against_per_match"} <= kept
++    assert not kept & {
++        "goals_open_play", "goals_own", "shots_off_target_per_match", "shots_blocked_per_match",
++        "shots_share_pct", "free_kicks_per_match", "cards_yellow_per_match", "cards_red_per_match",
++    }
++    assert len(kept) == 38
++
++
++def test_every_statistics_board_has_a_place_in_the_catalogue_and_the_payload_follows_it():
++    for entity, boards in (("player", export._STATISTICS_PLAYER_BOARDS), ("team", export._STATISTICS_TEAM_BOARDS)):
++        cat = _catalogue(entity)
++        assert [k for k in boards if not cat[k]["metric_order"]] == []
++        served = export._in_catalogue_order(boards, entity)
++        assert sorted(served) == sorted(boards)
++        places = [(int(cat[k]["metric_group_order"]), int(cat[k]["metric_order"])) for k in served]
++        assert places == sorted(places)
++
++
++def _player_row(key: str, rank: int, value: float, sk: int, name: str, club: str = "FC A", slug: str = "fc-a") -> dict:
++    return {"metric_key": key, "rank_order": "desc", "rank": rank, "display_value": value, "player_sk": sk,
++            "player_name": name, "team_name": club, "team_slug": slug, "team_logo_url": f"{slug}.png"}
++
++
++def test_a_board_keeps_every_ranked_row_in_the_served_order_with_the_marts_rank_and_value():
++    rows = [
++        _player_row("goals_player", 1, 20, 1, "A"),
++        _player_row("goals_player", 2, 15, 2, "B"),
++        _player_row("goals_player", 2, 15, 3, "C"),
++        _player_row("goals_player", 4, 9.5, 4, "D"),
++    ] + [_player_row("goals_player", 5, 1, 100 + i, f"P{i}") for i in range(300)]
++    boards, entities = export.shape_statistics_boards(
++        rows, ("goals_player",), export._board_catalogue(("goals_player",), "player"), "player")
++    (board,) = boards
++    assert len(board["rows"]) == 304, "no cut: every ranked player stays"
++    assert [r[0] for r in board["rows"][:4]] == [1, 2, 2, 4], "the rank is the mart's: ties share, the next is skipped"
++    assert [r[1] for r in board["rows"][:4]] == [20, 15, 15, 9.5], "the shown value is the mart's display_value"
++    assert [entities[r[2]]["name"] for r in board["rows"][:4]] == ["A", "B", "C", "D"]
++    assert board["rank_order"] == "desc" and board["format"] == "integer" and board["metric_group"] == "goals"
++
++
++def test_a_player_and_a_team_are_said_once_however_many_boards_they_stand_on():
++    rows = [_player_row(k, 1, 3, 7, "Seven") for k in ("goals_player", "assists_player", "goals_penalty_player")]
++    boards, entities = export.shape_statistics_boards(
++        rows, ("goals_player", "assists_player", "goals_penalty_player"),
++        export._board_catalogue(("goals_player", "assists_player", "goals_penalty_player"), "player"), "player")
++    assert len(boards) == 3 and len(entities) == 1
++    assert {b["rows"][0][2] for b in boards} == {0}
++    assert entities[0]["club"] == "FC A" and entities[0]["club_slug"] == "fc-a" and entities[0]["crest"] == "fc-a.png"
++    assert entities[0]["slug"] == export.player_slug_with_id("Seven", 7)
++
++
++def test_a_player_on_two_clubs_in_one_competition_season_is_two_entities():
++    rows = [_player_row("goals_player", 1, 5, 7, "Seven", "FC A", "fc-a"),
++            _player_row("assists_player", 1, 5, 7, "Seven", "FC B", "fc-b")]
++    _, entities = export.shape_statistics_boards(
++        rows, ("goals_player", "assists_player"),
++        export._board_catalogue(("goals_player", "assists_player"), "player"), "player")
++    assert [e["club_slug"] for e in entities] == ["fc-a", "fc-b"]
++
++
++def test_a_board_without_rows_and_a_row_of_an_unlisted_board_are_left_out():
++    rows = [_player_row("goals_player", 1, 5, 1, "A"), _player_row("passes_player", 1, 500, 1, "A")]
++    boards, _ = export.shape_statistics_boards(
++        rows, ("goals_player", "assists_player"),
++        export._board_catalogue(("goals_player", "assists_player"), "player"), "player")
++    assert [b["metric_key"] for b in boards] == ["goals_player"]
++
++
++def test_a_fewest_first_board_carries_the_direction_the_mart_served():
++    row = {"metric_key": "goals_against_per_match", "rank_order": "asc", "rank": 1, "display_value": 0.5,
++           "team_sk": 3, "team_name": "T", "team_slug": "t", "team_logo_url": "t.png"}
++    boards, entities = export.shape_statistics_boards(
++        [row], ("goals_against_per_match",), export._board_catalogue(("goals_against_per_match",), "team"), "team")
++    assert boards[0]["rank_order"] == "asc" and boards[0]["per_match"] is True
++    assert entities == [{"slug": "t", "name": "T", "crest": "t.png"}]
++
++
++def test_a_zero_difference_row_the_mart_ranks_is_kept():
++    rows = [{"metric_key": "shots_on_goal_difference_per_match", "rank_order": "desc", "rank": r, "display_value": v,
++             "team_sk": r, "team_name": f"T{r}", "team_slug": f"t{r}", "team_logo_url": "c"}
++            for r, v in ((1, 1.5), (2, 0.0), (3, -2.0))]
++    boards, _ = export.shape_statistics_boards(
++        rows, ("shots_on_goal_difference_per_match",),
++        export._board_catalogue(("shots_on_goal_difference_per_match",), "team"), "team")
++    assert [r[1] for r in boards[0]["rows"]] == [1.5, 0.0, -2.0]
++
++
++def test_the_competitions_are_the_seeds_in_its_order_with_pl_first_and_the_nations_last():
++    places = export._statistics_competitions()
++    ordered = sorted(places, key=places.get)
++    assert ordered[0] == "PL" and ordered[-1] == "CNL" and len(ordered) == 35
++    assert sorted(places.values()) == list(range(1, 36))
++    assert not set(ordered) & {"WCQEU", "WCQAF", "FAC", "COPA", "SUPERCUP"}
++
++
++def _fake_client(monkeypatch, player_rows=(), team_rows=(), seen=None):
++    def fake_query(client, sql):
++        if seen is not None:
++            seen.append(sql)
++        if "mart_team_leaderboards" in sql:
++            return list(team_rows)
++        if "mart_leaderboards" in sql:
++            return list(player_rows)
++        if "mart_competition_fixtures" in sql:
++            return [{"league_code": "PL", "season_api_year": 2026, "season_label": "2026/27"},
++                    {"league_code": "WC", "season_api_year": 2026, "season_label": "2026"}]
++        return []
++
++    monkeypatch.setattr(export, "_query", fake_query)
++    monkeypatch.setattr(export, "_warehouse_competitions", lambda c: [
++        {"league_code": "PL", "name": "Premier League (registry)", "slug": "premier-league"},
++        {"league_code": "WC", "name": "World Cup", "slug": "world-cup"}])
++    monkeypatch.setattr(export, "_warehouse_competition_meta", lambda c: {"PL": {"name": "Premier League"}})
++    monkeypatch.setattr(export, "_competition_page_meta", lambda c: {
++        "PL": {"entity_type": "club"}, "WC": {"entity_type": "national"}})
++
++
++def _season(lc: str, row: dict) -> dict:
++    return {**row, "league_code": lc, "season_api_year": 2026}
++
++
++def test_the_payloads_are_one_per_competition_in_dropdown_order_with_their_header_facts(monkeypatch):
++    team = {"metric_key": "goals", "rank_order": "desc", "rank": 1, "display_value": 4, "team_sk": 1,
++            "team_name": "T", "team_slug": "t", "team_logo_url": "t.png"}
++    _fake_client(monkeypatch,
++                 player_rows=[_season("WC", _player_row("goals_player", 1, 6, 1, "A"))],
++                 team_rows=[_season("WC", team), _season("PL", team)])
++    wc, pl = None, None
++    payloads = export.fetch_statistics_payloads(object())
++    assert [p["league_code"] for p in payloads] == ["PL", "WC"]
++    pl, wc = payloads
++    assert (pl["name"], pl["slug"], pl["entity_type"], pl["season"], pl["season_label"]) == (
++        "Premier League", "premier-league", "club", 2026, "2026/27")
++    assert pl["statistics_order"] == 1 and wc["statistics_order"] == 28
++    assert pl["player_boards"] == [] and pl["players"] == []
++    assert [b["metric_key"] for b in pl["team_boards"]] == ["goals"]
++    assert wc["entity_type"] == "national" and wc["player_boards"][0]["rows"] == [[1, 6, 0]]
++
++
++def test_the_fetched_boards_follow_the_catalogue_order_whatever_order_the_warehouse_serves(monkeypatch):
++    player_rows = [_season("PL", _player_row(k, 1, 1, 1, "A")) for k in reversed(export._STATISTICS_PLAYER_BOARDS)]
++    team_rows = [_season("PL", {"metric_key": k, "rank_order": "desc", "rank": 1, "display_value": 1, "team_sk": 1,
++                                "team_name": "T", "team_slug": "t", "team_logo_url": "t.png"})
++                 for k in reversed(export._STATISTICS_TEAM_BOARDS)]
++    _fake_client(monkeypatch, player_rows=player_rows, team_rows=team_rows)
++    (payload,) = export.fetch_statistics_payloads(object())
++    assert [b["metric_key"] for b in payload["player_boards"]] == list(
++        export._in_catalogue_order(export._STATISTICS_PLAYER_BOARDS, "player"))
++    assert [b["metric_key"] for b in payload["team_boards"]] == list(
++        export._in_catalogue_order(export._STATISTICS_TEAM_BOARDS, "team"))
++    assert list(export._STATISTICS_PLAYER_BOARDS) != [b["metric_key"] for b in payload["player_boards"]], (
++        "the tuple is not in catalogue order, so this test proves the sort")
++
++
++def test_two_current_seasons_for_one_competition_fail_the_export(monkeypatch):
++    team = {"metric_key": "goals", "rank_order": "desc", "rank": 1, "display_value": 4, "team_sk": 1,
++            "team_name": "T", "team_slug": "t", "team_logo_url": "t.png"}
++    _fake_client(monkeypatch,
++                 player_rows=[_season("PL", _player_row("goals_player", 1, 6, 1, "A"))],
++                 team_rows=[{**team, "league_code": "PL", "season_api_year": 2025}])
++    try:
++        export.fetch_statistics_payloads(object())
++    except ValueError as e:
++        assert "PL" in str(e)
++    else:
++        raise AssertionError("a league with two current seasons must fail the export")
++
++
++def test_a_competition_whose_current_season_serves_no_board_has_no_payload(monkeypatch):
++    _fake_client(monkeypatch)
++    assert export.fetch_statistics_payloads(object()) == []
++
++
++def test_the_reads_take_only_current_season_rows_of_the_dropdown_competitions_and_listed_boards(monkeypatch):
++    seen: list[str] = []
++    _fake_client(monkeypatch, seen=seen)
++    export.fetch_statistics_payloads(object())
++    reads = [s for s in seen if "mart_leaderboards" in s or "mart_team_leaderboards" in s]
++    assert len(reads) == 2
++    for sql in reads:
++        assert "is_current_season" in sql and "league_code in ('" in sql
++        assert "'PL'" in sql and "'WCQEU'" not in sql
++    player_sql = next(s for s in reads if "mart_leaderboards" in s and "mart_team" not in s)
++    assert "window_type = 'season_to_date'" in player_sql and "'goals_per90'" in player_sql
++    assert "'passes_player'" not in player_sql
++
++
++def test_the_sample_limit_keeps_the_first_competitions(monkeypatch):
++    team = {"metric_key": "goals", "rank_order": "desc", "rank": 1, "display_value": 4, "team_sk": 1,
++            "team_name": "T", "team_slug": "t", "team_logo_url": "t.png"}
++    _fake_client(monkeypatch, team_rows=[_season("WC", team), _season("PL", team)])
++    assert [p["league_code"] for p in export.fetch_statistics_payloads(object(), sample=1)] == ["PL"]
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/347-statistics-payload/review.md | 22 ++++++++++++++++++++++
+#    1 file changed, 22 insertions(+)
+# ============================================================================

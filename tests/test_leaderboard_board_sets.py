@@ -18,6 +18,8 @@ from scripts.export_site_data import (
     _HOME_PLAYER_BOARDS,
     _HOME_TEAM_BOARDS,
     _MATCH_PLAYER_BOARDS,
+    _STATISTICS_PLAYER_BOARDS,
+    _STATISTICS_TEAM_BOARDS,
     _in_catalogue_order,
 )
 
@@ -83,6 +85,8 @@ def test_team_boards_agree_in_the_mart_the_yml_and_the_export():
     accepted = _accepted_values("mart_team_leaderboards")
     assert _check(mart, accepted, _COMPETITION_TEAM_BOARDS, "team") == []
     assert _check(mart, accepted, _HOME_TEAM_BOARDS, "team home") == []
+    assert _check(mart, accepted, _STATISTICS_TEAM_BOARDS, "team statistics") == []
+    assert set(_STATISTICS_TEAM_BOARDS) == set(mart), "the Teams tab shows every board the team mart ranks"
 
 
 def test_player_boards_agree_in_the_mart_the_yml_and_the_export():
@@ -96,6 +100,7 @@ def test_player_boards_agree_in_the_mart_the_yml_and_the_export():
     season_accepted = sorted(set(accepted) - (set(match_boards) - set(season)))
     assert _check(season, season_accepted, _COMPETITION_PLAYER_BOARDS, "player") == []
     assert _check(season, season_accepted, _HOME_PLAYER_BOARDS, "player home") == []
+    assert _check(season, season_accepted, _STATISTICS_PLAYER_BOARDS, "player statistics") == []
 
 
 def test_the_export_match_boards_are_ranked_by_the_mart():

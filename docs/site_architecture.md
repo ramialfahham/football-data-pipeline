@@ -282,7 +282,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
 | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
 | Player profile ⭐ | `players/{player_api_id}.json`, `player_peers/{league_code}/{season}/{position_group}.json`, `player_metric_rows.json`, `player_pages.json` | `mart_player_profile`, `mart_player_window_metrics`, `mart_player_competition_benchmarks`, `mart_player_squad_benchmarks`, `mart_player_fixture_stats` (the matches of the season shown), `mart_team_fixtures` (next matches), `mart_team_profile` (team names and slugs). Read `fetch_player_payloads`. |
 | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
-| Leaderboards | `leaderboards/{league_code}/{season}.json` | `mart_leaderboards`, player catalogue metrics |
+| Statistics pages | `leaderboards/{league_code}/{season}.json`, the current season of each competition in the `statistics_competitions` seed | `mart_leaderboards` and `mart_team_leaderboards`: every ranked player and team of every board of the Players and Teams tabs. A board's rows are `[rank, shown value, index]` into the file's `players` or `teams`. Read `fetch_statistics_payloads`. |
 | Head-to-head | `h2h/{pair_key}.json` (not exported) | `mart_head_to_head` |
 | Metric glossary | `metrics.json` | `metric_catalogue` seed (descriptions, formulas, labels) |
 

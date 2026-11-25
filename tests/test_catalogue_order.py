@@ -19,6 +19,8 @@ SURFACES = {
     "Home player": (export._HOME_PLAYER_BOARDS, "player"),
     "Match leaders": (export._MATCH_PLAYER_BOARDS, "player"),
     "Players to watch": (export._MATCH_WATCH_BOARDS, "player"),
+    "Statistics team": (export._STATISTICS_TEAM_BOARDS, "team"),
+    "Statistics player": (export._STATISTICS_PLAYER_BOARDS, "player"),
 }
 
 
@@ -98,8 +100,6 @@ def test_the_fetched_rankings_and_leaderboards_follow_the_catalogue(monkeypatch)
     for key, (boards, entity) in (("team_boards", SURFACES["Rankings team"]),
                                   ("player_boards", SURFACES["Rankings player"])):
         assert [b["metric_key"] for b in payload[key]] == list(export._in_catalogue_order(boards, entity)), key
-    (lb,) = export.fetch_leaderboard_payloads(object())
-    assert list(lb["boards"]) == list(export._in_catalogue_order(export._LEADERBOARD_METRICS, "player"))
 
 
 def test_a_board_without_a_place_fails_the_export():
