@@ -70,7 +70,11 @@ const entity = {
     {/* The KEY IS ABSENT, not empty, when no board had data (#40, #41) — the export omits it, so
         each guard is the whole "block does not render" rule and neither block has an empty state.
         This is the complete composition: next matches, Top players, Top teams (10_home.md §0). */}
-    {data.top_players && <TopPlayers boards={data.top_players} lang={lang} />}
-    {data.top_teams && <TopTeams boards={data.top_teams} lang={lang} />}
+    {data.top_players && (
+      <TopPlayers boards={data.top_players} lang={lang} fallbackSeason={data.fallback_season} />
+    )}
+    {data.top_teams && (
+      <TopTeams boards={data.top_teams} lang={lang} fallbackSeason={data.fallback_season} />
+    )}
   </div>
 </Layout>
