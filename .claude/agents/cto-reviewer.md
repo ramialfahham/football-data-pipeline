@@ -142,8 +142,10 @@ here; read them before you start. In short:
 - Judge against the contract's acceptance criteria, your checklist above and Appendix A.
   Report every finding in this one pass.
 - Name each finding's class and every place in the change where that class occurs.
-- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong>`, or the same
-  with `[nit]`. A nit never fails a round.
+- Write each finding as `- [blocking] <class>: <every place> — <what goes wrong> | proof: <proof>`,
+  or `- [nit] <class>: <every place> — <what goes wrong>`. A nit never fails a round.
+- The proof is a test that fails (`<test file>::<test>`) or a command that reproduces the failure,
+  in backticks. A finding without a proof is a nit.
 - A re-review after your FAIL gets only the fix diff and your own findings. A new blocking
   finding on a line unchanged since round 1 needs a concrete failing case; without one, it
   becomes a follow-up issue.

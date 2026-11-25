@@ -18,7 +18,9 @@ branch and the base, it verifies:
     review to this PR's code + contract (F11/#409);
   - every reviewer required by .claude/review_routing.json for the PR's
     changed paths has a verdict section;
-  - no "VERDICT: FAIL"; every "VERDICT: ESCALATE" has a "CPO ANSWER:" in its
+  - no "VERDICT: FAIL" with a blocking finding that `## closed` leaves open, and a
+    blocking finding names its proof (`git_discipline._closure_gate`);
+    every "VERDICT: ESCALATE" has a "CPO ANSWER:" in its
     OWN section (per-section pairing, mirroring the local commit gate — an
     answer elsewhere must not mask an unanswered escalation);
   - every "VERDICT: PASS" section says what it examined (>= 1 entry under
@@ -221,11 +223,9 @@ def main() -> int:
     rounds_err = _rounds_error(text)
     if rounds_err:
         errors.append(rounds_err)
-    findings_err = _gd._findings_gate(text, paths, os.getcwd())
+    findings_err = _gd._findings_gate(text, paths, os.getcwd()) or _gd._closure_gate(text)
     if findings_err:
         errors.append(findings_err)
-    if "VERDICT: FAIL" in text:
-        errors.append("review.md contains VERDICT: FAIL — unresolved findings")
     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
     # AUTHORITATIVE check for unanswered escalations (it can't be fooled by an answer in a
     # different section). This global count is a cheap sanity net; keep it adjacent to the

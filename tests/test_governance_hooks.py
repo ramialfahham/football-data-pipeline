@@ -1278,14 +1278,14 @@ def _stage_tested_fix(repo) -> str:
 def test_commit_allowed_at_the_cap(repo):
     setup_review_repo(repo)
     fixes = _stage_tested_fix(repo)
-    write_review(repo, staged_hash(repo), GOOD_BODY + fixes, rounds="rounds: 3\n")
+    write_review(repo, staged_hash(repo), GOOD_BODY + fixes, rounds="rounds: 2\n")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert not denied(out)
 
 
 def test_commit_denied_over_the_cap_without_override(repo):
     setup_review_repo(repo)
-    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="rounds: 4\n")
+    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="rounds: 3\n")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert denied(out) and "cap" in out
 

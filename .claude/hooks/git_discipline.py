@@ -726,7 +726,7 @@ def _review_sections(text: str) -> dict[str, str]:
     return sections
 
 
-ROUND_CAP = 3
+ROUND_CAP = 2
 
 
 def _rounds_gate(text: str) -> str | None:
@@ -761,10 +761,11 @@ def _rounds_gate(text: str) -> str | None:
         reason = ov.group(1).strip() if ov else ""
         if not reason or _is_placeholder(reason):
             return (
-                f"REVIEW GATE: {raw} review rounds exceeds the cap of {ROUND_CAP}. "
-                "At the cap the work is split: what passed lands, and the rest is split "
-                "off into its own issue. A further round is the CPO's call; record it as "
-                "`rounds_cap_override: approved in chat, <date>` in review.md, then commit."
+                f"REVIEW GATE: {raw} review rounds exceeds the cap of {ROUND_CAP}. At the cap "
+                "the approach is rethought and the work is split: what passed lands, and the "
+                "rest is split off into its own issue. A further round is the CPO's call; "
+                "record it as `rounds_cap_override: approved in chat, <date>` in review.md, "
+                "then commit."
             )
     return None
 
@@ -777,6 +778,64 @@ FIX_RE = re.compile(
 TEST_PATH_RE = re.compile(
     r"^(?:tests/(?:[^/]+/)*test_[^/]+\.py|dbt_project/tests/.+\.sql"
     r"|site_v2/(?:[^/]+/)*[^/]+\.test\.mjs)$")
+PROOF_RE = re.compile(r"[^\S\n]\|[^\S\n]*proof:[^\S\n]*(.*?)[^\S\n]*$")
+CLOSED_RE = re.compile(
+    r"^(\S+)[^\S\n]*\|[^\S\n]*([^|\n]*?)[^\S\n]*\|[^\S\n]*(.*?)[^\S\n]*$")
+
+
+def _proof_error(item: str) -> str | None:
+    """Why a blocking finding does not name its proof, or None (§2 Cross-Examination)."""
+    if not item.startswith("[blocking]"):
+        return None
+    m = PROOF_RE.search(item)
+    proof = m.group(1) if m else ""
+    cmd = re.fullmatch(r"`([^`]+)`", proof)
+    if cmd and not _is_placeholder(cmd.group(1)):
+        return None
+    if re.fullmatch(r"\S+", proof) and TEST_PATH_RE.match(proof.split("::", 1)[0]):
+        return None
+    return ("names no proof: it ends with `| proof: <test file>::<test>` or a reproduction "
+            "command in backticks")
+
+
+def _blocking_classes(body: str) -> set[str]:
+    return {m.group(2).strip() for f in _bullets(_findings_block(body))
+            if f.startswith("[blocking]") and (m := FINDING_RE.match(f))}
+
+
+def _closed_pairs(text: str) -> set[tuple[str, str]]:
+    """The (reviewer, class) pairs that `## closed` closes, well-formed entries only."""
+    return {(m.group(1), m.group(2)) for e in _bullets(_review_sections(text).get("closed", ""))
+            if (m := CLOSED_RE.match(e))}
+
+
+def _closure_gate(text: str) -> str | None:
+    """Reason to deny on `## closed` or on a FAIL it leaves open, or None (§2 Fix and re-review)."""
+    sections = _review_sections(text)
+    if text.count("VERDICT: FAIL") > sum(b.count("VERDICT: FAIL") for b in sections.values()):
+        return ("REVIEW GATE: a FAIL is hidden by a second section of the same name. Give each "
+                "reviewer one section.")
+    for n, entry in enumerate(_bullets(sections.get("closed", "")), 1):
+        m = CLOSED_RE.match(entry)
+        if not m or not m.group(2):
+            return (f"REVIEW GATE: `## closed` entry {n} is not "
+                    "`- <reviewer> | <class> | <reason>`.")
+        if _is_placeholder(m.group(3)):
+            return (f"REVIEW GATE: `## closed` entry {n} gives no reason: say why the finding "
+                    "does not reproduce.")
+        if m.group(2) not in _blocking_classes(sections.get(m.group(1), "")):
+            return (f"REVIEW GATE: `## closed` entry {n} closes no blocking finding: "
+                    f"`{m.group(1)}` reports none of class `{m.group(2)}`.")
+    closed = _closed_pairs(text)
+    for name, body in sections.items():
+        if "VERDICT: FAIL" not in body:
+            continue
+        found = _blocking_classes(body)
+        if not found or {c for c in found if (name, c) not in closed}:
+            return (f"REVIEW GATE: `{name}` is a FAIL with an open blocking finding. Fix the "
+                    "findings and re-run the cycle, or close one that does not reproduce under "
+                    "`## closed`.")
+    return None
 
 
 def _findings_block(body: str) -> str:
@@ -794,15 +853,21 @@ def _findings_block(body: str) -> str:
 
 def _findings_gate(text: str, branch_paths: list[str], root: str) -> str | None:
     """Reason to deny on the findings and fixes in review.md, or None (§2 Cross-Examination)."""
+    closed = _closed_pairs(text)
     for name, body in _review_sections(text).items():
-        if name == "fixes":
+        if name in ("fixes", "closed"):
             continue
         found = _bullets(_findings_block(body))
         for n, item in enumerate(found, 1):
-            if not FINDING_RE.match(item):
+            m = FINDING_RE.match(item)
+            if not m:
                 return (
                     f"REVIEW GATE: finding {n} in `{name}` is not `[blocking] <class>: <every "
                     "place> - <what goes wrong>` or the same with `[nit]`.")
+            why = None if (name, m.group(2).strip()) in closed else _proof_error(item)
+            if why:
+                return (f"REVIEW GATE: finding {n} in `{name}` {why}. A finding without a proof "
+                        "is a nit.")
         blocking = [f for f in found if f.startswith("[blocking]")]
         if "VERDICT: PASS" in body and blocking:
             return (f"REVIEW GATE: `{name}` is a PASS with a blocking finding. "
@@ -1056,11 +1121,9 @@ def _commit_gate(root: str) -> str | None:
     rounds_msg = _rounds_gate(text)
     if rounds_msg:
         return rounds_msg
-    findings_msg = _findings_gate(text, branch_paths, root)
+    findings_msg = _findings_gate(text, branch_paths, root) or _closure_gate(text)
     if findings_msg:
         return findings_msg
-    if "VERDICT: FAIL" in text:
-        return "REVIEW GATE: a reviewer verdict is FAIL. Fix the findings and re-run the cycle."
     if text.count("VERDICT: ESCALATE") > text.count("CPO ANSWER:"):
         return (
             "REVIEW GATE: an ESCALATE verdict has no recorded CPO ANSWER. "
