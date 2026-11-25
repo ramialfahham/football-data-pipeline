@@ -23,7 +23,6 @@ PINNED = {
     ".claude/agents/bi-analyst-reviewer.md": 6,
     ".claude/agents/cto-reviewer.md": 8,
     ".claude/agents/data-engineer-reviewer.md": 2,
-    ".claude/agents/platform-reviewer.md": 1,
     ".claude/agents/scope-auditor.md": 5,
     ".claude/agents/seo-expert-reviewer.md": 1,
     ".claude/commands/status.md": 1,

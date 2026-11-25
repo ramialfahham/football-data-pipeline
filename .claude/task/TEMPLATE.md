@@ -79,7 +79,7 @@ scope_paths:
 # stand in `docs/wireframes/approved_designs.yml` on `main`, which changes only by
 # the CPO's merge; the contract gate and CI check it. A task
 # that changes no page output writes one line `- none: no page output changes`,
-# and scope-auditor checks it against the diff. No approved design, no page edit.
+# and no reviewer checks it against the diff. No approved design, no page edit.
 # approved_design:
 #   - <page>: #<issue>
 
@@ -108,7 +108,7 @@ decisions_taken: >
   # THRESHOLD DECLARATIONS (CPO ruling 2026-07-31, #868). Two of the CTO's four
   # thresholds — a NEW MECHANISM and a RECURRING COST — can appear in any file,
   # so no routing row can find them and `cto-reviewer` only sees them if you
-  # write them here with their authority. `scope-auditor`'s undeclared-threshold
+  # write them here with their authority. `cto-reviewer`'s undeclared-threshold
   # hunt item FAILs a crossing that is not here. No gate parses this field, so
   # the declaration rests on your honesty: an omission is a defect, not an
   # oversight. (Cite the item by NAME, never by number — this comment said

@@ -9,7 +9,10 @@ branch and the base, it verifies:
     task's folder, and adds or changes no old shared `.claude/task/` file;
   - artifact-only PRs (only bookkeeping paths) pass — but a PR touching
     a task's contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
-  - otherwise the task folder's contract.md and review.md must exist;
+  - otherwise the task folder's contract.md must exist, every changed path outside the task
+    folder is in its scope_paths, every changed path has its tier's reviewer count and the PR
+    needs at most `max_reviewers` (`git_discipline._tier_gate`; renames count both paths);
+  - a PR whose paths need no reviewer passes; otherwise review.md must exist;
   - review.md carries a well-formed 64-hex diff_sha256 that MATCHES the recomputed
     hash of `git diff base...HEAD` excluding the bookkeeping artifacts — binding the
     review to this PR's code + contract (F11/#409);
@@ -83,7 +86,7 @@ def changed_paths(base: str) -> list[str]:
     # -z (NUL-split) mirrors the local gate: quotePath-escaped non-ASCII
     # paths would match no routing pattern and drop a required reviewer
     out = subprocess.run(
-        ["git", "diff", "--name-only", "-z", f"{base}...HEAD"],
+        ["git", "diff", "--name-only", "--no-renames", "-z", f"{base}...HEAD"],
         capture_output=True, text=True, check=True,
     ).stdout
     return [p.replace("\\", "/") for p in out.split("\0") if p]
@@ -166,8 +169,21 @@ def main() -> int:
         contract, review = folder + _tcg.CONTRACT_NAME, folder + _gd.REVIEW_NAME
         if not os.path.isfile(contract):
             errors.append(f"missing {contract} (every code PR carries its task contract)")
-        if not os.path.isfile(review):
-            errors.append(f"missing {review} (every code PR carries its review verdicts)")
+    if errors:
+        print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
+        return 1
+
+    scope = (_tcg._parse_contract(contract) or {}).get("scope") or []
+    errors.extend(f"`{p}` is outside the contract's scope_paths" for p in paths
+                  if not p.startswith(_tcg.TASK_DIR_REL) and not _tcg._matches_scope(p, scope))
+    errors.extend(e for e in [_gd._tier_gate(paths, routing)] if e)
+    errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
+    required = _gd._required_reviewers(paths, routing)
+    if not required and not errors:
+        print(f"check_task_artifacts: OK ({len(paths)} changed paths, text only: no reviewer)")
+        return 0
+    if not os.path.isfile(review):
+        errors.append(f"missing {review} (every code PR carries its review verdicts)")
     if errors:
         print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
         return 1
@@ -208,7 +224,6 @@ def main() -> int:
     findings_err = _gd._findings_gate(text, paths, os.getcwd())
     if findings_err:
         errors.append(findings_err)
-    errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
     if "VERDICT: FAIL" in text:
         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
@@ -225,11 +240,6 @@ def main() -> int:
             errors.append(
                 f"section `{name}` has an ESCALATE without a CPO ANSWER in that section")
 
-    required = set(routing.get("always") or [])
-    for path in paths:
-        for pattern, reviewers in (routing.get("paths") or {}).items():
-            if fnmatch.fnmatch(path, pattern):
-                required.update(reviewers)
     for reviewer in sorted(required):
         body = sections.get(reviewer)
         if body is None or "VERDICT:" not in body:

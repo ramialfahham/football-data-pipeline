@@ -96,8 +96,7 @@ escalated, never answered by drawing it.
   `- home: #127`.
 - The page and its issue stand in `docs/wireframes/approved_designs.yml` on `main`. A page enters
   that list in the MR that closes its design review; the CPO's merge is the approval.
-- A task that changes no page output says `- none: no page output changes`. `scope-auditor`
-  checks that line against the diff.
+- A task that changes no page output says `- none: no page output changes`.
 - The contract gate denies a page-surface edit without the field.
 - The contract gate and `scripts/check_task_artifacts.py` fail when a named page and issue are not
   in that list on the base branch. The copy in the MR's own branch does not count.
@@ -155,6 +154,9 @@ The protected paths are `.claude/hooks/**`, `.claude/agents/**`, `.claude/comman
 
 Every substantive commit passes four serialized steps. The commit gate enforces them.
 
+An MR changes at most about 400 lines, tests and generated files not counted. Bigger work is split
+into MRs that merge one after another.
+
 | Step | What happens |
 |---|---|
 | 1. Code Lock | The builder declares the implementation complete and stages everything with `git add`. No further edits happen in this cycle. |
@@ -164,8 +166,17 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 
 **Blinding.**
 
-- `.claude/review_routing.json` names the required reviewers for the staged paths:
-  `scope-auditor` always, plus the path-routed specialists.
+- `.claude/review_routing.json` gives every path a tier and names the reviewers for the branch's
+  paths.
+- A text path (text, copy and docs) gets no AI reviewer. A branch of text paths needs green checks
+  and the CPO's merge.
+- A territory path (site pages, dbt, scripts, tests, the site build) gets one reviewer, the owner
+  of the territory.
+- A risk path (gates, hooks, CI, cost, prod writes, ingestion) gets the owner and one specialist.
+- A branch never needs more than two reviewers. A branch that needs more is split.
+- A branch's own tests and baselines add no reviewer. A branch of only tests and text needs their
+  owner. A test on a risk path keeps its reviewers; every other test adds none, a gate's own test
+  included.
 - Each reviewer gets read-only tools and no builder context.
 - Each reviewer judges the cumulative branch diff from the base branch, never the staged
   increment alone. The diff is in the task folder's `review_input.patch`.
@@ -181,15 +192,9 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
   floor.
 - When the staged diff touches a guard path, every specialist that routing requires for it is
   spawned at **opus**.
-- `scope-auditor` is exempt from the opus promotion. It never runs below the **sonnet** floor.
-  Its tier is a recurring cost and a CPO decision (§10).
-- For the guard paths, that means `cto-reviewer` on all fourteen, plus `platform-reviewer` on exactly
-  seven of them: `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
-  `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`
-  and `tests/test_design_inventory.py`.
+- For the guard paths, that means `cto-reviewer` on all fourteen, `platform-reviewer` on thirteen
+  and `bi-analyst-reviewer` on `docs/design/components.yml`.
 - The CTO rules on authority. Platform reviews the implementation.
-- `platform-reviewer` is deliberately absent from the other seven, `.claude/agents/**` above all. A
-  reviewer brief is a prompt, not machinery.
 - The orchestrator applies this rule at spawn time. No hook enforces it.
 - Never state this rule in prose without checking it against the routing rows. Fix a mismatch on
   whichever side is wrong, which is almost always the prose.
@@ -241,7 +246,8 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 - The hash leaves out the bookkeeping artifacts that `hash_exclude_paths` lists. They include the
   two evidence artifacts, `acceptance_evidence.md` and `rendered_page_evidence.md`.
 - CI recomputes the hash from `git diff base...HEAD`.
-- `contract.md` is hashed and is never artifact-exempt. Every contract change goes through review.
+- `contract.md` is hashed and is never artifact-exempt, so a branch with code reviews its contract
+  with the code. A contract-only branch is text and needs no reviewer.
 - A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
   the round count and needs no new review.
 - The round cap is 3 reviewer rounds per issue, counted across sessions. A new session or branch
@@ -254,7 +260,9 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 
 `git_discipline.py` denies `git commit` when any of these is true:
 
-- `review.md` is missing.
+- A changed path gets a different number of reviewers than its tier needs.
+- The branch needs more than two reviewers.
+- The branch needs a reviewer, and `review.md` is missing.
 - Its hash does not match the live hash, or the live hash cannot be computed.
 - Any verdict is FAIL.
 - An ESCALATE has no recorded `CPO ANSWER:` in its own section.
@@ -285,7 +293,8 @@ The commit form:
 - `git commit` is the sole command in its shell call. A chained sibling such as
   `git add x && git commit` could restage content after the hash check.
 
-CI re-checks the artifacts on every MR with `scripts/check_task_artifacts.py`.
+CI re-checks the artifacts on every MR with `scripts/check_task_artifacts.py`. It also refuses a
+changed path outside the contract's `scope_paths`, except in the task folder.
 
 ---
 
@@ -435,7 +444,7 @@ standards, the metric catalogue and the task contract.
 
 **Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
 
-A core-doc sentence that only restates a rule the CPO already approved, or describes code that implements one, needs no new approval. The scope-auditor checks that it matches.
+A core-doc sentence that only restates a rule the CPO already approved, or describes code that implements one, needs no new approval.
 
 ---
 

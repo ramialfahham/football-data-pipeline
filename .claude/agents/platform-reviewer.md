@@ -26,22 +26,13 @@ page displays (`bi-analyst-reviewer`), what a number means
 (`football-analytics-expert-reviewer`).
 
 > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
-> to `opus` at spawn time on the SEVEN guard paths you are routed to:
-> `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
-> `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
-> `scripts/design_inventory.py` and `tests/test_design_inventory.py`. Guard bypasses are the
+> to `opus` at spawn time on the thirteen guard paths you are routed to, beside
+> `cto-reviewer`. Guard bypasses are the
 > highest-stakes findings (the G3 commit-gate bypasses were caught only at that
 > depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
 > YOUR items — that is why you are there at all.
-> You are deliberately NOT routed to the other seven guard paths
-> (`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
-> `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `docs/design/components.yml`). Two reasons, and
-> the second one binds: a brief or a routing table is a prompt rather than
-> machinery, so none of your hunt items reach it and your verdict would be a rubber
-> stamp; and adding you there would put two opus specialists where one ran, which
-> is a recurring cost and therefore the CPO's to approve. Round 2 of this branch's
-> own review widened those rows and was failed for exactly that. Procedural rule,
-> not hook-enforced.
+> On a reviewer brief or a routing table, your item is whether a test pins the
+> changed behaviour. Procedural rule, not hook-enforced.
 
 ## Inputs
 

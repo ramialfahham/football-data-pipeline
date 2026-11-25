@@ -14,7 +14,8 @@
 > each fix's sweep and a test file the branch changes (`tests/**/test_*.py`,
 > `dbt_project/tests/**.sql` or `site_v2/**/*.test.mjs`), or holds the one entry `- none: <why>` after a
 > round of PASS verdicts. Commits touching only artifact paths
-> (.claude/task/**, .claude/active_work.md) are exempt. Stage with `git add`
+> (.claude/task/**, .claude/active_work.md) are exempt, and a branch of text paths
+> needs no review.md. Stage with `git add`
 > then plain `git commit` as the SOLE command in its own call — commit flags
 > are allowlisted (message/quiet/verbose/sign only); any other flag, any
 > pathspec, any git global option, and any chained sibling command is denied
@@ -24,7 +25,7 @@ diff_sha256: <64-hex; run `python .claude/hooks/git_discipline.py --staged-hash`
 
 rounds: <how many review rounds this issue has taken, across sessions; 1 on the first. A merge of main that leaves the review hash unchanged is not a round (docs/working_agreement.md §2). The gate caps it at 3; at the cap the work is split. A further round is the CPO's call: add `rounds_cap_override: approved in chat, <date>`.>
 
-## scope-auditor
+## <required-reviewer>
 VERDICT: PASS
 findings:
 - [nit] <class>: <every place, file:line> — <what goes wrong>

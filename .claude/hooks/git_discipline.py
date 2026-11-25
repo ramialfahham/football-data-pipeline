@@ -342,14 +342,56 @@ def _load_routing(root: str) -> dict | None:
         return None
 
 
-def _required_reviewers(paths: list[str], routing: dict) -> set[str]:
+def _path_reviewers(path: str, routing: dict) -> set[str]:
     import fnmatch
+    return {r for pattern, reviewers in (routing.get("paths") or {}).items()
+            if fnmatch.fnmatch(path, pattern) for r in reviewers}
+
+
+def _is_companion(path: str, routing: dict) -> bool:
+    """A test or baseline outside the risk tier: it adds no reviewer to a branch that has one."""
+    import fnmatch
+    top = max((t.get("reviewers", 0) for t in (routing.get("tiers") or {}).values()), default=0)
+    return (any(fnmatch.fnmatch(path, g) for g in routing.get("companion_paths") or [])
+            and _tier_of(path, routing) < top)
+
+
+def _required_reviewers(paths: list[str], routing: dict) -> set[str]:
     required = set(routing.get("always") or [])
     for path in paths:
-        for pattern, reviewers in (routing.get("paths") or {}).items():
-            if fnmatch.fnmatch(path, pattern):
-                required.update(reviewers)
+        if not _is_companion(path, routing):
+            required |= _path_reviewers(path, routing)
+    if not required:
+        for path in paths:
+            required |= _path_reviewers(path, routing)
     return required
+
+
+def _tier_of(path: str, routing: dict) -> int:
+    """The reviewer count a path's tier needs: the highest matching tier, 0 for a text path."""
+    import fnmatch
+    return max((t.get("reviewers", 0) for t in (routing.get("tiers") or {}).values()
+                if any(fnmatch.fnmatch(path, g) for g in t.get("paths") or [])), default=0)
+
+
+def _tier_gate(paths: list[str], routing: dict) -> str | None:
+    """Reason to deny on the review tiers (docs/working_agreement.md §2 Blinding), or None."""
+    cap = routing.get("max_reviewers")
+    if not routing.get("tiers") or cap is None:
+        return None
+    paths = [p.replace("\\", "/") for p in paths]
+    for path in paths:
+        want, got = _tier_of(path, routing), _path_reviewers(path, routing)
+        if len(got) != want:
+            return (f"REVIEW GATE: `{path}` needs {want} reviewer(s) by its tier in {ROUTING_REL}, "
+                    f"and its `paths` rows give {len(got)} ({', '.join(sorted(got)) or 'none'}). "
+                    "Fix its row in a governance task.")
+    need = _required_reviewers(paths, routing)
+    if len(need) > cap:
+        return (f"REVIEW GATE: this branch needs {len(need)} reviewers ({', '.join(sorted(need))}) "
+                f"and the most a branch may need is {cap}. Split it into MRs that merge one after "
+                "another (docs/working_agreement.md §2).")
+    return None
 
 
 def _hash_exclude_pathspec(routing: dict | None) -> list[str]:
@@ -962,6 +1004,19 @@ def _commit_gate(root: str) -> str | None:
     acceptance_msg = _acceptance_gate(root, paths, folder)
     if acceptance_msg:
         return acceptance_msg
+    try:
+        names = _cumulative_diff(root, ["--name-only", "-z"]).decode("utf-8", "replace")
+    except Exception:
+        return ("REVIEW GATE: the branch's changed paths could not be listed and the review hash "
+                "could not be computed: the base commit did not resolve, or git diff failed. "
+                "Fetch the base branch (or set GOVERNANCE_BASE) and retry.")
+    branch_paths = [p.replace("\\", "/") for p in names.split("\0") if p]
+    tier_msg = _tier_gate(branch_paths, routing)
+    if tier_msg:
+        return tier_msg
+    required = _required_reviewers(branch_paths + paths, routing)
+    if not required:
+        return None                      # text only: no reviewer is required
     review_rel = folder + REVIEW_NAME
     review_path = os.path.join(root, review_rel)
     if not os.path.isfile(review_path):
@@ -1001,12 +1056,7 @@ def _commit_gate(root: str) -> str | None:
     rounds_msg = _rounds_gate(text)
     if rounds_msg:
         return rounds_msg
-    try:
-        names = _cumulative_diff(root, ["--name-only", "-z"]).decode("utf-8", "replace")
-    except Exception:
-        return "REVIEW GATE: the branch's changed paths could not be listed (git diff failed)."
-    findings_msg = _findings_gate(
-        text, [p.replace("\\", "/") for p in names.split("\0") if p], root)
+    findings_msg = _findings_gate(text, branch_paths, root)
     if findings_msg:
         return findings_msg
     if "VERDICT: FAIL" in text:
@@ -1027,7 +1077,7 @@ def _commit_gate(root: str) -> str | None:
                 "CPO ANSWER in that section. Record the answer next to the "
                 "question, then commit."
             )
-    for reviewer in sorted(_required_reviewers(paths, routing)):
+    for reviewer in sorted(required):
         body = sections.get(reviewer)
         if body is None or ("VERDICT:" not in body):
             return (
