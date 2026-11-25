@@ -2611,6 +2611,70 @@ models:
         description: "The place of this fixture's competition in the order the competitions are shown, 1 first; the same on every row of a competition. Ordered by the day the competition's matchday starts, then its region rank (Europe first), then its earliest kick-off, then league_code."
         tests: [not_null]
 
+  - name: mart_home_rotation
+    description: >
+      Which league sits in which Home slot, in which season, and whether the slot is in season.
+      Home's Top players and Top teams draw one slot per build, by weight, over the slots in
+      season, and read the leagues and the season to show from here. Grain: (league_code,
+      board_role).
+
+      A 'current' row is a league's latest season with a finished match; the league is in season
+      when that season has at least three finished matches, and a slot is in season when one of
+      its leagues is. A 'fallback' row is a league's latest completed season, shown for the
+      fallback slot when no slot is in season. The slot and its weight come from the
+      home_rotation_slots seed through the competition group of the row's own season.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "home"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, board_role]
+      - dbt_utils.expression_is_true:
+          expression: "board_role = 'fallback' or is_in_season = (finished_matches >= {{ var('home_rotation_min_finished_matches') }})"
+          name: home_rotation_in_season_is_the_finished_match_gate
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_code
+      - name: board_role
+        description: "'current' for the league's latest season with a finished match, 'fallback' for its latest completed season."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["current", "fallback"]
+      - name: slot
+        description: "The slot the league belongs to in this row's season, from the home_rotation_slots seed."
+        tests: [not_null]
+      - name: competition_group
+        description: "The league's competition group in this row's season."
+        tests: [not_null]
+      - name: slot_weight
+        description: "The slot's weight in the draw; the same on every row of a slot."
+        tests: [not_null]
+      - name: is_fallback_slot
+        description: "True on the rows of the slot shown, in its last completed season, when no slot is in season."
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: season_label
+        description: "The season as the site names it, such as 2025/26 or 2026, which a board shown from a completed season says in its intro."
+        tests: [not_null]
+      - name: finished_matches
+        description: "Finished matches of that season, both scores known."
+        tests: [not_null]
+      - name: is_in_season
+        description: "On a 'current' row, whether the season has at least three finished matches; NULL on a 'fallback' row."
+      - name: slot_is_in_season
+        description: "On a 'current' row, whether at least one league of the slot is in season; NULL on a 'fallback' row."
+
   - name: mart_competition_fixtures
     description: >
       Every match of a competition-season, played and unplayed: one row per fixture with both
