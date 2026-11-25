@@ -215,8 +215,10 @@ into MRs that merge one after another.
   follow-up comment.
 - A wording or style rule that a gate checks is the gate's job. Any other wording breach is a nit.
 - A finding is one line under `findings:`: `- [blocking] <class>: <every place> — <what goes
-  wrong>`, or the same with `[nit]`.
+  wrong> | proof: <proof>`, or `- [nit] <class>: <every place> — <what goes wrong>`.
 - A blocking finding names a concrete failure: the file, the line and what goes wrong.
+- A blocking finding names its proof: a test that fails (`<test file>::<test>`) or a command that
+  reproduces the failure, in backticks. A finding without a proof is a nit.
 - A PASS lists what the reviewer examined under `risks_checked:`, with at least one entry.
   "Checked X against Y, no defect" is a complete entry.
 - Praise is banned. A finding made up to justify a pass is banned too.
@@ -230,6 +232,8 @@ into MRs that merge one after another.
   the test. The test lives in `tests/**/test_*.py`, `dbt_project/tests/**.sql` or
   `site_v2/**/*.test.mjs`.
 - A round that followed only PASS verdicts lists one entry under `## fixes`: `- none: <why>`.
+- The builder may close a finding it cannot reproduce. `review.md` lists it under `## closed` as
+  `- <reviewer> | <class> | <reason>`.
 - After a FAIL, the re-review gets only the fix diff and the reviewer's own findings.
 - A new blocking finding on a line unchanged since round 1 carries a concrete failing case.
   Without one, it becomes a follow-up issue.
@@ -250,10 +254,10 @@ into MRs that merge one after another.
   with the code. A contract-only branch is text and needs no reviewer.
 - A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
   the round count and needs no new review.
-- The round cap is 3 reviewer rounds per issue, counted across sessions. A new session or branch
+- The round cap is 2 reviewer rounds per issue, counted across sessions. A new session or branch
   for the same work continues the count.
-- At the cap, the work is split: what passed lands, and the rest is split off into its own issue.
-  A further round is the CPO's call.
+- At the cap, the approach is rethought and the work is split. What passed lands; the rest is
+  split off into its own issue. A further round is the CPO's call.
 - `review.md` records that call as `rounds_cap_override: approved in chat, <date>`.
 
 ### Commit gate
@@ -264,12 +268,15 @@ into MRs that merge one after another.
 - The branch needs more than two reviewers.
 - The branch needs a reviewer, and `review.md` is missing.
 - Its hash does not match the live hash, or the live hash cannot be computed.
-- Any verdict is FAIL.
+- A verdict is FAIL with a blocking finding that `## closed` does not close.
+- A `## closed` entry closes no blocking finding of its reviewer, or gives no reason.
+- A blocking finding that `## closed` does not close names no proof.
+- A second section of the same name hides a FAIL.
 - An ESCALATE has no recorded `CPO ANSWER:` in its own section.
 - A required reviewer has no verdict.
 - A PASS has nothing under `risks_checked:`.
 - The `rounds:` line is missing or is not a positive integer.
-- `rounds:` exceeds the cap of 3 without a `rounds_cap_override:`.
+- `rounds:` exceeds the cap of 2 without a `rounds_cap_override:`.
 - A finding lacks `[blocking]` or `[nit]` and its class.
 - A PASS carries a blocking finding, or a FAIL carries none.
 - `rounds:` exceeds 1, and `## fixes` is missing or an entry lacks its sweep or a test file the
@@ -440,7 +447,7 @@ standards, the metric catalogue and the task contract.
 
 **Wording before go-live.** Until go-live, the coordinating agent writes fan-visible strings from the approved designs and existing labels; the CPO reviews each finished page group and can veto any string. URLs, slugs and other permanent identifiers stay CPO-only.
 
-**Review cap.** At the round cap (§2), the work is split: what passed lands, and the rest is split off into its own issue. A further round is the CPO's call.
+**Review cap.** At the round cap (§2), the approach is rethought and the work is split. What passed lands; the rest is split off into its own issue. A further round is the CPO's call.
 
 **Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
 

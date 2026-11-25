@@ -6,11 +6,12 @@
 > `diff_sha256` equals the live staged diff hash
 > (`python .claude/hooks/git_discipline.py --staged-hash`), every reviewer
 > required by `.claude/review_routing.json` for the staged paths has a verdict
-> section, no FAIL exists, every ESCALATE has a `CPO ANSWER:`, every PASS
+> section, no FAIL leaves a blocking finding open outside `## closed`, every ESCALATE has a
+> `CPO ANSWER:`, every PASS
 > says what it examined (at least one entry under `risks_checked:` — it need NOT
 > name a defect; CPO 2026-08-01), `rounds:` is present and within the cap
-> of 3, every finding is `[blocking]` or `[nit]` with its class (a PASS carries
-> no blocking finding, a FAIL at least one), and past round 1 `## fixes` names
+> of 2, every finding is `[blocking]` or `[nit]` with its class (a PASS carries
+> no blocking finding, a FAIL at least one, a blocking finding its proof), and past round 1 `## fixes` names
 > each fix's sweep and a test file the branch changes (`tests/**/test_*.py`,
 > `dbt_project/tests/**.sql` or `site_v2/**/*.test.mjs`), or holds the one entry `- none: <why>` after a
 > round of PASS verdicts. Commits touching only artifact paths
@@ -23,7 +24,7 @@
 
 diff_sha256: <64-hex; run `python .claude/hooks/git_discipline.py --staged-hash` (covers code + contract.md, excludes bookkeeping artifacts; CI recomputes the same — F11/#409)>
 
-rounds: <how many review rounds this issue has taken, across sessions; 1 on the first. A merge of main that leaves the review hash unchanged is not a round (docs/working_agreement.md §2). The gate caps it at 3; at the cap the work is split. A further round is the CPO's call: add `rounds_cap_override: approved in chat, <date>`.>
+rounds: <how many review rounds this issue has taken, across sessions; 1 on the first. A merge of main that leaves the review hash unchanged is not a round (docs/working_agreement.md §2). The gate caps it at 2; at the cap the approach is rethought and the work is split. A further round is the CPO's call: add `rounds_cap_override: approved in chat, <date>`.>
 
 ## <required-reviewer>
 VERDICT: PASS
@@ -34,10 +35,13 @@ risks_checked:
   is a complete entry. One is enough. Do NOT invent a finding to fill a second.>
 
 ## <other-required-reviewer>
-VERDICT: PASS
-risks_checked:
-- <what you examined, and what you concluded — "checked X against Y, no defect"
-  is a complete entry. One is enough. Do NOT invent a finding to fill a second.>
+VERDICT: FAIL
+findings:
+- [blocking] <class>: <every place, file:line> — <what goes wrong> | proof: tests/test_<area>.py::test_<case>
+
+## closed
+<!-- a blocking finding the builder cannot reproduce: its reviewer, its class and why -->
+- <other-required-reviewer> | <class> | the test in its proof passes on this branch
 
 ## fixes
 <!-- required when rounds: is above 1; one line per blocking class fixed, or the one

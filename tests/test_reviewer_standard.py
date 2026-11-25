@@ -63,7 +63,8 @@ def test_every_brief_ends_with_the_identical_standard():
     tail = _flat(next(iter(tails.values())))
     for phrase in ("§2", "Cross-Examination", "one pass", "every place", "[blocking]", "[nit]",
                    "A nit never fails a round", "only the fix diff and your own findings",
-                   "unchanged since round 1", "concrete failing case", "follow-up issue"):
+                   "unchanged since round 1", "concrete failing case", "follow-up issue",
+                   "| proof:", "A finding without a proof is a nit"):
         assert phrase in tail, f"the standard section lacks {phrase!r}"
 
 
@@ -89,6 +90,10 @@ def test_section_2_states_every_rule():
         "After a FAIL, the re-review gets only the fix diff and the reviewer's own findings",
         "A new blocking finding on a line unchanged since round 1 carries a concrete failing case",
         "becomes a follow-up issue",
+        "A blocking finding names its proof",
+        "A finding without a proof is a nit",
+        "The builder may close a finding it cannot reproduce",
+        "`## closed`",
     ):
         assert phrase in text, f"§2 lacks {phrase!r}"
 
@@ -117,14 +122,16 @@ def test_section_2_states_the_size_rule():
 
 def test_the_cap_is_one_rule():
     text = _flat(_read(AGREEMENT))
-    split = ("the work is split: what passed lands, and the rest is split off into its own "
-             "issue. A further round is the CPO's call.")
+    split = ("the approach is rethought and the work is split. What passed lands; the rest is "
+             "split off into its own issue. A further round is the CPO's call.")
     lock = _section(text, "**Lock.**", "### Commit gate")
     cap10 = _section(text, "**Review cap.**", "**Unclear cases.**")
-    assert "per issue, counted across sessions" in lock
+    assert "The round cap is 2 reviewer rounds per issue, counted across sessions" in lock
     assert split in lock, "§2 does not state the split rule"
     assert split in cap10, "§10 does not state the same split rule as §2"
     assert "brings the open findings" not in text
+    assert "cap of 2 without" in _section(text, "### Commit gate", "## 3.")
+    assert _gd().ROUND_CAP == 2
 
 
 def test_a_wording_breach_is_a_nit():
@@ -148,7 +155,8 @@ def _with_scope_findings(lines: str, verdict: str = "PASS") -> str:
 
 
 NIT = "- [nit] wording: docs/x.md:3 — two topics in one sentence\n"
-BLOCKING = "- [blocking] guard regression: x.py:9, y.py:4 — the hook now fails closed\n"
+UNPROVEN = "- [blocking] guard regression: x.py:9, y.py:4 — the hook now fails closed"
+BLOCKING = UNPROVEN + " | proof: `python x.py --bad-input`\n"
 
 
 @pytest.mark.parametrize("line", [
@@ -193,6 +201,125 @@ def test_a_fail_of_nits_is_refused_with_the_nit_rule(repo):
     setup_review_repo(repo)
     out = _gate(repo, _with_scope_findings(NIT, verdict="FAIL"))
     assert denied(out) and "nit never fails" in out
+
+
+@pytest.mark.parametrize("tail", [
+    "", " | proof:", " | proof: <test or command>", " | proof: none",
+    " | proof: it fails on main", " | proof: docs/x.md::test_y",
+    " | proof: tests/test_x.py::test_y fails on main",
+    " | proof: `<command>`", " | proof: `tbd`", " | proof: ` `",
+])
+def test_a_blocking_finding_without_proof_is_refused(repo, tail):
+    setup_review_repo(repo)
+    out = _gate(repo, _with_scope_findings(UNPROVEN + tail + "\n", verdict="FAIL"))
+    assert denied(out) and "proof" in out
+
+
+@pytest.mark.parametrize("proof", [
+    "tests/test_x.py::test_y", "tests/hooks/test_x.py", "dbt_project/tests/assert_x.sql",
+    "site_v2/src/lib/x.test.mjs", "`python x.py --bad-input`",
+])
+def test_a_blocking_finding_with_proof_passes_the_format_check(tmp_path, proof):
+    review = ("rounds: 1\n## platform-reviewer\nVERDICT: FAIL\nfindings:\n"
+              f"{UNPROVEN} | proof: {proof}\n")
+    assert _gd()._findings_gate(review, [], str(tmp_path)) is None
+
+
+def test_a_nit_needs_no_proof(tmp_path):
+    review = "rounds: 1\n## platform-reviewer\nVERDICT: PASS\nfindings:\n" + NIT
+    assert _gd()._findings_gate(review, [], str(tmp_path)) is None
+
+
+SECOND = "- [blocking] wrong data: m.sql:4 — rows double | proof: `pytest tests/test_m.py`\n"
+CLOSES_IT = "scope-auditor | guard regression | the command exits 0 on this branch"
+
+
+def _closed(*entries: str) -> str:
+    return "\n## closed\n" + "".join(f"- {e}\n" for e in entries)
+
+
+def test_a_closed_fail_commits(repo):
+    setup_review_repo(repo)
+    out = _gate(repo, _with_scope_findings(BLOCKING, verdict="FAIL") + _closed(CLOSES_IT))
+    assert not denied(out), out
+
+
+def test_a_closed_finding_needs_no_proof(repo):
+    setup_review_repo(repo)
+    body = _with_scope_findings(UNPROVEN + "\n", verdict="FAIL") + _closed(
+        "scope-auditor | guard regression | the finding names no proof and none reproduces it")
+    out = _gate(repo, body)
+    assert not denied(out), out
+
+
+def test_a_partly_closed_fail_is_refused(repo):
+    setup_review_repo(repo)
+    out = _gate(repo, _with_scope_findings(BLOCKING + SECOND, verdict="FAIL") + _closed(CLOSES_IT))
+    assert denied(out) and "FAIL" in out
+
+
+@pytest.mark.parametrize("entry,word", [
+    ("scope-auditor | other class | the command exits 0", "closes no"),
+    ("analytics-engineer-reviewer | guard regression | the command exits 0", "closes no"),
+    ("scope-auditor | guard regression | tbd", "reason"),
+    ("scope-auditor | guard regression | <reason>", "reason"),
+    ("scope-auditor | guard regression |", "reason"),
+    ("scope-auditor guard regression, it exits 0", "closed"),
+])
+def test_a_bad_closure_is_refused(repo, entry, word):
+    setup_review_repo(repo)
+    out = _gate(repo, _with_scope_findings(BLOCKING, verdict="FAIL") + _closed(entry))
+    assert denied(out) and word in out
+
+
+HIDDEN = "\n## scope-auditor\nVERDICT: PASS\nrisks_checked:\n- risk one checked\n"
+
+
+def test_a_hidden_fail_is_refused(repo):
+    setup_review_repo(repo)
+    out = _gate(repo, _with_scope_findings(BLOCKING, verdict="FAIL") + HIDDEN)
+    assert denied(out) and "FAIL" in out
+
+
+@pytest.mark.parametrize("section", ["closed", "fixes"])
+def test_a_fail_outside_a_reviewer_section_is_refused(repo, section):
+    setup_review_repo(repo)
+    out = _gate(repo, GOOD_BODY + f"\n## {section}\nVERDICT: FAIL\n")
+    assert denied(out) and "FAIL" in out
+
+
+def _ci_review(ci_repo, body: str) -> tuple[int, str]:
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+        "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 1\n\n" + body,
+        encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
+    return run_ci_check(ci_repo)
+
+
+@pytest.mark.parametrize("findings,tail,code", [
+    (BLOCKING, _closed(CLOSES_IT), 0),
+    (BLOCKING + SECOND, _closed(CLOSES_IT), 1),
+    (BLOCKING, HIDDEN, 1),
+], ids=["closed", "partly-closed", "hidden"])
+def test_ci_backstop_agrees_on_closures(ci_repo, findings, tail, code):
+    got, out = _ci_review(ci_repo, _with_scope_findings(findings, verdict="FAIL") + tail)
+    assert got == code, out
+
+
+def test_round_two_commits_and_round_three_needs_the_cpo(repo):
+    setup_review_repo(repo)
+    _stage_test_file(repo)
+    fixes = "\n## fixes\n- a class | sweep: grep -rn x . | test: tests/test_fix.py::test_fix\n"
+    assert not denied(_gate(repo, GOOD_BODY + fixes, rounds="rounds: 2\n"))
+    out = _gate(repo, GOOD_BODY + fixes, rounds="rounds: 3\n")
+    assert denied(out) and "cap of 2" in out and "rethought" in out
+    override = "rounds: 3\nrounds_cap_override: approved in chat, 2026-11-24\n"
+    assert not denied(_gate(repo, GOOD_BODY + fixes, rounds=override))
 
 
 def _stage_test_file(repo, rel: str = "tests/test_fix.py") -> None:
@@ -343,5 +470,8 @@ def test_the_template_examples_pass_the_gate():
     assert findings and fixes, "the template shows no finding or no fixes entry"
     for line in findings:
         assert gd.FINDING_RE.match(line), line
+        assert gd._proof_error(line) is None, line
+    closures = gd._bullets(gd._review_sections(text).get("closed", ""))
+    assert closures and all(gd.CLOSED_RE.match(c) for c in closures), closures
     for line in fixes:
         assert gd.FIX_RE.match(line), line
