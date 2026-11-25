@@ -1,0 +1,577 @@
+diff --git a/.claude/task/101-rotation-a-warehouse/contract.md b/.claude/task/101-rotation-a-warehouse/contract.md
+new file mode 100644
+index 00000000..fe53d7f4
+--- /dev/null
++++ b/.claude/task/101-rotation-a-warehouse/contract.md
+@@ -0,0 +1,76 @@
++# Task contract — Home rotation, part A: the warehouse
++
++objective: >
++  Issue #101, first of three merge requests. The warehouse serves what Home's group rotation
++  draws from: the slots and their weights (a seed), and per league its slot, its current season,
++  whether it is in season and its last completed season (a mart). It also carries the alerts:
++  one for no slot in season, and the every-board-has-a-leader test widened to every slot that can
++  be drawn. Nothing reads the mart yet; the export (part B) and the fallback copy (part C) follow.
++
++refs: >
++  #101 (decision 2026-09-03, weights changed and build scope confirmed 2026-09-13). The seed home,
++  the widened alert and the split into three merge requests are the coordinator's rulings,
++  2026-11-23 and 2026-11-25.
++
++scope_paths:
++  - dbt_project/seeds/home_rotation_slots.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/5_marts/shared/mart_home_rotation.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_home_rotation_*.sql
++  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++  - dbt_project/dbt_project.yml
++  - .claude/task/101-rotation-a-warehouse/contract.md
++  - .claude/task/101-rotation-a-warehouse/review.md
++  - .claude/task/101-rotation-a-warehouse/review_input.patch
++
++impact_map: >
++  writers: new seed home_rotation_slots (hand-authored CSV); new mart mart_home_rotation, written
++  only by its own SQL. No existing model, seed or loader changes.
++  downstream: mart_home_rotation is a leaf and nothing reads it yet. Upstream it reads
++  int_legs__team_match, dim_competition_season and the seed. The one existing test this changes,
++  assert_mart_leaderboards_every_home_board_has_a_leader, is a leaf test; `dbt ls --select
++  +assert_mart_leaderboards_every_home_board_has_a_leader` lists its parents (mart_leaderboards,
++  dim_competition_season, fct_fixture, fct_fixture_player_stats and their tests) and it now also
++  reads mart_home_rotation.
++  layer_rules: marts read core, intermediate and seeds, never a raw table; no partition_by or
++  cluster_by; check_layer_contract.py and check_description_hygiene.py (every description under
++  1,024 characters) apply.
++  deploy_order: the seed and the mart are created by the first dbt build after the merge. The
++  widened test reads the mart in the same build, after it. Nothing else depends on it, so no
++  model breaks before then.
++  blast_radius: none for any page or number; two new tables and four new tests. The widened test
++  now covers every in-season league of every slot; against prod data it returns 0 rows.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: the leaderboard marts this reads are on main
++
++shared_files:
++  - none: no design baseline, component registry or font coverage file changes
++
++decisions_taken: >
++  The weights 80/10/10 and the rule (a slot is in season when one of its leagues has 3 or more
++  finished matches this season; no slot in season falls back to elite's last completed season with
++  a data-quality alert) are #101's CPO decision of 2026-09-03 and its 2026-09-13 amendment. The
++  slots and weights live in the seed home_rotation_slots (columns slot, competition_group,
++  slot_weight, is_fallback_slot), ruled by the coordinator on 2026-11-23, replacing #101's
++  "registry" wording; the extra column is_fallback_slot and the dbt var
++  home_rotation_min_finished_matches (3) were accepted by the coordinator. A league's group is read
++  from its played season's row, as the leaderboard marts do. No existing mart fits: the
++  competition index and the leaderboard marts hold no slot, weight or per-league in-season flag.
++  No recurring cost and no new mechanism.
++
++decisions_reserved:
++  - none: nothing here is a page, a metric or a name that is the CPO's to decide.
++
++done_when:
++  - dbt parse succeeds from the repo root; dbt ls --select mart_home_rotation+ lists the mart and its tests.
++  - The mart SQL and the new and widened tests dry-run against BigQuery, and the widened test returns 0 rows on prod data.
++  - python scripts/ci_local.py --mr is green apart from the known line-ending failure of tests/test_ci_local.py.
++  - The full pytest run is green apart from that known failure.
++  - CI's data:build:mr is green, and mart_home_rotation returns one row per league and role.
++
++amendments: (none)
+diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
+index 3f7a832d..22500046 100644
+--- a/dbt_project/dbt_project.yml
++++ b/dbt_project/dbt_project.yml
+@@ -33,6 +33,8 @@ vars:
+   player_min_duels: 10
+   player_min_shots_on_target_faced: 10
+   team_min_matches: 3
++  # Home's group rotation: a league is in season once its current season has this many finished matches.
++  home_rotation_min_finished_matches: 3
+   # Derived from docs/competition_registry.yml (status active or in_progress).
+   # DO NOT edit by hand — run scripts/sync_dbt_vars.py after updating the registry.
+   # scripts/check_registry_var_sync.py (CI) enforces sorted-set equality with the registry.
+diff --git a/dbt_project/models/5_marts/shared/mart_home_rotation.sql b/dbt_project/models/5_marts/shared/mart_home_rotation.sql
+new file mode 100644
+index 00000000..d4b127a0
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_home_rotation.sql
+@@ -0,0 +1,108 @@
++{#
++  mart_home_rotation — which league sits in which Home slot, in which season, and whether that
++  slot is in season. Home's Top players and Top teams draw one slot per build by weight and read
++  the leagues and the season to show from here.
++
++  Two rows per league at most, told apart by board_role:
++  - 'current': the league's latest season with a finished match. The league is in season when
++    that season has at least home_rotation_min_finished_matches finished matches, so a league
++    whose new season has started but has played less is out, never shown with last season's
++    leaders. A slot is in season when one of its leagues is.
++  - 'fallback': the league's latest season that has finished matches and is no longer the
++    provider's current one, for the slot named as the fallback when no slot is in season.
++
++  The slot and its weight come from the home_rotation_slots seed through the competition_group of
++  the row's own season, so a league that changes group between seasons moves slot with it. A league
++  whose season carries no group in the seed has no row. A finished match is a match of
++  int_legs__team_match, the one definition. The in-season flags are NULL on 'fallback' rows.
++
++  Grain: (league_code, board_role). league_code discriminates the competition and is not a
++  BigQuery partition or cluster key.
++#}
++
++with legs as (
++    select
++        fixture_sk,
++        league_code,
++        season_api_year
++    from {{ ref('int_legs__team_match') }}
++    where home_away = 'home'
++),
++
++finished as (
++    select
++        league_code,
++        season_api_year,
++        count(*) as finished_matches
++    from legs
++    group by league_code, season_api_year
++),
++
++seasons as (
++    select
++        finished.league_code,
++        finished.season_api_year,
++        finished.finished_matches,
++        dim.competition_group,
++        dim.season_label,
++        coalesce(dim.season_is_current, false) as season_is_current
++    from finished
++    inner join {{ ref('dim_competition_season') }} as dim
++        on finished.league_code = dim.league_code and finished.season_api_year = dim.season_api_year
++),
++
++chosen as (
++    select
++        *,
++        'current' as board_role
++    from seasons
++    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
++
++    union all
++
++    select
++        *,
++        'fallback' as board_role
++    from seasons
++    where not season_is_current
++    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
++),
++
++slotted as (
++    select
++        chosen.league_code,
++        chosen.board_role,
++        slots.slot,
++        chosen.competition_group,
++        slots.slot_weight,
++        slots.is_fallback_slot,
++        chosen.season_api_year,
++        chosen.season_label,
++        chosen.finished_matches,
++        if(
++            chosen.board_role = 'current',
++            chosen.finished_matches >= {{ var('home_rotation_min_finished_matches') }},
++            null
++        ) as is_in_season
++    from chosen
++    inner join {{ ref('home_rotation_slots') }} as slots
++        on chosen.competition_group = slots.competition_group
++)
++
++select
++    league_code,
++    board_role,
++    slot,
++    competition_group,
++    slot_weight,
++    is_fallback_slot,
++    season_api_year,
++    season_label,
++    finished_matches,
++    is_in_season,
++    if(
++        board_role = 'current',
++        max(if(is_in_season, 1, 0)) over (partition by board_role, slot) = 1,
++        null
++    ) as slot_is_in_season
++from slotted
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ec860918..640baca7 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -2611,6 +2611,70 @@ models:
+         description: "The place of this fixture's competition in the order the competitions are shown, 1 first; the same on every row of a competition. Ordered by the day the competition's matchday starts, then its region rank (Europe first), then its earliest kick-off, then league_code."
+         tests: [not_null]
+ 
++  - name: mart_home_rotation
++    description: >
++      Which league sits in which Home slot, in which season, and whether the slot is in season.
++      Home's Top players and Top teams draw one slot per build, by weight, over the slots in
++      season, and read the leagues and the season to show from here. Grain: (league_code,
++      board_role).
++
++      A 'current' row is a league's latest season with a finished match; the league is in season
++      when that season has at least three finished matches, and a slot is in season when one of
++      its leagues is. A 'fallback' row is a league's latest completed season, shown for the
++      fallback slot when no slot is in season. The slot and its weight come from the
++      home_rotation_slots seed through the competition group of the row's own season.
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "home"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, board_role]
++      - dbt_utils.expression_is_true:
++          expression: "board_role = 'fallback' or is_in_season = (finished_matches >= {{ var('home_rotation_min_finished_matches') }})"
++          name: home_rotation_in_season_is_the_finished_match_gate
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_code
++      - name: board_role
++        description: "'current' for the league's latest season with a finished match, 'fallback' for its latest completed season."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["current", "fallback"]
++      - name: slot
++        description: "The slot the league belongs to in this row's season, from the home_rotation_slots seed."
++        tests: [not_null]
++      - name: competition_group
++        description: "The league's competition group in this row's season."
++        tests: [not_null]
++      - name: slot_weight
++        description: "The slot's weight in the draw; the same on every row of a slot."
++        tests: [not_null]
++      - name: is_fallback_slot
++        description: "True on the rows of the slot shown, in its last completed season, when no slot is in season."
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: season_label
++        description: "The season as the site names it, such as 2025/26 or 2026, which a board shown from a completed season says in its intro."
++        tests: [not_null]
++      - name: finished_matches
++        description: "Finished matches of that season, both scores known."
++        tests: [not_null]
++      - name: is_in_season
++        description: "On a 'current' row, whether the season has at least three finished matches; NULL on a 'fallback' row."
++      - name: slot_is_in_season
++        description: "On a 'current' row, whether at least one league of the slot is in season; NULL on a 'fallback' row."
++
+   - name: mart_competition_fixtures
+     description: >
+       Every match of a competition-season, played and unplayed: one row per fixture with both
+diff --git a/dbt_project/seeds/home_rotation_slots.csv b/dbt_project/seeds/home_rotation_slots.csv
+new file mode 100644
+index 00000000..992f81b9
+--- /dev/null
++++ b/dbt_project/seeds/home_rotation_slots.csv
+@@ -0,0 +1,5 @@
++slot,competition_group,slot_weight,is_fallback_slot
++elite,elite,80,true
++europe_international,europe,10,false
++europe_international,international,10,false
++calendar,calendar,10,false
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 8e6f2710..7f505688 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -227,6 +227,37 @@ seeds:
+           - not_null
+           - unique
+ 
++  - name: home_rotation_slots
++    description: >
++      The slots Home's Top players and Top teams draw from, one per build, and their weights. One
++      row per competition group in a slot; a slot of two groups is one board and repeats its weight
++      on both rows. The secondary group is never a slot.
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [slot, competition_group]
++    columns:
++      - name: slot
++        description: "The slot's key. Two groups share a slot when the page ranks them on one board."
++        tests:
++          - not_null
++      - name: competition_group
++        description: "A competition group the slot holds, as competition_season_map names it."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["elite", "europe", "international", "calendar"]
++          - relationships:
++              to: ref('competition_season_map')
++              field: competition_group
++      - name: slot_weight
++        description: "The slot's share of the draw, the same on every row of the slot; the distinct slot weights add up to 100."
++        tests:
++          - not_null
++      - name: is_fallback_slot
++        description: "True on the one slot shown, in its last completed season, when no slot is in season."
++        tests:
++          - not_null
++
+   - name: competition_registry
+     description: >
+       Every competition the platform tracks, with the fields the registry authors by hand:
+diff --git a/dbt_project/tests/assert_home_rotation_fallback_has_a_completed_season.sql b/dbt_project/tests/assert_home_rotation_fallback_has_a_completed_season.sql
+new file mode 100644
+index 00000000..c158ee00
+--- /dev/null
++++ b/dbt_project/tests/assert_home_rotation_fallback_has_a_completed_season.sql
+@@ -0,0 +1,11 @@
++-- The fallback shows the fallback slot's last completed season, so that slot must have a
++-- 'fallback' row, or the fallback itself would be the empty block it exists to prevent.
++{{ config(severity = 'error', store_failures = true) }}
++
++select 'the fallback slot has no completed season' as problem
++from (
++    select count(*) as fallback_leagues
++    from {{ ref('mart_home_rotation') }}
++    where board_role = 'fallback' and is_fallback_slot
++)
++where fallback_leagues = 0
+diff --git a/dbt_project/tests/assert_home_rotation_has_a_slot_in_season.sql b/dbt_project/tests/assert_home_rotation_has_a_slot_in_season.sql
+new file mode 100644
+index 00000000..0b091cb1
+--- /dev/null
++++ b/dbt_project/tests/assert_home_rotation_has_a_slot_in_season.sql
+@@ -0,0 +1,13 @@
++-- The data-quality alert of Home's group rotation: Home draws a slot among those in season, and
++-- when none is, it shows the fallback slot's last completed season instead of an empty block. That
++-- keeps the page up and hides the cause, which is an ingest gap, so this test fails the build and
++-- the nightly's failure alert fires. It returns one row when no 'current' row is in season.
++{{ config(severity = 'error', store_failures = true) }}
++
++select 'no slot of Home is in season' as problem
++from (
++    select count(*) as leagues_in_season
++    from {{ ref('mart_home_rotation') }}
++    where board_role = 'current' and is_in_season
++)
++where leagues_in_season = 0
+diff --git a/dbt_project/tests/assert_home_rotation_season_is_the_boards_current_season.sql b/dbt_project/tests/assert_home_rotation_season_is_the_boards_current_season.sql
+new file mode 100644
+index 00000000..c9fb4b5e
+--- /dev/null
++++ b/dbt_project/tests/assert_home_rotation_season_is_the_boards_current_season.sql
+@@ -0,0 +1,24 @@
++-- Home's boards are read at the season mart_home_rotation names. Where the player leaderboard marks
++-- a different season as the league's current one, the two definitions of "the latest season with a
++-- finished match" have drifted apart, and a league would show one season under the other's label.
++-- Returns one row per league on which they differ.
++{{ config(severity = 'error', store_failures = true) }}
++
++with boards_current as (
++    select distinct
++        league_code,
++        season_api_year
++    from {{ ref('mart_leaderboards') }}
++    where window_type = 'season_to_date' and is_current_season
++)
++
++select
++    rotation.league_code,
++    rotation.season_api_year as rotation_season_api_year,
++    boards_current.season_api_year as boards_season_api_year
++from {{ ref('mart_home_rotation') }} as rotation
++inner join boards_current
++    on rotation.league_code = boards_current.league_code
++where
++    rotation.board_role = 'current'
++    and rotation.season_api_year != boards_current.season_api_year
+diff --git a/dbt_project/tests/assert_home_rotation_slots_are_well_formed.sql b/dbt_project/tests/assert_home_rotation_slots_are_well_formed.sql
+new file mode 100644
+index 00000000..191af2eb
+--- /dev/null
++++ b/dbt_project/tests/assert_home_rotation_slots_are_well_formed.sql
+@@ -0,0 +1,61 @@
++-- The slots Home draws from hold three facts the draw depends on: a slot's weight is one number
++-- repeated on each of its groups, the distinct slot weights add up to 100, and exactly one slot is
++-- the fallback. Each broken fact returns a row.
++{{ config(severity = 'error', store_failures = true) }}
++
++with slots as (
++    select * from {{ ref('home_rotation_slots') }}
++),
++
++weight_differs_within_a_slot as (
++    select
++        slot,
++        'slot_weight differs between the rows of the slot' as problem
++    from slots
++    group by slot
++    having count(distinct slot_weight) > 1
++),
++
++fallback_differs_within_a_slot as (
++    select
++        slot,
++        'is_fallback_slot differs between the rows of the slot' as problem
++    from slots
++    group by slot
++    having count(distinct is_fallback_slot) > 1
++),
++
++weights_do_not_add_up as (
++    select
++        cast(null as string) as slot,
++        'the distinct slot weights do not add up to 100' as problem
++    from (
++        select sum(slot_weight) as total_weight
++        from (
++            select distinct
++                slot,
++                slot_weight
++            from slots
++        )
++    )
++    where total_weight != 100
++),
++
++not_exactly_one_fallback as (
++    select
++        cast(null as string) as slot,
++        'there is not exactly one fallback slot' as problem
++    from (
++        select count(distinct if(is_fallback_slot, slot, null)) as fallback_slots
++        from slots
++    )
++    where fallback_slots != 1
++)
++
++select * from weight_differs_within_a_slot
++union all
++select * from fallback_differs_within_a_slot
++union all
++select * from weights_do_not_add_up
++union all
++select * from not_exactly_one_fallback
+diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+index 407dd01a..48cc1dd6 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+@@ -1,4 +1,4 @@
+--- Every Home board must have a rank-1 player in every elite league's current season.
++-- Every Home board must have a rank-1 player in every in-season league of every slot Home can draw.
+ --
+ -- ⛔ THE PAGE DELIBERATELY WILL NOT TELL US. #40 rules that a board with no data is not rendered —
+ -- no placeholder, no empty state — because a reader does not notice a board that is missing.
+@@ -13,9 +13,9 @@
+ -- metric_key from that mart's rank partition was caught by NOTHING — the grain stayed unique, the
+ -- board set stayed complete, and only a missing rank-1 exposed it.
+ --
+--- Scoped to the ELITE group and the current season because that is what the block renders. A board
+--- with no data in a league the block never shows is not a defect; asserting it would fail on
+--- competitions that legitimately carry no player stats.
++-- Scoped to the in-season leagues of mart_home_rotation, in the season the block reads, because
++-- every slot in that table can be drawn. A board with no data in a league the block never shows is
++-- not a defect; asserting it would fail on competitions that legitimately carry no player stats.
+ 
+ {{ config(store_failures = true) }}
+ 
+@@ -35,13 +35,16 @@ import_dim_competition_season as (
+     select * from {{ ref('dim_competition_season') }}
+ ),
+ 
+-latest_seasons as (
++-- The league-seasons Home can show: every in-season league of every slot.
++drawable_seasons as (
+     select
+-        league_code,
+-        season_sk,
+-        competition_group
+-    from import_dim_competition_season
+-    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
++        r.league_code,
++        r.season_api_year,
++        d.season_sk
++    from {{ ref('mart_home_rotation') }} as r
++    inner join import_dim_competition_season as d
++        on r.league_code = d.league_code and r.season_api_year = d.season_api_year
++    where r.board_role = 'current' and r.is_in_season
+ ),
+ 
+ -- The competition-seasons with a finished match that has no player statistics: withheld.
+@@ -61,24 +64,26 @@ seasons_missing_player_stats as (
+     group by f.season_sk
+ ),
+ 
+--- A league whose latest season is withheld (stats_need_research, or a finished match without
++-- A league whose season is withheld (stats_need_research, or a finished match without
+ -- player statistics) has no board to lead.
+-elite_leagues as (
+-    select l.league_code
+-    from latest_seasons as l
++drawable_leagues as (
++    select
++        l.league_code,
++        l.season_api_year
++    from drawable_seasons as l
+     left join {{ ref('int_competition_season__player_stat_corrections') }} as w
+         on l.season_sk = w.season_sk and w.stats_need_research
+     where
+-        l.competition_group = 'elite'
+-        and w.season_sk is null
++        w.season_sk is null
+         and l.season_sk not in (select m.season_sk from seasons_missing_player_stats as m)
+ ),
+ 
+ expected as (
+     select
+         e.league_code,
++        e.season_api_year,
+         metric_key
+-    from elite_leagues as e
++    from drawable_leagues as e
+     cross join unnest([
+         {% for key in home_boards %}
+         '{{ key }}'{% if not loop.last %},{% endif %}
+@@ -89,11 +94,11 @@ expected as (
+ actual as (
+     select distinct
+         league_code,
++        season_api_year,
+         metric_key
+     from import_mart_leaderboards
+     where
+-        is_current_season
+-        and rank = 1
++        rank = 1
+         and metric_key in (
+             {% for key in home_boards %}
+             '{{ key }}'{% if not loop.last %},{% endif %}
+@@ -103,10 +108,12 @@ actual as (
+ 
+ select
+     expected.league_code,
++    expected.season_api_year,
+     expected.metric_key
+ from expected
+ left join actual
+     on
+         expected.league_code = actual.league_code
++        and expected.season_api_year = actual.season_api_year
+         and expected.metric_key = actual.metric_key
+ where actual.league_code is null

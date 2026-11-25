@@ -1,4 +1,4 @@
--- Every Home board must have a rank-1 player in every elite league's current season.
+-- Every Home board must have a rank-1 player in every in-season league of every slot Home can draw.
 --
 -- ⛔ THE PAGE DELIBERATELY WILL NOT TELL US. #40 rules that a board with no data is not rendered —
 -- no placeholder, no empty state — because a reader does not notice a board that is missing.
@@ -13,9 +13,9 @@
 -- metric_key from that mart's rank partition was caught by NOTHING — the grain stayed unique, the
 -- board set stayed complete, and only a missing rank-1 exposed it.
 --
--- Scoped to the ELITE group and the current season because that is what the block renders. A board
--- with no data in a league the block never shows is not a defect; asserting it would fail on
--- competitions that legitimately carry no player stats.
+-- Scoped to the in-season leagues of mart_home_rotation, in the season the block reads, because
+-- every slot in that table can be drawn. A board with no data in a league the block never shows is
+-- not a defect; asserting it would fail on competitions that legitimately carry no player stats.
 
 {{ config(store_failures = true) }}
 
@@ -35,13 +35,16 @@ import_dim_competition_season as (
     select * from {{ ref('dim_competition_season') }}
 ),
 
-latest_seasons as (
+-- The league-seasons Home can show: every in-season league of every slot.
+drawable_seasons as (
     select
-        league_code,
-        season_sk,
-        competition_group
-    from import_dim_competition_season
-    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
+        r.league_code,
+        r.season_api_year,
+        d.season_sk
+    from {{ ref('mart_home_rotation') }} as r
+    inner join import_dim_competition_season as d
+        on r.league_code = d.league_code and r.season_api_year = d.season_api_year
+    where r.board_role = 'current' and r.is_in_season
 ),
 
 -- The competition-seasons with a finished match that has no player statistics: withheld.
@@ -61,24 +64,26 @@ seasons_missing_player_stats as (
     group by f.season_sk
 ),
 
--- A league whose latest season is withheld (stats_need_research, or a finished match without
+-- A league whose season is withheld (stats_need_research, or a finished match without
 -- player statistics) has no board to lead.
-elite_leagues as (
-    select l.league_code
-    from latest_seasons as l
+drawable_leagues as (
+    select
+        l.league_code,
+        l.season_api_year
+    from drawable_seasons as l
     left join {{ ref('int_competition_season__player_stat_corrections') }} as w
         on l.season_sk = w.season_sk and w.stats_need_research
     where
-        l.competition_group = 'elite'
-        and w.season_sk is null
+        w.season_sk is null
         and l.season_sk not in (select m.season_sk from seasons_missing_player_stats as m)
 ),
 
 expected as (
     select
         e.league_code,
+        e.season_api_year,
         metric_key
-    from elite_leagues as e
+    from drawable_leagues as e
     cross join unnest([
         {% for key in home_boards %}
         '{{ key }}'{% if not loop.last %},{% endif %}
@@ -89,11 +94,11 @@ expected as (
 actual as (
     select distinct
         league_code,
+        season_api_year,
         metric_key
     from import_mart_leaderboards
     where
-        is_current_season
-        and rank = 1
+        rank = 1
         and metric_key in (
             {% for key in home_boards %}
             '{{ key }}'{% if not loop.last %},{% endif %}
@@ -103,10 +108,12 @@ actual as (
 
 select
     expected.league_code,
+    expected.season_api_year,
     expected.metric_key
 from expected
 left join actual
     on
         expected.league_code = actual.league_code
+        and expected.season_api_year = actual.season_api_year
         and expected.metric_key = actual.metric_key
 where actual.league_code is null
