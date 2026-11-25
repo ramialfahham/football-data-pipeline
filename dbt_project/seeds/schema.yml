@@ -227,6 +227,37 @@ seeds:
           - not_null
           - unique
 
+  - name: home_rotation_slots
+    description: >
+      The slots Home's Top players and Top teams draw from, one per build, and their weights. One
+      row per competition group in a slot; a slot of two groups is one board and repeats its weight
+      on both rows. The secondary group is never a slot.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [slot, competition_group]
+    columns:
+      - name: slot
+        description: "The slot's key. Two groups share a slot when the page ranks them on one board."
+        tests:
+          - not_null
+      - name: competition_group
+        description: "A competition group the slot holds, as competition_season_map names it."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["elite", "europe", "international", "calendar"]
+          - relationships:
+              to: ref('competition_season_map')
+              field: competition_group
+      - name: slot_weight
+        description: "The slot's share of the draw, the same on every row of the slot; the distinct slot weights add up to 100."
+        tests:
+          - not_null
+      - name: is_fallback_slot
+        description: "True on the one slot shown, in its last completed season, when no slot is in season."
+        tests:
+          - not_null
+
   - name: competition_registry
     description: >
       Every competition the platform tracks, with the fields the registry authors by hand:

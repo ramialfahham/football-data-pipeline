@@ -114,7 +114,8 @@ def test_a_board_without_a_place_fails_the_export():
 PINNED_ORDER = {
     "player": {
         "goals": ["goals_player", "goals_per90", "assists_player", "assists_per90",
-                  "scorer_points_player", "scorer_points_per90"],
+                  "scorer_points_player", "scorer_points_per90", "goals_penalty_player",
+                  "contribution_player_pct"],
         "shooting": ["shots_player", "shots_per90", "shots_on_goal_player", "shots_on_goal_per90",
                      "shots_on_goal_player_pct", "finishing_efficiency_player_pct"],
         "passing": ["passes_player", "passes_per90", "passes_accurate_player", "passes_accurate_per90",
