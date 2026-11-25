@@ -24,7 +24,6 @@ from scripts.export_site_data import (
     shape_season_summary,
     shape_fixture_payload,
     shape_next_match,
-    shape_leaderboards,
     shape_player_payload,
     shape_player_peers,
     shape_team_payload,
@@ -41,20 +40,6 @@ def _mark_featured(rows: list[dict]) -> list[dict]:
     for r in rows:
         r["is_featured_season"] = r is top
     return rows
-
-
-def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
-    # mart_leaderboards is long: the warehouse sets metric_key and rank, so the export never ranks.
-    rows = [
-        {"metric_key": "goals_player", "rank": 2, "player_sk": 3, "player_name": "C"},
-        {"metric_key": "goals_player", "rank": 1, "player_sk": 2, "player_name": "B"},
-        {"metric_key": "scorer_points_player", "rank": 1, "player_sk": 1, "player_name": "A"},
-        {"metric_key": "goals_player", "rank": 99, "player_sk": 4, "player_name": "D"},   # beyond the limit
-    ]
-    boards = shape_leaderboards(rows, metrics=("goals_player", "scorer_points_player"), limit=10)
-    assert [p["player_name"] for p in boards["goals_player"]] == ["B", "C"]   # by rank; D dropped (> limit)
-    assert [p["player_name"] for p in boards["scorer_points_player"]] == ["A"]
-    assert len(boards["goals_player"]) == 2
 
 
 def test_display_group_of_type_reads_seed():
