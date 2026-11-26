@@ -125,6 +125,12 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py\"",
             "statusMessage": "Stop gate: contract check..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/context_guard.py\"",
+            "statusMessage": "Context guard: session size..."
           }
         ]
       }

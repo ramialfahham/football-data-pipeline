@@ -35,6 +35,7 @@ match, because a hook that cries wolf gets ignored.
 | `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies a public network address in any repo file. `tests/test_no_host_fingerprint_in_tree.py` keeps the tree at zero. |
 | `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies every edit under `docs/tracker/`; only `scripts/snapshot_tracker.py` writes the tracker backup. |
 | `stop_gate.py` | Stop | Blocks the end of a turn once when the tree does not match the contract or an offline gate in `FAST_GATES` fails. |
+| `context_guard.py` | Stop | Blocks the end of a turn once per session when the last assistant message's context passes `CONTEXT_TOKEN_THRESHOLD` (300,000 tokens). The block tells the session to write a state file, message the coordinator and stop. The marker is a file per session id in the system temp folder. Fails open on any unreadable input. |
 | `handover_in.py` | SessionStart | Injects the handover issue into every session, from GitLab or, when GitLab is down, from `.claude/handover.cache.md`. Capped at 16,000 characters; says when it truncates. The handover is rewritten at the end of every session (`CLAUDE.md`). |
 
 A hook judges the git worktree its action targets: an edit's file, else the working directory.

@@ -1,0 +1,497 @@
+diff --git a/.claude/hooks/context_guard.py b/.claude/hooks/context_guard.py
+new file mode 100644
+index 00000000..074d54c4
+--- /dev/null
++++ b/.claude/hooks/context_guard.py
+@@ -0,0 +1,138 @@
++#!/usr/bin/env python
++"""Context guard — hands a session off to a fresh one before its context grows too large.
++
++Every step re-reads the whole context, so a long session spends the plan on re-reading. When the
++agent tries to end its turn this reads the size of the context from the session's own transcript
++and, past CONTEXT_TOKEN_THRESHOLD, blocks the turn end ONCE per session with a hand-off
++instruction. After that it never blocks that session again.
++
++The size is the last assistant message's `usage`: input_tokens + cache_creation_input_tokens +
++cache_read_input_tokens. Entries of other types, sidechain entries, synthetic messages and
++messages whose usage sums to zero are skipped, so the last real model call counts.
++
++The marker that records the one block is a file per session id in the system temp folder, created
++with exclusive create BEFORE the block is printed: two hooks racing, or a marker that cannot be
++written, never produce a second block. Fails OPEN: a missing session id, a missing or unreadable
++transcript, no usable usage, or any error ends the turn without a block.
++"""
++
++from __future__ import annotations
++
++import json
++import os
++import re
++import sys
++import tempfile
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from _command_utils import read_event  # noqa: E402
++
++CONTEXT_TOKEN_THRESHOLD = 300_000
++
++_USAGE_KEYS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
++_FIRST_READ_BYTES = 512 * 1024
++_UNSAFE_ID = re.compile(r"[^A-Za-z0-9._-]")
++
++
++def _int_or_none(value):
++    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
++
++
++def _context_tokens(line: str) -> int | None:
++    """The context size a transcript line reports, or None when the line is not a usable assistant entry."""
++    try:
++        entry = json.loads(line)
++    except ValueError:
++        return None
++    if not isinstance(entry, dict) or entry.get("type") != "assistant" or entry.get("isSidechain") is True:
++        return None
++    message = entry.get("message")
++    if not isinstance(message, dict) or message.get("role") != "assistant" or message.get("model") == "<synthetic>":
++        return None
++    usage = message.get("usage")
++    if not isinstance(usage, dict):
++        return None
++    total = 0
++    for key in _USAGE_KEYS:
++        raw = usage.get(key)
++        if raw is None:
++            continue
++        number = _int_or_none(raw)
++        if number is None:
++            return None
++        total += number
++    return total or None
++
++
++def _last_context_tokens(path: str) -> int | None:
++    """Context size from the last usable assistant entry, reading the file from its tail."""
++    size = os.path.getsize(path)
++    window = _FIRST_READ_BYTES
++    while True:
++        start = max(0, size - window)
++        with open(path, "rb") as handle:
++            handle.seek(start)
++            chunk = handle.read()
++        lines = chunk.decode("utf-8", "replace").splitlines()
++        if start > 0 and lines:
++            lines = lines[1:]
++        for line in reversed(lines):
++            tokens = _context_tokens(line)
++            if tokens is not None:
++                return tokens
++        if start == 0:
++            return None
++        window *= 4
++
++
++def _marker_path(session_id: str) -> str:
++    return os.path.join(tempfile.gettempdir(), "claude_context_guard", _UNSAFE_ID.sub("_", session_id))
++
++
++def _claim_marker(session_id: str) -> bool:
++    """True only for the one caller that creates the marker; False when it exists or cannot be made."""
++    path = _marker_path(session_id)
++    try:
++        os.makedirs(os.path.dirname(path), exist_ok=True)
++        os.close(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
++    except OSError:
++        return False
++    return True
++
++
++def _reason(tokens: int) -> str:
++    return (
++        f"CONTEXT GUARD: this session's context is {tokens:,} tokens, past the {CONTEXT_TOKEN_THRESHOLD:,} "
++        "limit. Every step re-reads all of it, so hand off to a fresh session now. "
++        "1. Finish or abandon the step in hand; do not start a new one. Make no edit to the tree "
++        "except the state file: the stop gate does not run again on this turn end. "
++        "2. Write a state file: to the shared notes folder you were given, else to your task folder "
++        "(.claude/task/<issue>-<slug>/). It holds what is done, what is open, the branch, the review "
++        "round and verdicts, the rulings received, and the next steps. "
++        "3. Send the coordinator one message saying you handed off, with the state file path. "
++        "4. Stop. This guard blocks once per session and does not block again."
++    )
++
++
++def main() -> int:
++    event = read_event()
++    if event.get("stop_hook_active"):
++        return 0
++    try:
++        session_id = event.get("session_id")
++        transcript = event.get("transcript_path")
++        if not isinstance(session_id, str) or not session_id or not isinstance(transcript, str) or not transcript:
++            return 0
++        tokens = _last_context_tokens(transcript)
++        if tokens is None or tokens <= CONTEXT_TOKEN_THRESHOLD:
++            return 0
++        if not _claim_marker(session_id):
++            return 0
++        print(json.dumps({"decision": "block", "reason": _reason(tokens)}))
++    except Exception:
++        return 0
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 8a4daa22..290d7fa4 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -125,6 +125,12 @@
+             "shell": "bash",
+             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py\"",
+             "statusMessage": "Stop gate: contract check..."
++          },
++          {
++            "type": "command",
++            "shell": "bash",
++            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/context_guard.py\"",
++            "statusMessage": "Context guard: session size..."
+           }
+         ]
+       }
+diff --git a/.claude/task/313-context-guard/contract.md b/.claude/task/313-context-guard/contract.md
+new file mode 100644
+index 00000000..ae073a33
+--- /dev/null
++++ b/.claude/task/313-context-guard/contract.md
+@@ -0,0 +1,91 @@
++# Task contract — an automatic context guard for Claude Code sessions
++
++objective: >
++  Issue 313. A new Stop hook, context_guard.py, reads the session transcript and, once per session,
++  blocks the turn end when the context passes a named threshold, telling the session to hand off
++  to a fresh one. No other behaviour changes.
++
++refs: >
++  Issue 313 (cap session context); the hook is approved in chat, 2026-11-23.
++
++scope_paths:
++  - .claude/hooks/context_guard.py
++  - .claude/settings.json
++  - tests/test_context_guard.py
++  - docs/agent_guardrails.md
++  - .claude/task/313-context-guard/contract.md
++  - .claude/task/313-context-guard/review.md
++  - .claude/task/313-context-guard/review_input.patch
++
++protected_override: >
++  .claude/hooks/context_guard.py and .claude/settings.json edits approved in chat, 2026-11-23, as
++  issue 313; the MR head declares the locked files.
++
++impact_map: >
++  events: the hook is registered on the Stop event only, in .claude/settings.json beside
++  stop_gate.py. Claude Code runs both on every turn end. Either can block. After any Stop block the
++  next Stop event in that session carries stop_hook_active, and both hooks return at once on that
++  flag (stop_gate.py lines 155 to 157, before its stash, contract and offline-gate checks). So once
++  per session, past the threshold, the hand-off turn end is not checked by stop_gate.py. The block
++  text therefore tells the session to edit nothing in the tree except the state file, and a test
++  pins that text. A stop_gate.py block makes context_guard.py skip that continuation too; it
++  checks again at the next turn end. The commit gate and CI check the tree as before. No other
++  event, no matcher and no tool call is touched.
++  fires: on every Stop event with a session_id and a transcript_path, once the event does not carry
++  stop_hook_active. It reads only the tail of the transcript, takes the last assistant message
++  that carries a usage block (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)
++  and compares the sum with CONTEXT_TOKEN_THRESHOLD. Over it, it creates one marker file per
++  session id under the system temp folder, atomically, and only then prints the block decision in
++  the protocol stop_gate.py uses. Under it, nothing is written.
++  readers: nothing imports context_guard.py, so no other hook, script or test depends on it. It
++  imports read_event from .claude/hooks/_command_utils.py, as ten other hooks do
++  (`grep -rln "from _command_utils import" .claude/hooks`), and relies on read_event returning {}
++  on any error; a future change to read_event must list this hook. `grep -rn "stop_gate" tests scripts .gitlab-ci.yml` finds the
++  readers of the neighbouring hook only: tests/test_governance_hooks.py and
++  tests/test_hooks_resolve_worktree.py. docs/agent_guardrails.md gains one row.
++  not_enforced_if_wrong: if the threshold is too high the session compacts at about 370,000 as it
++  does today; if the hook never fires, nothing else loses a check, because it enforces no rule
++  and guards no data. If it fires too early a session hands off sooner than needed, once.
++  failure: a missing, empty or unreadable transcript, no assistant entry with usage, a malformed
++  line, a usage value that is not a number, a missing session_id, a marker that cannot be created,
++  or any exception, returns 0 and prints nothing: the turn ends. The hook fails open. The marker
++  is created before the block is printed, so a failure to write it also ends in no block, and the
++  session is never blocked twice.
++  blast_radius: every session in this repo, once per session at most, with a block message and no
++  change to files, the tree, git or the contract.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: the change reads no open MR's code; settings.json and agent_guardrails.md are taken from gitlab/main
++
++shared_files:
++  - none: no design baseline, component registry, font coverage or chart screenshot changes
++
++decisions_taken: >
++  Issue 313's guard, approved in chat, 2026-11-23: a Stop hook that blocks once per session past
++  300,000 tokens and tells the session to write a state file, message the coordinator and stop.
++  Engineering calls: the marker is a file per session id in the system temp folder, created with
++  exclusive create so two hooks running at once cannot both block; entries marked as sidechain or
++  with the synthetic model, and entries whose usage sums to zero, are skipped so the last real
++  assistant message counts; the transcript is read from its tail, in growing blocks, so a large
++  file is not read whole; the state-file location named in the block reason is the shared notes
++  folder the session was given, else its task folder, because no hook in the repo names a notes
++  folder.
++  The guard's block makes the following Stop event skip stop_gate.py once per session, because
++  stop_gate.py ends at once on stop_hook_active. The issue's one-block design carries that, and the
++  hand-off turn is told to write only the state file.
++  Threshold declarations: no new dependency, no recurring cost; a new mechanism of the same class
++  as stop_gate.py, named by the issue.
++
++decisions_reserved:
++  - none: the threshold, the block text and the location of the state file are as the issue states them
++
++done_when:
++  - tests/test_context_guard.py passes
++  - the Stop block in .claude/settings.json lists context_guard.py beside stop_gate.py and the file parses as JSON
++  - docs/agent_guardrails.md has one row for context_guard.py
++  - tests/test_governance_doc_parity.py and tests/test_hooks_resolve_worktree.py still pass
++
++amendments: (none)
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 1a9068e4..b33b85f9 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -35,6 +35,7 @@ match, because a hook that cries wolf gets ignored.
+ | `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies a public network address in any repo file. `tests/test_no_host_fingerprint_in_tree.py` keeps the tree at zero. |
+ | `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies every edit under `docs/tracker/`; only `scripts/snapshot_tracker.py` writes the tracker backup. |
+ | `stop_gate.py` | Stop | Blocks the end of a turn once when the tree does not match the contract or an offline gate in `FAST_GATES` fails. |
++| `context_guard.py` | Stop | Blocks the end of a turn once per session when the last assistant message's context passes `CONTEXT_TOKEN_THRESHOLD` (300,000 tokens). The block tells the session to write a state file, message the coordinator and stop. The marker is a file per session id in the system temp folder. Fails open on any unreadable input. |
+ | `handover_in.py` | SessionStart | Injects the handover issue into every session, from GitLab or, when GitLab is down, from `.claude/handover.cache.md`. Capped at 16,000 characters; says when it truncates. The handover is rewritten at the end of every session (`CLAUDE.md`). |
+ 
+ A hook judges the git worktree its action targets: an edit's file, else the working directory.
+diff --git a/tests/test_context_guard.py b/tests/test_context_guard.py
+new file mode 100644
+index 00000000..914f08d8
+--- /dev/null
++++ b/tests/test_context_guard.py
+@@ -0,0 +1,221 @@
++"""The context guard blocks a session's turn end once, past the token threshold, and fails open."""
++
++from __future__ import annotations
++
++import json
++import os
++import subprocess
++import sys
++
++import pytest
++
++HOOK = os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks", "context_guard.py")
++sys.path.insert(0, os.path.dirname(HOOK))
++import context_guard  # noqa: E402
++
++LIMIT = context_guard.CONTEXT_TOKEN_THRESHOLD
++
++
++def _assistant(input_tokens=0, cache_creation=0, cache_read=0, **extra) -> dict:
++    entry = {
++        "type": "assistant",
++        "message": {
++            "role": "assistant",
++            "model": "claude-sonnet-5-5",
++            "usage": {
++                "input_tokens": input_tokens,
++                "cache_creation_input_tokens": cache_creation,
++                "cache_read_input_tokens": cache_read,
++                "output_tokens": 50,
++            },
++        },
++    }
++    entry.update(extra)
++    return entry
++
++
++def _write(path, lines) -> str:
++    with open(path, "w", encoding="utf-8") as handle:
++        for line in lines:
++            handle.write((line if isinstance(line, str) else json.dumps(line)) + "\n")
++    return str(path)
++
++
++def _run(tmp_path, transcript, session_id="s-1", **event_extra):
++    event = {"hook_event_name": "Stop", "session_id": session_id, "transcript_path": transcript}
++    event.update(event_extra)
++    env = {**os.environ, "TMP": str(tmp_path / "tmp"), "TEMP": str(tmp_path / "tmp"), "TMPDIR": str(tmp_path / "tmp")}
++    os.makedirs(env["TMP"], exist_ok=True)
++    proc = subprocess.run(
++        [sys.executable, HOOK], input=json.dumps(event), capture_output=True, text=True, env=env, timeout=30
++    )
++    assert proc.returncode == 0, proc.stderr
++    return proc.stdout.strip()
++
++
++def _blocks(out: str) -> bool:
++    return bool(out) and json.loads(out)["decision"] == "block"
++
++
++def test_under_the_threshold_does_not_block(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(1000, 2000, LIMIT - 3001)])
++    assert _run(tmp_path, t) == ""
++
++
++def test_exactly_at_the_threshold_does_not_block(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT)])
++    assert _run(tmp_path, t) == ""
++
++
++def test_over_the_threshold_blocks_with_the_hand_off_instruction(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(10, 100_000, LIMIT)])
++    out = _run(tmp_path, t)
++    assert _blocks(out)
++    reason = json.loads(out)["reason"]
++    assert "CONTEXT GUARD" in reason and "state file" in reason and "coordinator" in reason
++    assert f"{LIMIT + 100_010:,}" in reason
++
++
++def test_all_three_usage_fields_count(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT // 3 + 1, LIMIT // 3 + 1, LIMIT // 3 + 1)])
++    assert _blocks(_run(tmp_path, t))
++
++
++def test_a_second_stop_in_the_same_session_does_not_block(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])
++    assert _blocks(_run(tmp_path, t))
++    assert _run(tmp_path, t) == ""
++
++
++def test_another_session_is_blocked_on_its_own(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])
++    assert _blocks(_run(tmp_path, t, session_id="a"))
++    assert _blocks(_run(tmp_path, t, session_id="b"))
++
++
++def test_the_continuation_after_the_block_is_not_blocked_and_leaves_no_second_block(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])
++    assert _run(tmp_path, t, stop_hook_active=True) == ""
++    assert _blocks(_run(tmp_path, t))
++
++
++def test_the_last_assistant_message_decides_not_the_largest(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1), _assistant(5000)])
++    assert _run(tmp_path, t) == ""
++
++
++def test_no_usage_lines_does_not_block(tmp_path):
++    lines = [{"type": "user", "message": {"role": "user", "content": "hi"}},
++             {"type": "assistant", "message": {"role": "assistant", "content": []}}]
++    assert _run(tmp_path, _write(tmp_path / "t.jsonl", lines)) == ""
++
++
++def test_an_empty_transcript_does_not_block(tmp_path):
++    assert _run(tmp_path, _write(tmp_path / "t.jsonl", [])) == ""
++
++
++def test_a_malformed_line_is_skipped_and_the_valid_one_before_it_counts(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1), "{not json", '{"type": "assistant", "mess'])
++    assert _blocks(_run(tmp_path, t))
++
++
++def test_only_malformed_lines_do_not_block(tmp_path):
++    assert _run(tmp_path, _write(tmp_path / "t.jsonl", ["{not json", "[1, 2]", "null", "7"])) == ""
++
++
++def test_usage_on_non_assistant_entries_is_ignored(tmp_path):
++    big = {"usage": {"input_tokens": LIMIT * 2, "cache_read_input_tokens": LIMIT * 2}}
++    lines = [
++        _assistant(1000),
++        {"type": "user", "message": {"role": "user", "usage": big["usage"]}, "usage": big["usage"]},
++        {"type": "system", "usage": big["usage"]},
++        {"type": "summary", "message": {"role": "assistant", "usage": big["usage"]}},
++        {"type": "assistant", "message": {"role": "user", "usage": big["usage"]}},
++    ]
++    assert _run(tmp_path, _write(tmp_path / "t.jsonl", lines)) == ""
++
++
++def test_usage_on_non_assistant_entries_alone_does_not_block(tmp_path):
++    lines = [{"type": "user", "message": {"role": "user", "usage": {"input_tokens": LIMIT * 2}}}]
++    assert _run(tmp_path, _write(tmp_path / "t.jsonl", lines)) == ""
++
++
++def test_sidechain_synthetic_and_zero_usage_entries_are_skipped(tmp_path):
++    synthetic = _assistant(10)
++    synthetic["message"]["model"] = "<synthetic>"
++    lines = [_assistant(LIMIT + 1), _assistant(10, isSidechain=True), synthetic, _assistant(0)]
++    assert _blocks(_run(tmp_path, _write(tmp_path / "t.jsonl", lines)))
++
++
++def test_the_block_tells_the_session_to_edit_nothing_but_the_state_file(tmp_path):
++    reason = json.loads(_run(tmp_path, _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])))["reason"]
++    assert "Make no edit to the tree except the state file" in reason
++
++
++@pytest.mark.parametrize("bad", ["lots", -5, 1.5, True, [3]])
++def test_a_usage_value_that_is_not_a_count_never_blocks(tmp_path, bad):
++    entry = _assistant(0)
++    entry["message"]["usage"]["input_tokens"] = bad
++    entry["message"]["usage"]["cache_read_input_tokens"] = LIMIT + 1
++    assert _run(tmp_path, _write(tmp_path / "t.jsonl", [entry])) == ""
++
++
++def test_a_missing_transcript_does_not_block(tmp_path):
++    assert _run(tmp_path, str(tmp_path / "absent.jsonl")) == ""
++
++
++def test_a_directory_as_transcript_does_not_block(tmp_path):
++    assert _run(tmp_path, str(tmp_path)) == ""
++
++
++def test_a_missing_transcript_path_or_session_id_does_not_block(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])
++    assert _run(tmp_path, None) == ""
++    assert _run(tmp_path, t, session_id=None) == ""
++    assert _run(tmp_path, t, session_id="") == ""
++    assert _run(tmp_path, t, session_id=7) == ""
++
++
++def test_an_unreadable_event_does_not_block():
++    proc = subprocess.run([sys.executable, HOOK], input="not json", capture_output=True, text=True, timeout=30)
++    assert proc.returncode == 0 and proc.stdout.strip() == ""
++
++
++def test_a_session_id_with_path_characters_stays_inside_the_marker_folder(tmp_path):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])
++    assert _blocks(_run(tmp_path, t, session_id="../../escape"))
++    assert not (tmp_path / "escape").exists()
++    assert _run(tmp_path, t, session_id="../../escape") == ""
++
++
++def test_a_marker_that_cannot_be_written_does_not_block(tmp_path, monkeypatch, capsys):
++    t = _write(tmp_path / "t.jsonl", [_assistant(LIMIT + 1)])
++    blocker = tmp_path / "blocked"
++    blocker.write_text("a file where the folder should be", encoding="utf-8")
++    monkeypatch.setattr(context_guard.tempfile, "gettempdir", lambda: str(blocker))
++    monkeypatch.setattr(sys, "stdin", __import__("io").StringIO(json.dumps(
++        {"session_id": "s-x", "transcript_path": t})))
++    assert context_guard.main() == 0
++    assert capsys.readouterr().out == ""
++
++
++def test_the_last_message_is_found_in_a_transcript_larger_than_the_first_read(tmp_path):
++    filler = {"type": "user", "message": {"role": "user", "content": "x" * 4000}}
++    lines = [_assistant(LIMIT + 1)] + [filler] * 400
++    assert os.path.getsize(_write(tmp_path / "t.jsonl", lines)) > context_guard._FIRST_READ_BYTES
++    assert _blocks(_run(tmp_path, str(tmp_path / "t.jsonl")))
++
++
++def test_an_assistant_line_larger_than_the_first_read_is_read_whole(tmp_path):
++    entry = _assistant(LIMIT + 1)
++    entry["message"]["content"] = [{"type": "text", "text": "y" * (context_guard._FIRST_READ_BYTES * 2)}]
++    assert _blocks(_run(tmp_path, _write(tmp_path / "t.jsonl", [entry])))
++
++
++def test_the_hook_is_registered_next_to_the_stop_gate():
++    settings = os.path.join(os.path.dirname(HOOK), "..", "settings.json")
++    with open(settings, encoding="utf-8") as handle:
++        stop = json.load(handle)["hooks"]["Stop"]
++    commands = [h["command"] for group in stop for h in group["hooks"]]
++    assert any("stop_gate.py" in c for c in commands)
++    assert any("context_guard.py" in c for c in commands)
