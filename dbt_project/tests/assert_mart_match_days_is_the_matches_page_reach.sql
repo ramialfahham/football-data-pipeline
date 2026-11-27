@@ -1,16 +1,17 @@
 -- mart_match_days holds exactly the Matches page's reach and its days: each competition's last
 -- matchday (the played fixtures of the latest round with a played fixture, in the season of its
 -- earliest fixture not yet started) and its next matchday (the not-yet-started fixtures, dated from
--- the build day on, of the round of that earliest fixture); every served day names the adjacent days
--- with a match as its neighbours; the opening day is the first day from the build day on; and no
--- day before the build day holds an unplayed fixture.
+-- the build day on, of the round of that earliest fixture), each on its UTC date; every served day
+-- names as its neighbours the adjacent days a match reaches in some time zone; the opening day is
+-- the first day from the build day on with a match on its UTC date; and no day before the build day
+-- holds an unplayed fixture on its UTC date.
 --
 -- Recomputed from fct_fixture and int_legs__team_match, not from either mart, so a rewrite that
 -- lets in a past unplayed fixture, a next-matchday fixture dated in the past, opens on the first day
 -- overall, or links a day past a neighbour with a match fails here even when the schema tests stay
 -- green.
 --
--- Returns a row (= fails) per fixture where any property does not hold.
+-- Returns a row (= fails) per fixture and day where any property does not hold.
 {{ config(store_failures = true) }}
 
 with fixtures as (
@@ -101,11 +102,36 @@ last_rows as (
 expected as (
     select
         f.fixture_sk,
-        f.fixture_date as match_day
+        f.fixture_date as match_day,
+        f.kickoff_datetime
     from fixtures as f
     where
         f.fixture_sk in (select n.fixture_sk from next_rows as n)
         or f.fixture_sk in (select l.fixture_sk from last_rows as l)
+),
+
+expected_all_days as (
+    select
+        match_day,
+        logical_or(is_utc_day) as has_utc_match
+    from (
+        select
+            match_day,
+            true as is_utc_day
+        from expected
+        union all
+        select
+            date(timestamp_sub(kickoff_datetime, interval 12 hour)) as match_day,
+            false as is_utc_day
+        from expected
+        union all
+        select
+            date(timestamp_add(kickoff_datetime, interval 14 hour)) as match_day,
+            false as is_utc_day
+        from expected
+    )
+    where match_day is not null
+    group by match_day
 ),
 
 expected_days as (
@@ -113,43 +139,64 @@ expected_days as (
         match_day,
         lag(match_day) over (order by match_day asc) as previous_day,
         lead(match_day) over (order by match_day asc) as next_day,
-        match_day = min(if(match_day >= current_date(), match_day, null)) over () as is_opening_day
-    from (select distinct match_day from expected)
+        match_day = min(if(match_day >= current_date() and has_utc_match, match_day, null)) over ()
+            as is_opening_day
+    from expected_all_days
 ),
 
 served as (
     select
         fixture_sk,
         match_day,
+        is_utc_day,
         previous_day,
         next_day,
         is_opening_day
     from {{ ref('mart_match_days') }}
+),
+
+served_utc_days as (
+    select
+        fixture_sk,
+        match_day
+    from served
+    where is_utc_day
+),
+
+out_of_reach as (
+    select
+        s.match_day,
+        e.match_day as expected_day,
+        coalesce(s.fixture_sk, e.fixture_sk) as fixture_sk,
+        'reach' as failure
+    from served_utc_days as s
+    full outer join expected as e
+        on s.fixture_sk = e.fixture_sk
+    left join played as p
+        on coalesce(s.fixture_sk, e.fixture_sk) = p.fixture_sk
+    where
+        s.fixture_sk is null
+        or e.fixture_sk is null
+        or s.match_day != e.match_day
+        or (s.match_day < current_date() and p.fixture_sk is null)
+),
+
+wrong_day_facts as (
+    select
+        s.match_day,
+        d.match_day as expected_day,
+        s.fixture_sk,
+        'day facts' as failure
+    from served as s
+    left join expected_days as d
+        on s.match_day = d.match_day
+    where
+        d.match_day is null
+        or s.previous_day is distinct from d.previous_day
+        or s.next_day is distinct from d.next_day
+        or s.is_opening_day != coalesce(d.is_opening_day, false)
 )
 
-select
-    s.match_day,
-    e.match_day as expected_day,
-    s.previous_day,
-    d.previous_day as expected_previous_day,
-    s.next_day,
-    d.next_day as expected_next_day,
-    s.is_opening_day,
-    d.is_opening_day as expected_opening_day,
-    coalesce(s.fixture_sk, e.fixture_sk) as fixture_sk,
-    p.fixture_sk is not null as is_played
-from served as s
-full outer join expected as e
-    on s.fixture_sk = e.fixture_sk
-left join expected_days as d
-    on e.match_day = d.match_day
-left join played as p
-    on coalesce(s.fixture_sk, e.fixture_sk) = p.fixture_sk
-where
-    s.fixture_sk is null
-    or e.fixture_sk is null
-    or s.match_day != e.match_day
-    or s.previous_day is distinct from d.previous_day
-    or s.next_day is distinct from d.next_day
-    or s.is_opening_day != coalesce(d.is_opening_day, false)
-    or (s.match_day < current_date() and p.fixture_sk is null)
+select * from out_of_reach
+union all
+select * from wrong_day_facts
