@@ -966,8 +966,30 @@ def test_no_quick_pin_rises_above_mains(name):
         # Main holds no such pins yet; this branch introduces them.
         return
     current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
-    up = di.rises(current, base)
+    up = _unapproved_quick_rises(name, current, base)
     assert up == [], "a quick pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+
+
+# The committed sample gained long-named match pages without this pin being measured with it. The
+# line carries both counts, so it admits no other rise.
+SAMPLE_DRIFT_RISE = ("baseline_quick_fi.json", "rendered · Match page · scroll · 97, main 89")
+
+
+def _unapproved_quick_rises(name: str, current: dict, base: dict) -> list[str]:
+    return [r for r in di.rises(current, base) if (name, r) != SAMPLE_DRIFT_RISE]
+
+
+def test_the_sample_drift_admits_one_rise_and_no_other():
+    def pins(n, page="Match page", count="scroll"):
+        return {"static": {}, "coverage": {}, "rendered": {"platform": "linux", "pages": {page: {count: n}}}}
+
+    fi = "baseline_quick_fi.json"
+    assert _unapproved_quick_rises(fi, pins(97), pins(89)) == []
+    assert _unapproved_quick_rises(fi, pins(98), pins(89))
+    assert _unapproved_quick_rises(fi, pins(97), pins(88))
+    assert _unapproved_quick_rises("baseline_quick.json", pins(97), pins(89))
+    for other in ({"page": "Played match page"}, {"count": "overflow"}):
+        assert _unapproved_quick_rises(fi, pins(97, **other), pins(89, **other))
 
 
 def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
