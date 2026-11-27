@@ -1,12 +1,14 @@
 """Unit tests, on fabricated rows, for the Matches page export that groups `mart_match_days` by day."""
 
+import pytest
+
 from scripts import export_site_data
 from scripts.export_site_data import _competition_fixture, shape_match_day_payloads
 
 
-def _row(sk, lc, day, order, *, opening=False, prev=None, nxt=None, played=False):
+def _row(sk, lc, day, order, *, opening=False, prev=None, nxt=None, played=False, utc=True):
     return {
-        "match_day": day, "day_row_order": order, "is_opening_day": opening,
+        "match_day": day, "is_utc_day": utc, "day_row_order": order, "is_opening_day": opening,
         "previous_day": prev, "next_day": nxt,
         "fixture_sk": sk, "league_code": lc, "season_api_year": 2026, "round_name": "Regular Season - 5",
         "round_order": 5, "round_sequence": 5, "fixture_order": sk, "kickoff_datetime": f"{day} 18:30:00+00:00",
@@ -49,7 +51,7 @@ def test_rows_keep_the_served_day_row_order_and_the_match_row_shape():
     (day,) = shape_match_day_payloads(rows, _COMPS)
     (bl1,) = day["competitions"]
     assert [f["fixture_id"] for f in bl1["fixtures"]] == [1, 2, 3]
-    assert bl1["fixtures"][0] == _competition_fixture(rows[1])
+    assert bl1["fixtures"][0] == {**_competition_fixture(rows[1]), "is_utc_day": True}
 
 
 def test_a_competition_carries_its_facts_and_no_order_is_invented():
@@ -65,6 +67,27 @@ def test_a_played_row_carries_its_score():
     (day,) = shape_match_day_payloads([_row(1, "BL1", "2026-09-20", 1, played=True)], _COMPS)
     row = day["competitions"][0]["fixtures"][0]
     assert (row["is_played"], row["goals_home"], row["goals_away"]) == (True, 2, 1)
+
+
+def test_a_neighbouring_days_row_keeps_its_served_place_and_flag():
+    """The mart serves a match on the days some time zone puts it on, in one kick-off order; the
+    export carries the flag and the order and adds and moves nothing."""
+    rows = [
+        _row(2, "BL1", "2026-09-20", 2),
+        _row(1, "BL1", "2026-09-20", 1, utc=False),
+        _row(1, "BL1", "2026-09-19", 1),
+    ]
+    sat, sun = shape_match_day_payloads(rows, _COMPS)
+    assert [(f["fixture_id"], f["is_utc_day"]) for f in sun["competitions"][0]["fixtures"]] == [(1, False), (2, True)]
+    assert [(f["fixture_id"], f["is_utc_day"]) for f in sat["competitions"][0]["fixtures"]] == [(1, True)]
+
+
+def test_a_row_without_the_day_flag_stops_the_export():
+    """A missing flag read as false would publish every day page empty."""
+    row = _row(1, "BL1", "2026-09-20", 1)
+    del row["is_utc_day"]
+    with pytest.raises(KeyError):
+        shape_match_day_payloads([row], _COMPS)
 
 
 def test_the_fetch_reads_the_mart_whole_and_selects_nothing(monkeypatch):
@@ -87,6 +110,7 @@ def test_the_fetch_reads_the_mart_whole_and_selects_nothing(monkeypatch):
                         lambda client: {"BL1": {"logo_url": "https://x/bl1.png", "entity_type": "club"}})
     (day,) = export_site_data.fetch_match_day_payloads(object())
     sql = next(s for s in captured if "mart_match_days" in s).lower()
+    assert "d.is_utc_day" in sql, "without the flag every day page shows no match"
     for word in ("where", "row_number", "qualify", "current_date", "order by", "limit"):
         assert word not in sql, word
     bl1 = day["competitions"][0]

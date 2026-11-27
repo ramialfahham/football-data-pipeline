@@ -842,10 +842,12 @@ def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: d
 
 def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
     """A team's next match, its mart_competition_fixtures row as the site's match row with its
-    competition; None when the team has none, or when it is the fixture whose page this is."""
+    competition and its served place by kick-off; None when the team has none, or when it is the
+    fixture whose page this is."""
     if not row or int(row["fixture_sk"]) == fixture_id:
         return None
-    return {**_competition_fixture(row), "league_code": row.get("league_code")}
+    return {**_competition_fixture(row), "league_code": row.get("league_code"),
+            "kickoff_order": int(row["kickoff_order"])}
 
 
 def shape_players_to_watch(rows: list[dict], boards: dict[str, dict[str, str]],
@@ -1486,7 +1488,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
     next_matches: dict = {}
     for r in _query(client, f"""
-        select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
+        select {_COMPETITION_FIXTURE_COLUMNS}, kickoff_order, is_home_team_next_match, is_away_team_next_match
         from `{marts}.mart_competition_fixtures`
         where (is_home_team_next_match and home_team_sk in ({team_in}))
            or (is_away_team_next_match and away_team_sk in ({team_in}))
@@ -1718,7 +1720,7 @@ def fetch_played_fixture_payloads(client, sample: int = 0, source_counts: dict |
     leagues = {c["league_code"]: c.get("name") for c in _warehouse_competitions(client)}
     next_matches: dict = {}
     for r in _query(client, f"""
-        select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
+        select {_COMPETITION_FIXTURE_COLUMNS}, kickoff_order, is_home_team_next_match, is_away_team_next_match
         from `{marts}.mart_competition_fixtures`
         where is_home_team_next_match or is_away_team_next_match
     """):
@@ -2011,9 +2013,11 @@ def _competition_fixture(r: dict) -> dict:
 def shape_match_day_payloads(rows: list[dict], competitions: dict[str, dict]) -> list[dict]:
     """One payload per day of the Matches page, from mart_match_days rows joined to their
     mart_competition_fixtures row. Grouped by day, then by competition; a competition's rows in
-    the served day_row_order. The day, its neighbours and the opening flag are the mart's; the
-    competition facts are `competitions[league_code]`. Nothing is selected or ranked here: the
-    competitions of a day are written by league_code for a stable diff, and the page orders them."""
+    the served day_row_order, each flagged is_utc_day when the day is its UTC date and not a
+    neighbouring day some time zone puts it on. The day, its neighbours and the opening flag are
+    the mart's; the competition facts are `competitions[league_code]`. Nothing is selected or
+    ranked here: the competitions of a day are written by league_code for a stable diff, and the
+    page orders them."""
     days: dict = {}
     for r in rows:
         day = str(r["match_day"])
@@ -2030,7 +2034,8 @@ def shape_match_day_payloads(rows: list[dict], competitions: dict[str, dict]) ->
         group = payload["competitions"].setdefault(lc, {
             "league_code": lc, **(competitions.get(lc) or {}), "fixtures": [],
         })
-        group["fixtures"].append((int(r["day_row_order"]), _competition_fixture(r)))
+        fixture = {**_competition_fixture(r), "is_utc_day": bool(r["is_utc_day"])}
+        group["fixtures"].append((int(r["day_row_order"]), fixture))
     out = []
     for day in sorted(days):
         payload = days[day]
@@ -2052,7 +2057,7 @@ def fetch_match_day_payloads(client) -> list[dict]:
     (`_warehouse_competitions`), the same sources every other page reads them from."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     rows = _query(client, f"""
-        select d.match_day, d.day_row_order, d.is_opening_day, d.previous_day, d.next_day,
+        select d.match_day, d.is_utc_day, d.day_row_order, d.is_opening_day, d.previous_day, d.next_day,
                {", ".join("c." + col.strip() for col in _COMPETITION_FIXTURE_COLUMNS.split(","))}
         from `{marts}.mart_match_days` as d
         inner join `{marts}.mart_competition_fixtures` as c on d.fixture_sk = c.fixture_sk

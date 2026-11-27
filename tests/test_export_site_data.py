@@ -1,6 +1,7 @@
 """Unit tests for the site export's pure helpers, on fabricated rows with no BigQuery."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -596,10 +597,11 @@ def test_shape_next_match_is_the_mart_row_unless_it_is_this_match():
            "fixture_slug": "2026-10-28-a-vs-b", "status_short": "TBD", "is_played": False,
            "goals_home": None, "goals_away": None, "is_next_round": False, "is_match_that_matters": False,
            "home_team_sk": 1, "home_team_name": "A", "home_team_slug": "a", "home_team_logo_url": "ua",
-           "away_team_sk": 2, "away_team_name": "B", "away_team_slug": "b", "away_team_logo_url": "ub"}
+           "away_team_sk": 2, "away_team_name": "B", "away_team_slug": "b", "away_team_logo_url": "ub",
+           "kickoff_order": 90211}
     m = shape_next_match(row, 7)
-    assert m == {**export_site_data._competition_fixture(row), "league_code": "DFBP"}, \
-        "the site's one match row, with its competition"
+    assert m == {**export_site_data._competition_fixture(row), "league_code": "DFBP", "kickoff_order": 90211}, \
+        "the site's one match row, with its competition and its served place by kick-off"
     assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["status"] == "TBD"
     assert m["home"] == {"team_id": 1, "name": "A", "slug": "a", "crest": "ua"}
     assert m["away"]["team_id"] == 2 and m["is_played"] is False
@@ -619,8 +621,17 @@ def _match_row(fid, home, away, kickoff, home_next=False, away_next=False, next_
             "home_team_sk": home, "home_team_name": "T%d" % home, "home_team_slug": "t%d" % home,
             "home_team_logo_url": "c%d" % home,
             "away_team_sk": away, "away_team_name": "T%d" % away, "away_team_slug": "t%d" % away,
-            "away_team_logo_url": "c%d" % away,
+            "away_team_logo_url": "c%d" % away, "kickoff_order": fid,
             "is_home_team_next_match": home_next, "is_away_team_next_match": away_next}
+
+
+def test_both_next_match_queries_read_the_served_kickoff_order():
+    """A match page orders its two next matches by this column alone, so a query that drops it
+    would leave them in no order."""
+    source = Path(export_site_data.__file__).read_text(encoding="utf-8")
+    wanted = "{_COMPETITION_FIXTURE_COLUMNS}, kickoff_order, is_home_team_next_match, is_away_team_next_match"
+    assert source.count(wanted) == 2
+    assert source.count("is_home_team_next_match, is_away_team_next_match") == 2
 
 
 def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart(monkeypatch):

@@ -87,7 +87,7 @@ def test_a_match_row_carries_the_served_local_kickoff_and_label_unchanged():
 
 
 def test_a_next_match_and_a_landing_group_carry_the_clock():
-    nxt = export.shape_next_match({**_mart_row(), "league_code": "BL1"}, fixture_id=99)
+    nxt = export.shape_next_match({**_mart_row(), "league_code": "BL1", "kickoff_order": 1}, fixture_id=99)
     assert (nxt["kickoff_local"], nxt["kickoff_zone_label"]) == ("2026-11-21 20:30:00", "CET")
     groups = export.group_upcoming_fixtures([{**_mart_row(), "league_code": "BL1"}], {"BL1": {"name": "Bundesliga"}})
     fixture = groups[0]["fixtures"][0]
