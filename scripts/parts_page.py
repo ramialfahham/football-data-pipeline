@@ -103,7 +103,7 @@ KINDS: list[tuple[str, list[str]]] = [
     ("Player photo", ["player-row.photo"]),
     ("Chart mark", ["chart.mark", "chart.other-mark", "chart.team-mark", "chart.bar", "chart.line",
                     "chart.axis", "comparison.better-bar", "strip-plot.band"]),
-    ("Site chrome", ["header.brand", "header.brand-iq", "header.search-field", "header.search-button",
+    ("Site chrome", ["header.brand", "header.search-field", "header.search-button",
                      "header.menu", "header.current", "footer.brand", "footer.meta", "footer.imprint",
                      "breadcrumb.level", "breadcrumb.current", "breadcrumb.separator"]),
 ]
@@ -229,7 +229,8 @@ class PagesError(Exception):
 
 
 def pages_from_table(text: str, picks: dict = GLOB_PICKS) -> list[dict]:
-    """The pages to crawl: every built row of the Pages table, a glob row through `picks`."""
+    """The pages to crawl: every built row of the Pages table, a glob row through `picks`. A
+    `(continued)` row is its page's row again and adds no page."""
     rows = di._tables(text).get("Pages")
     if not rows:
         raise PagesError("block_standard.md has no Pages table")
@@ -237,7 +238,7 @@ def pages_from_table(text: str, picks: dict = GLOB_PICKS) -> list[dict]:
     col = {name: i for i, name in enumerate(head)}
     out, missing = [], []
     for r in body:
-        if r[col["Kind"]] != "built":
+        if r[col["Kind"]] != "built" or r[col["Page"]].endswith(" (continued)"):
             continue
         row, url = r[col["Page"]], di._strip_code(r[col["URL"]])
         if "*" in url:

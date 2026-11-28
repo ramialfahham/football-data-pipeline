@@ -31,6 +31,7 @@ Needs `pip install -r requirements-ui.txt` and, outside the Playwright image,
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import functools
 import json
 import os
@@ -51,10 +52,13 @@ import design_inventory as di  # noqa: E402
 REPO = di.REPO
 MOCKS = REPO / "design-mocks"
 REGISTRY = REPO / "docs" / "design" / "components.yml"
-# The narrowest phones, a phone, the width the menu goes inline, and the width the header's search
-# field appears: the narrowest desktop layout. `tests/test_design_inventory.py` ties the last to
-# `system.css`.
-DEFAULT_VIEWPORTS = (280, 320, 360, 375, 700, 1010)
+# The narrowest phones, a phone, a small tablet, a tablet and the narrowest desktop layout.
+# `tests/test_design_inventory.py` ties the width the header's search field appears at, read from
+# `system.css`, to this list.
+DEFAULT_VIEWPORTS = (280, 320, 360, 375, 520, 700, 1010)
+# Widths of `DEFAULT_VIEWPORTS` a full run measures on the built site only: no mock draws a
+# breakpoint there, and a mock's gap counts are pinned over the other widths.
+BUILT_ONLY_VIEWPORTS = (520,)
 # Every locale the site publishes. A language the check does not render is a language whose layout
 # can break green — the tab bar's rule names EN, DE and FI, so all three are measured.
 # `tests/test_design_inventory.py` pins this against the site's own `LOCALES`.
@@ -346,17 +350,18 @@ MEASURE_JS = r"""
 
 # Playwright's object transport costs more CPU than the scripts themselves; a JSON string does not.
 # What a page's rows would show, read from the rows and never from the element a miss is excused
-# for. `fold`: a competition group holds more rows than the page's visible rows
-# (VISIBLE_ROWS, MatchesDay.astro). `score`: a row whose two scores differ (MatchRow.astro marks a
-# winner only then; a played row that lost its score spans is still expected to show one). `filter`: the groups carry two values of a filter (FilterRows.astro offers a
-# filter from two values).
+# for. A row with the `hidden` attribute belongs to another day and counts for neither of the first
+# two. `fold`: a competition group holds more rows than the page's visible rows (VISIBLE_ROWS,
+# MatchesDay.astro). `score`: a row whose two scores differ (MatchRow.astro marks a winner only
+# then; a played row that lost its score spans is still expected to show one). `filter`: the groups
+# carry two values of a filter (FilterRows.astro offers a filter from two values).
 PRESENCE_JS = r"""
 () => {
   const shown = new Set();
   const groups = [...document.querySelectorAll('.fxgroup')];
-  if (groups.some((g) => g.querySelectorAll('.fxrow').length > %d)) shown.add('fold');
+  if (groups.some((g) => g.querySelectorAll('.fxrow:not([hidden])').length > %d)) shown.add('fold');
   const goals = (row) => [...row.querySelectorAll('.side .g')].map((g) => g.textContent.trim());
-  if ([...document.querySelectorAll('.fxrow')].some((r) => { const g = goals(r); return g.length === 2 ? g[0] !== g[1] : r.classList.contains('played'); })) shown.add('score');
+  if ([...document.querySelectorAll('.fxrow:not([hidden])')].some((r) => { const g = goals(r); return g.length === 2 ? g[0] !== g[1] : r.classList.contains('played'); })) shown.add('score');
   const distinct = (attr) => new Set(groups.map((g) => g.getAttribute(attr)).filter(Boolean)).size;
   if (distinct('data-entity-type') >= 2 || distinct('data-confederation') >= 2) shown.add('filter');
   return [...shown];
@@ -465,12 +470,33 @@ class Plan:
     failures: list[Failure]
 
 
+CONTINUED = " (continued)"
+
+
+def join_continued(pages: list[di.Page]) -> list[di.Page]:
+    """A row named `X (continued)` is no page of its own: row X also expects what it lists. One
+    that does not repeat X's kind, source, URL and FI mode stays a row of its own."""
+    out: dict[str, di.Page] = {}
+    for p in pages:
+        base = p.name.removesuffix(CONTINUED)
+        first = out.get(base)
+        if p.name != base and first is not None and (
+                first.kind, first.source, first.url, first.fi) == (p.kind, p.source, p.url, p.fi):
+            out[base] = dataclasses.replace(
+                first, expect=first.expect + p.expect, expect_when=first.expect_when + p.expect_when)
+        else:
+            out[p.name] = p
+    return list(out.values())
+
+
 def plan(pages: list[di.Page], langs: list[str], dist: Path | None, mock_out: dict[str, Path],
          mock_failed: dict[str, str], every_file: bool) -> Plan:
-    """Every built file and every generator page, each owned by the row that names it. A file two
-    rows match belongs to the row with the literal URL; two patterns matching one file is an
-    inventory failure. With `every_file`, the files no row owns are rendered too, each under its own
-    path, and counted as a gap."""
+    """Every built file and every generator page, each owned by the row that names it, a
+    continued row joined to its page first (`join_continued`). A file two pages match belongs to
+    the one with the literal URL; two patterns matching one file is an inventory failure. With
+    `every_file`, the files no row owns are rendered too, each under its own path, and counted as a
+    gap."""
+    pages = join_continued(pages)
     targets: list[tuple[di.Page, str, str, str]] = []
     coverage: dict[str, dict[str, int]] = {k: {} for k in COVERAGE}
     failures: list[Failure] = []
@@ -678,9 +704,13 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
     return total
 
 
-def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: list[Failure]) -> None:
+def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: list[Failure],
+                added_width: bool = False) -> None:
     """The checks that ask whether an element is on the page, judged across every tab measured: an
-    element counts as shown when one tab shows it, at the most matches any tab shows."""
+    element counts as shown when one tab shows it, at the most matches any tab shows. At an added
+    width (`BUILT_ONLY_VIEWPORTS` in a full run) a page that expects nothing, one no row owns, does
+    not repeat the finding that nothing was measured on it: its pin counts that over the other
+    widths."""
     for name, a, count, tokens, level in acc["visible"].values():
         msg = di.compare(a, count, tokens)
         if msg:
@@ -691,7 +721,7 @@ def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: li
             continue
         if name not in acc["seen"]:
             failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
-    if acc["total"] == 0:
+    if acc["total"] == 0 and not (added_width and not page.expect):
         failures.append(Failure(page.name, viewport, lang, "(page)", "expected inventory elements · measured 0 — is the URL right?"))
 
 
@@ -768,7 +798,7 @@ def render_one(pw_page, job: dict, p, lang: str, viewport: int, shots: list[int]
             shots[0] += 1
             shot = True
     state = len(failures)
-    finish_page(acc, p, viewport, lang, failures)
+    finish_page(acc, p, viewport, lang, failures, viewport in job["built_only"])
     if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots[0] < 20:
         pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
             p.name.replace("/", "_"), viewport, lang))), full_page=True)
@@ -782,8 +812,9 @@ def render_one(pw_page, job: dict, p, lang: str, viewport: int, shots: list[int]
 
 def render_targets(job: dict) -> list[tuple[int, int, list[Failure], list[dict] | None]]:
     """Some of the targets, in their own process: each loaded once at the first width, then resized
-    through the others. Returns (target index, width index, failures, gap counts) per render; no
-    gap counts when the page could not be rendered."""
+    through the others; a mock page is not rendered at the job's `built_only` widths. Returns
+    (target index, width index, failures, gap counts) per render; no gap counts when the page could
+    not be rendered."""
     from playwright.sync_api import sync_playwright  # noqa: PLC0415
 
     viewports = job["viewports"]
@@ -814,6 +845,8 @@ def render_targets(job: dict) -> list[tuple[int, int, list[Failure], list[dict] 
             url = job["bases"][root] + path
             fresh = True
             for w, viewport in enumerate(viewports):
+                if p.kind == "mock" and viewport in job["built_only"]:
+                    continue
                 if fresh:
                     why = load(p, lang, url, viewport)
                     if why:
@@ -829,9 +862,10 @@ def render_targets(job: dict) -> list[tuple[int, int, list[Failure], list[dict] 
     return out
 
 
-def collect(targets: list, viewports: list[int], rendered: list) -> list[dict]:
+def collect(targets: list, viewports: list[int], rendered: list, built_only: tuple = ()) -> list[dict]:
     """Per width, the failures, gap counts, coverage and render count, each in the order the
-    targets are listed."""
+    targets are listed. A mock page has no render at a `built_only` width; any other render the
+    list lacks raises."""
     at = {(i, w): (f, founds) for i, w, f, founds in rendered}
     results = []
     for w, viewport in enumerate(viewports):
@@ -840,6 +874,8 @@ def collect(targets: list, viewports: list[int], rendered: list) -> list[dict]:
         covered: dict[str, set[str]] = {}
         renders = 0
         for i, (p, lang, _root, _path) in enumerate(targets):
+            if p.kind == "mock" and viewport in built_only:
+                continue
             fails, founds = at[(i, w)]
             failures += fails
             if founds is None:
@@ -900,7 +936,9 @@ def main(argv=None) -> int:
         return 2
 
     wanted = set(args.pages.split(",")) if args.pages else None
-    pages = [p for p in inv.pages if (wanted is None or p.name in wanted)
+    # Joined before --pages picks by name, so a page is selected with its continued row.
+    rows = join_continued(inv.pages)
+    pages = [p for p in rows if (wanted is None or p.name in wanted)
              and not (args.no_built and p.kind == "built") and not (args.no_mocks and p.kind == "mock")]
     adhoc = []
     for spec in args.page:
@@ -909,10 +947,11 @@ def main(argv=None) -> int:
             ap.error("--page needs NAME=FILE.html")
         adhoc.append((name, Path(file).resolve()))
     if wanted:
-        missing = wanted - {p.name for p in inv.pages}
+        missing = wanted - {p.name for p in rows}
         if missing:
             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
     viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
+    built_only = () if args.viewports else BUILT_ONLY_VIEWPORTS
     langs = args.langs.split(",")
     baseline = di.load_baseline(Path(args.baseline))
     # The baseline pins a run over every page, over the widths and languages it names (all of them
@@ -969,7 +1008,8 @@ def main(argv=None) -> int:
                 targets.append((di.Page(name, "mock", "", file.name, "none", ()), "en", root, file.name))
             workers = max(1, min(len(targets), os.cpu_count() or 1))
             # Interleaved, so each process gets the same mix of light and heavy pages.
-            jobs = [{"viewports": viewports, "targets": list(enumerate(targets))[k::workers], "bases": bases,
+            jobs = [{"viewports": viewports, "built_only": built_only,
+                     "targets": list(enumerate(targets))[k::workers], "bases": bases,
                      "inv": inv, "spec": spec, "registered": registered,
                      "hyphens": hyphen_selectors(Path(args.registry)),
                      "artifacts": str(artifacts) if artifacts else None} for k in range(workers)]
@@ -978,7 +1018,7 @@ def main(argv=None) -> int:
             else:
                 with ProcessPoolExecutor(max_workers=workers) as pool:
                     rendered = [r for part in pool.map(render_targets, jobs) for r in part]
-            results = collect(targets, viewports, rendered)
+            results = collect(targets, viewports, rendered, built_only)
         finally:
             for srv in servers:
                 srv.shutdown()
