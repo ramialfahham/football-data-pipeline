@@ -1,0 +1,27 @@
+html,body{margin:0}
+body.fx{width:540px;height:675px;overflow:hidden}
+.li{box-sizing:border-box;width:540px;height:675px;padding:0 28px;display:flex;flex-direction:column}
+.li-brand{display:flex;justify-content:center;padding:12px 0 8px;border-bottom:1px solid var(--line);font-size:20px;color:var(--ink)}
+.li-logo{height:1.5em}
+.li-logo .pv{fill:#3bb072}
+.li .mast{padding:8px 0 10px}
+.li .mast .status-word{margin-top:6px}
+.li .mast .kick{margin-top:4px}
+.li .mast .teams{margin-top:10px}
+.li .sechead{margin:0;padding:0}
+.li section{padding:14px 0 0;margin:0}
+.li-note{font-size:13px;color:var(--muted);text-align:center;margin:2px 0 0}
+.li .mast .kick,.li .mast .stand,.li .li-note{font-size:15px}
+.li .mast .vs{font-size:13px}
+.li .cmp .chart-tick{font-size:13px}
+.li .mast .stand{column-gap:8px}
+.li .mast .crest{width:52px;height:52px}
+.li .mast .team{gap:6px}
+.li .mast .teams{align-items:center}
+.li .mast .kick{font-size:15px}
+.li section{flex:1;display:flex;flex-direction:column;min-height:0}
+.li .cmp{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding:6px 0 10px}
+.li .cmp .cmp-row{padding:0;grid-template-columns:4.6ch 1fr 4.6ch;grid-template-areas:"home lab away" "home bar away";row-gap:6px}
+.li .cmp .cmp-row .cmp-label{text-align:center}
+.li .cmp .cmp-label>span{display:inline}
+.li .cmp .chart-name{margin-right:6px}
