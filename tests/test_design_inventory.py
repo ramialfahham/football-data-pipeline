@@ -143,7 +143,9 @@ def test_a_page_expects_an_element_only_at_the_widths_it_names():
                    ("Block heading", "Search field", "Search button"), ("", ">=1010", "<1010"))
     assert page.expected_at(375) == ("Block heading", "Search button")
     assert page.expected_at(1010) == ("Block heading", "Search field")
-    built = [p for p in di.load().pages if p.kind == "built"]
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    built = [p for p in cdi.join_continued(di.load().pages) if p.kind == "built"]
     assert built and all("Search field" in p.expected_at(1010) and "Search button" in p.expected_at(375)
                          for p in built), "every built page carries the site header, so each must show its search"
 
@@ -360,11 +362,11 @@ def test_the_lint_exits_red_on_a_count_off_its_pin(tmp_path, capsys):
     baseline = di.load_baseline()
     assert lint.main([]) == 0
     capsys.readouterr()
-    baseline["static"]["literal_text"]["site_v2/src/pages/index.astro"] -= 1
+    baseline["static"]["css_outside_system_css"]["site_v2/src/components/fixture/MetricRow.astro"] -= 1
     lowered = tmp_path / "baseline.json"
     lowered.write_text(json.dumps(baseline), encoding="utf-8")
     assert lint.main(["--baseline", str(lowered)]) == 1
-    assert "FAIL  count rose · literal_text · site_v2/src/pages/index.astro · 2, baseline 1" in capsys.readouterr().out
+    assert "FAIL  count rose · css_outside_system_css · site_v2/src/components/fixture/MetricRow.astro · 2, baseline 1" in capsys.readouterr().out
 
 
 def test_the_rendered_counts_compare_only_on_a_full_run_on_the_baselines_platform():
@@ -496,8 +498,10 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
     failed = {line.split(" · ")[3].split(" [")[0] for line in out.splitlines() if line.startswith("FAIL")}
     assert failed == {"Block heading", "Block heading gap", "Row link", "Table row", "Tab bar", "Fact row value",
                       "Matchday picker", "Picker arrow", "Search field", "Search button"}, failed
-    assert "expected visible=1 [>=1010px] · measured 0" in out
-    assert "expected visible=0 [>=1010px] · measured 1" in out
+    (shown_from,) = [a.when for a in di.load().element("Search field").assertions
+                     if a.kind == "visible" and a.expected == "1"]
+    assert "expected visible=1 [%spx] · measured 0" % shown_from in out
+    assert "expected visible=0 [%spx] · measured 1" % shown_from in out
     assert "measured 11px" in out
     assert "measured 49.0px" in out
     assert "expected visible=1 · measured 3" in out
@@ -698,6 +702,37 @@ def test_the_renders_are_collected_per_width_in_the_order_the_targets_are_listed
     assert results[0]["covered"] == {"en": {"a"}}
     assert results[1]["counted"]["a"]["examples"]["overflow"] == ["320 en a"] * 15
     assert results[1]["counted"]["a"]["overflow"] == 15
+
+
+def test_only_a_mock_may_lack_a_render_and_only_at_a_built_only_width():
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    built, mock = di.Page("b", "built", "", "", "", ()), di.Page("m", "mock", "", "", "", ())
+    targets = [(built, "en", "dist", "b"), (mock, "en", "gen", "m")]
+    rendered = [(0, 0, [], None), (0, 1, [], None), (1, 0, [], None)]
+    assert len(cdi.collect(targets, [375, 520], rendered, (520,))) == 2
+    for lacking, built_only in ((rendered[1:], (520,)), (rendered[:1] + rendered[2:], (520,)),
+                                (rendered, ()), (rendered[:2], (520,))):
+        with pytest.raises(KeyError):
+            cdi.collect(targets, [375, 520], lacking, built_only)
+
+
+def test_a_continued_row_joins_its_page_and_no_other_pair_does(tmp_path):
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    def row(name: str, url: str, expect: str, when: str = "", fi: str = "path") -> di.Page:
+        return di.Page(name, "built", "`site_v2/dist`", url, fi, (expect,), (when,))
+
+    for url in ("en/x.html", "en/y.html"):
+        built = tmp_path / url
+        built.parent.mkdir(parents=True, exist_ok=True)
+        built.write_text("", encoding="utf-8")
+    run = cdi.plan([row("x", "en/x.html", "Block heading"), row("x (continued)", "en/x.html", "Search field", ">=1010"),
+                    row("y", "en/y.html", "Tab bar"), row("y (continued)", "en/y.html", "Row link", fi="none")],
+                   ["en"], tmp_path, {}, {}, False)
+    planned = {path: (page.name, page.expect, page.expect_when) for page, _lang, _root, path in run.targets}
+    assert planned["en/x.html"] == ("x", ("Block heading", "Search field"), ("", ">=1010"))
+    assert [(f.page, f.detail) for f in run.failures] == [("y (continued)", "en/y.html is also matched by y")]
 
 
 def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once():
@@ -990,28 +1025,77 @@ def test_the_sample_drift_admits_one_rise_and_no_other():
     assert _unapproved_quick_rises("baseline_quick.json", pins(97), pins(89))
     for other in ({"page": "Played match page"}, {"count": "overflow"}):
         assert _unapproved_quick_rises(fi, pins(97, **other), pins(89, **other))
+    beside = pins(97)
+    beside["rendered"]["pages"]["Played match page"] = {"scroll": 1}
+    assert _unapproved_quick_rises(fi, beside, pins(89)) == ["rendered · Played match page · scroll · 1, main 0"]
 
 
-def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
-    """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
-    `visible=` assertion measures only what its selector finds, so removal is caught here or
-    nowhere."""
+def _built_page_check(tmp_path: Path, html: str, flags: tuple[str, ...] = ("--viewports", "1010"),
+                      extra: str | None = None, split: bool = False) -> tuple[int, str]:
+    """The check on one BUILT page whose only Expect is the header's search, at 1010px unless
+    `flags` says otherwise; `extra` is a second built file, `en/extra.html`, no row owns; `split`
+    moves the search field's entry to the page's continued row. A `visible=` assertion measures
+    only what its selector finds, so removal is caught here or nowhere."""
     real = di.DOC.read_text(encoding="utf-8")
     tmp_path.mkdir(parents=True, exist_ok=True)
     doc = tmp_path / "block_standard.md"
+    expects = ["Search button [<1010px]", "Search field [>=1010px]"]
+    rows = [("header", expects[0]), ("header (continued)", expects[1])] if split else [("header", ", ".join(expects))]
     doc.write_text(real.split("\n## Pages")[0] + "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n"
-                   "|---|---|---|---|---|---|\n| header | built | `site_v2/dist` | `en/index.html` | path | "
-                   "Search field [>=1010px], Search button [<1010px] |\n", encoding="utf-8")
+                   "|---|---|---|---|---|---|\n" + "".join(
+                       "| %s | built | `site_v2/dist` | `en/index.html` | path | %s |\n" % row for row in rows),
+                   encoding="utf-8")
     dist = tmp_path / "dist" / "en"
     dist.mkdir(parents=True)
     (dist / "index.html").write_text(html, encoding="utf-8")
+    if extra is not None:
+        (dist / "extra.html").write_text(extra, encoding="utf-8")
     shutil.copy(SYSTEM_CSS, dist / "system.css")
     proc = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks",
-         "--inventory", str(doc), "--dist", str(tmp_path / "dist"), "--langs", "en", "--viewports", "1010"],
+         "--inventory", str(doc), "--dist", str(tmp_path / "dist"), "--langs", "en", *flags],
         capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
     )
     return proc.returncode, proc.stdout + proc.stderr
+
+
+@needs_browser
+def test_a_full_run_renders_a_built_page_at_every_width_and_a_mock_at_all_but_the_built_only_one(tmp_path):
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    assert cdi.BUILT_ONLY_VIEWPORTS == (520,) and 520 in cdi.DEFAULT_VIEWPORTS
+    green = (FIXTURES / "green.html").read_text(encoding="utf-8")
+
+    def renders(case: str, *flags: str, as_mock: bool = False) -> int:
+        folder = tmp_path / case
+        if as_mock:
+            flags += ("--no-built", "--page", "drawing=%s" % (folder / "dist" / "en" / "index.html"))
+        _code, out = _built_page_check(folder, green, flags)
+        return int(re.search(r"· (\d+) renders ·", out).group(1))
+
+    assert renders("built") == len(cdi.DEFAULT_VIEWPORTS) == 7
+    assert renders("mock", as_mock=True) == 6
+    assert renders("named", "--viewports", "520", as_mock=True) == 1
+
+
+@needs_browser
+def test_only_a_page_no_row_owns_skips_the_nothing_measured_finding_at_the_built_only_width(tmp_path):
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    def empty_at(page: str, case: str, *flags: str) -> list[int]:
+        """The widths at which the run says nothing was measured on `page`."""
+        folder = tmp_path / case
+        green = (FIXTURES / "green.html").read_text(encoding="utf-8")
+        _code, out = _built_page_check(folder, "<p>x</p>" if page == "en/index.html" else green, flags,
+                                       extra=None if page == "en/index.html" else "<p>x</p>")
+        return sorted(int(m) for m in re.findall(
+            r"^FAIL  %s · (\d+) · en · \(page\) · expected inventory elements" % re.escape(
+                "header" if page == "en/index.html" else page), out, re.M))
+
+    every = sorted(cdi.DEFAULT_VIEWPORTS)
+    assert empty_at("en/extra.html", "unowned") == [w for w in every if w not in cdi.BUILT_ONLY_VIEWPORTS]
+    assert empty_at("en/index.html", "owned") == every
+    assert empty_at("en/extra.html", "named", "--viewports", "520") == [520]
 
 
 @needs_browser
@@ -1022,6 +1106,18 @@ def test_a_search_field_removed_from_the_page_fails(tmp_path):
     removed = re.sub(r'<div class="searchbox">.*?</div>', "", green, flags=re.S)
     assert removed != green
     code, out = _built_page_check(tmp_path / "removed", removed)
+    assert code == 1, out
+    assert "Search field · expected on this page · measured 0 matches" in out, out
+
+
+@needs_browser
+def test_a_run_naming_a_page_also_checks_what_its_continued_row_expects(tmp_path):
+    green = (FIXTURES / "green.html").read_text(encoding="utf-8")
+    named = ("--pages", "header", "--viewports", "1010")
+    code, out = _built_page_check(tmp_path, green, named, split=True)
+    assert code == 0, out
+    removed = re.sub(r'<div class="searchbox">.*?</div>', "", green, flags=re.S)
+    code, out = _built_page_check(tmp_path / "removed", removed, named, split=True)
     assert code == 1, out
     assert "Search field · expected on this page · measured 0 matches" in out, out
 
@@ -1318,6 +1414,32 @@ def test_a_day_without_the_rows_that_show_a_fold_or_a_score_misses_neither(tmp_p
 
 
 @needs_browser
+def test_a_row_the_day_hides_counts_for_neither_a_fold_nor_a_score(tmp_path):
+    hidden = _match_row(2, 1).replace("<a ", "<a hidden ")
+    group = _group([hidden] + [_match_row() for _ in range(3)], **{"entity-type": "club"})
+    _code, out = _day_page_check(tmp_path, "Matches day page", group, "Fold, Match row score")
+    assert "Fold · expected on this page" not in out, out
+    assert "Match row score · expected on this page" not in out, out
+
+
+def test_the_pages_table_plans_every_built_page_once(tmp_path):
+    """Run the planner over the real Pages table and one file per URL, a `*` filled with `x`."""
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    pages = [p for p in di.load().pages if p.kind == "built"]
+    for p in pages:
+        built = tmp_path / p.url.replace("*", "x")
+        built.parent.mkdir(parents=True, exist_ok=True)
+        built.write_text("", encoding="utf-8")
+    run = cdi.plan(di.load().pages, ["en"], tmp_path, {}, {}, False)
+    assert [f.line() for f in run.failures] == []
+    planned = {path: page for page, _lang, _root, path in run.targets}
+    assert len(planned) == len(run.targets) == len({p.url for p in pages})
+    for p in pages:
+        assert set(p.expect) <= set(planned[p.url.replace("*", "x")].expect), p.name
+
+
+@needs_browser
 def test_a_day_whose_rows_would_show_a_fold_and_a_score_still_misses_them(tmp_path):
     full = _group([_match_row(2, 1)] + [_match_row() for _ in range(3)], **{"entity-type": "club"})
     code, out = _day_page_check(tmp_path, "Matches day page", full, "Fold, Match row score")
@@ -1347,3 +1469,13 @@ def test_the_fold_threshold_is_the_one_the_page_code_sets():
     assert di.visible_rows() == 3
     assert ("Matches day page", "Fold") in di.PRESENCE_NEEDS and ("Matches page", "Filter row") in di.PRESENCE_NEEDS
     assert {n for _p, n in di.PRESENCE_NEEDS} <= {e.name for e in di.load().elements}
+
+
+def test_every_presence_need_names_a_page_that_expects_its_element():
+    """A need keyed on a page the Pages table no longer names, or on an element that page no longer
+    expects, is never consulted, so the presence check it carries goes quiet."""
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    expects = {p.name: set(p.expect) for p in cdi.join_continued(di.load().pages)}
+    dead =[(page, element) for page, element in di.PRESENCE_NEEDS if element not in expects.get(page, set())]
+    assert dead == []

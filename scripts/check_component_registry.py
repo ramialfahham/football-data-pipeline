@@ -71,6 +71,13 @@ HEADER = "| Element | Selector | Rule | Measured as | Status | Ruled on |"
 TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
           "win", "draw", "loss", "pill-ink", "track")
 
+# The one colour outside the colour set: the logo's green. The stylesheet declares the token, and
+# only the logo's rule may fill with it; a use anywhere else counts as a value no set holds.
+LOGO_TOKEN = "logo-green"
+# Only the start of the stylesheet or a closing brace may stand before the selector: anything else
+# there is the first part of a longer selector, which would fill other elements too.
+_LOGO_USE = re.compile(r"(?:\A|(?<=\}))\s*\.brand \.logo \.pv\s*\{\s*fill:\s*var\(--%s\);\s*\}" % LOGO_TOKEN)
+
 
 class RegistryError(ValueError):
     """The registry does not parse; the component, part and key are named."""
@@ -267,7 +274,7 @@ def declarations(css: str) -> list[tuple[str, str]]:
 def _governed(prop: str, value: str, colours: set[str]) -> bool:
     """True when a set holds every value of the declaration."""
     if prop.startswith("--"):
-        return prop[2:] in colours
+        return prop[2:] in colours or prop[2:] == LOGO_TOKEN
     if prop in ("font-size", "font-weight", "font") or RADIUS_PROPS.match(prop) or SPACING_PROPS.match(prop):
         return True
     if prop in COLOUR_PROPS:
@@ -421,7 +428,7 @@ def counts(reg: dict, css: str, astro_root: Path | None = None) -> dict[str, dic
     out: dict[str, dict[str, int]] = {"stylesheet values": {}, "forms": {}, "unlisted classes": {}, "part gaps": {},
                                       "set sizes": {}, "unchecked property": unchecked_properties(reg, css),
                                       "inline styles": inline_styles(astro_root) if astro_root else {}}
-    for group, values in stylesheet_values(css).items():
+    for group, values in stylesheet_values(_LOGO_USE.sub("", css)).items():
         n = sum(1 for v in values if v not in allowed[group])
         if n:
             out["stylesheet values"][group] = n

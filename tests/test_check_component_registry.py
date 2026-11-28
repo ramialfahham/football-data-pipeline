@@ -207,6 +207,43 @@ def test_stylesheet_values_outside_the_sets_are_counted():
     assert got["set sizes"] == {"text": 1, "marks": 1, "spacing": 1, "colours": 2, "switch": 1, "corners": 2}
 
 
+def test_the_logo_green_is_admitted_as_a_token_and_in_the_logos_rule():
+    css = (".fx { --logo-green: #008135; }\n"
+           ".brand .logo .pv { fill: var(--logo-green); }\n")
+    got = ccr.counts(MINI, css)
+    assert got["stylesheet values"] == {}
+    assert got["unchecked property"] == {}
+    assert got["set sizes"]["colours"] == 2
+
+
+@pytest.mark.parametrize("rule", [
+    ".bx { color: var(--logo-green); }",
+    ".bx { fill: var(--logo-green); }",
+    ".brand .logo .pv, .bx { fill: var(--logo-green); }",
+    ".bx .brand .logo .pv { fill: var(--logo-green); }",
+    ".brand .logo .pv { fill: var(--logo-green); color: var(--logo-green); }",
+    ".bx,\n.brand .logo .pv { fill: var(--logo-green); }",
+    ".bx\n.brand .logo .pv { fill: var(--logo-green); }",
+    ".a { display: block; }\n.bx,\n\n.brand .logo .pv { fill: var(--logo-green); }",
+])
+def test_the_logo_green_outside_the_logos_rule_is_a_value_no_set_holds(rule):
+    got = ccr.counts(MINI, rule + "\n")
+    assert got["stylesheet values"].get("colour", 0) >= 1, rule
+
+
+@pytest.mark.parametrize("before", ["", "\n\n", ".brand .logo { display: block; }\n", "@media (min-width: 700px) { .a { display: block; } }\n"])
+def test_the_logos_rule_is_admitted_wherever_it_starts_its_own_selector(before):
+    got = ccr.counts(MINI, before + ".brand .logo .pv { fill: var(--logo-green); }\n")
+    assert "colour" not in got["stylesheet values"], before
+
+
+def test_no_second_token_rides_on_the_logo_greens_admission():
+    css = ".fx { --logo-blue: #00f; }\n.brand .logo .pv { fill: var(--logo-blue); }\n"
+    got = ccr.counts(MINI, css)
+    assert got["unchecked property"] == {"--logo-blue": 1}
+    assert got["stylesheet values"] == {"colour": 1}
+
+
 def test_a_corner_radius_outside_the_set_is_counted_per_value():
     css = (".bx { border-radius: 4px; }\n.a { border-radius: 9px; }\n.b { border-radius: 3px 0 0 4px; }\n"
            ".c { border-top-left-radius: 50%; border-radius: 0; }\n")

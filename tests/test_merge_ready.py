@@ -135,8 +135,8 @@ def test_without_pyyaml_or_a_repo_python_main_cannot_decide(monkeypatch, capsys)
 
 
 # --- the full design sweep of an MR that changes the rendered site ---
-WIDTHS = "280,320,360,375,700,1010"
-FULL = [280, 320, 360, 375, 700, 1010]
+WIDTHS = "280,320,360,375,520,700,1010"
+FULL = [280, 320, 360, 375, 520, 700, 1010]
 STAMP = "2026-11-17T10:00:00.000000Z 01O "
 
 
