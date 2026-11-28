@@ -1,0 +1,822 @@
+diff --git a/.claude/task/366-social-prematch/contract.md b/.claude/task/366-social-prematch/contract.md
+new file mode 100644
+index 00000000..b111587f
+--- /dev/null
++++ b/.claude/task/366-social-prematch/contract.md
+@@ -0,0 +1,52 @@
++# Task contract — the pre-match social image generator
++
++objective: >
++  One command with a fixture slug writes the approved German pre-match image. The template lives in
++  design-mocks/social/ with its own frozen CSS, font and logo, and reads every per-match value from
++  the marts.
++
++refs: >
++  #366 (the requirement). #251 (the logo). The image design was approved in chat, 28 Nov 2026.
++
++scope_paths:
++  - .claude/task/366-social-prematch/
++  - design-mocks/social/**
++  - tests/test_social_prematch.py
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: no code of an open merge request is used
++
++shared_files:
++  - none: no design baseline, pin or font-coverage file changes
++
++impact_map: >
++  No structural path in scope: no ingestion, dbt model, export script, site tree or protected path.
++  Nothing imports design-mocks/social/. scripts/check_design_inventory.py runs only the top-level
++  design-mocks/gen_*.py files, and the new script is neither. The script reads three marts and
++  copies two crest files from the crest bucket; it writes only into its own ignored out/ folder.
++
++decisions_taken: >
++  The design, its labels and its metric order are the first posted image, unchanged (approved in
++  chat, 28 Nov 2026). The template moves into the repo as its own merge request (approved in chat,
++  28 Nov 2026). The two crests are copied at run time into an ignored folder and never committed
++  (approved in chat, 28 Nov 2026). The logo files are copies of the mark and the wordmark of the
++  approved logo. The run refuses a match whose round is not a numbered matchday, whose kickoff is
++  not confirmed, whose standing is a knockout round, or where a team's window holds fewer than five
++  matches with team stats: the image's text claims each of these. Dependencies: only packages
++  already in requirements.txt, and the Edge browser already on the machine. No new gate. Cost: one
++  on-demand BigQuery read of about 0.1 GB, capped in the code at 1 GB; no recurring cost.
++
++decisions_reserved:
++  - none: questions go to the coordinating session.
++
++done_when:
++  - python -m pytest tests/test_social_prematch.py is green.
++  - The render from the first match's saved data matches the approved PNG pixel for pixel, or each
++    difference is shown.
++  - A live run with the fixture slug writes a 1080x1350 PNG; its dry-run size is under 1 GB.
++  - python scripts/ci_local.py --mr is green.
++
++amendments: (none)
+diff --git a/design-mocks/social/.gitignore b/design-mocks/social/.gitignore
+new file mode 100644
+index 00000000..ea93687f
+--- /dev/null
++++ b/design-mocks/social/.gitignore
+@@ -0,0 +1,2 @@
++out/
++__pycache__/
+diff --git a/design-mocks/social/README.md b/design-mocks/social/README.md
+new file mode 100644
+index 00000000..504ddd67
+--- /dev/null
++++ b/design-mocks/social/README.md
+@@ -0,0 +1,13 @@
++# Pre-match social image
++
++Run this from the repository root, with the repository's Python environment, a Google Cloud login and Microsoft Edge:
++
++```
++python design-mocks/social/prematch.py <fixture_slug>
++```
++
++The image is `design-mocks/social/out/<fixture_slug>/<fixture_slug>_linkedin.png`, 1080x1350. Git ignores `out/`.
++
++The run stops with `REFUSED:` and a reason when it cannot state every value on the image.
++
++**Frozen:** `assets/` holds the template's own copies of the CSS, the Inter font with its licence, and the logo. A site change does not change the image. The design, the labels and the metric order change only on request.
+diff --git a/design-mocks/social/assets/InterVariable.woff2 b/design-mocks/social/assets/InterVariable.woff2
+new file mode 100644
+index 00000000..5a8d3e72
+Binary files /dev/null and b/design-mocks/social/assets/InterVariable.woff2 differ
+diff --git a/design-mocks/social/assets/OFL.txt b/design-mocks/social/assets/OFL.txt
+new file mode 100644
+index 00000000..9b2ca37b
+--- /dev/null
++++ b/design-mocks/social/assets/OFL.txt
+@@ -0,0 +1,92 @@
++Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
++
++This Font Software is licensed under the SIL Open Font License, Version 1.1.
++This license is copied below, and is also available with a FAQ at:
++http://scripts.sil.org/OFL
++
++-----------------------------------------------------------
++SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
++-----------------------------------------------------------
++
++PREAMBLE
++The goals of the Open Font License (OFL) are to stimulate worldwide
++development of collaborative font projects, to support the font creation
++efforts of academic and linguistic communities, and to provide a free and
++open framework in which fonts may be shared and improved in partnership
++with others.
++
++The OFL allows the licensed fonts to be used, studied, modified and
++redistributed freely as long as they are not sold by themselves. The
++fonts, including any derivative works, can be bundled, embedded,
++redistributed and/or sold with any software provided that any reserved
++names are not used by derivative works. The fonts and derivatives,
++however, cannot be released under any other type of license. The
++requirement for fonts to remain under this license does not apply
++to any document created using the fonts or their derivatives.
++
++DEFINITIONS
++"Font Software" refers to the set of files released by the Copyright
++Holder(s) under this license and clearly marked as such. This may
++include source files, build scripts and documentation.
++
++"Reserved Font Name" refers to any names specified as such after the
++copyright statement(s).
++
++"Original Version" refers to the collection of Font Software components as
++distributed by the Copyright Holder(s).
++
++"Modified Version" refers to any derivative made by adding to, deleting,
++or substituting -- in part or in whole -- any of the components of the
++Original Version, by changing formats or by porting the Font Software to a
++new environment.
++
++"Author" refers to any designer, engineer, programmer, technical
++writer or other person who contributed to the Font Software.
++
++PERMISSION AND CONDITIONS
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of the Font Software, to use, study, copy, merge, embed, modify,
++redistribute, and sell modified and unmodified copies of the Font
++Software, subject to the following conditions:
++
++1) Neither the Font Software nor any of its individual components,
++in Original or Modified Versions, may be sold by itself.
++
++2) Original or Modified Versions of the Font Software may be bundled,
++redistributed and/or sold with any software, provided that each copy
++contains the above copyright notice and this license. These can be
++included either as stand-alone text files, human-readable headers or
++in the appropriate machine-readable metadata fields within text or
++binary files as long as those fields can be easily viewed by the user.
++
++3) No Modified Version of the Font Software may use the Reserved Font
++Name(s) unless explicit written permission is granted by the corresponding
++Copyright Holder. This restriction only applies to the primary font name as
++presented to the users.
++
++4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
++Software shall not be used to promote, endorse or advertise any
++Modified Version, except to acknowledge the contribution(s) of the
++Copyright Holder(s) and the Author(s) or with their explicit written
++permission.
++
++5) The Font Software, modified or unmodified, in part or in whole,
++must be distributed entirely under this license, and must not be
++distributed under any other license. The requirement for fonts to
++remain under this license does not apply to any document created
++using the Font Software.
++
++TERMINATION
++This license becomes null and void if any of the above conditions are
++not met.
++
++DISCLAIMER
++THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
++OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
++COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
++INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
++DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
++OTHER DEALINGS IN THE FONT SOFTWARE.
+diff --git a/design-mocks/social/assets/layout.css b/design-mocks/social/assets/layout.css
+new file mode 100644
+index 00000000..845febba
+--- /dev/null
++++ b/design-mocks/social/assets/layout.css
+@@ -0,0 +1,27 @@
++html,body{margin:0}
++body.fx{width:540px;height:675px;overflow:hidden}
++.li{box-sizing:border-box;width:540px;height:675px;padding:0 28px;display:flex;flex-direction:column}
++.li-brand{display:flex;justify-content:center;padding:12px 0 8px;border-bottom:1px solid var(--line);font-size:20px;color:var(--ink)}
++.li-logo{height:1.5em}
++.li-logo .pv{fill:#3bb072}
++.li .mast{padding:8px 0 10px}
++.li .mast .status-word{margin-top:6px}
++.li .mast .kick{margin-top:4px}
++.li .mast .teams{margin-top:10px}
++.li .sechead{margin:0;padding:0}
++.li section{padding:14px 0 0;margin:0}
++.li-note{font-size:13px;color:var(--muted);text-align:center;margin:2px 0 0}
++.li .mast .kick,.li .mast .stand,.li .li-note{font-size:15px}
++.li .mast .vs{font-size:13px}
++.li .cmp .chart-tick{font-size:13px}
++.li .mast .stand{column-gap:8px}
++.li .mast .crest{width:52px;height:52px}
++.li .mast .team{gap:6px}
++.li .mast .teams{align-items:center}
++.li .mast .kick{font-size:15px}
++.li section{flex:1;display:flex;flex-direction:column;min-height:0}
++.li .cmp{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding:6px 0 10px}
++.li .cmp .cmp-row{padding:0;grid-template-columns:4.6ch 1fr 4.6ch;grid-template-areas:"home lab away" "home bar away";row-gap:6px}
++.li .cmp .cmp-row .cmp-label{text-align:center}
++.li .cmp .cmp-label>span{display:inline}
++.li .cmp .chart-name{margin-right:6px}
+diff --git a/design-mocks/social/assets/mark.svg b/design-mocks/social/assets/mark.svg
+new file mode 100644
+index 00000000..aa1a4094
+--- /dev/null
++++ b/design-mocks/social/assets/mark.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="currentColor"><path fill-rule="evenodd" d="M24 84 A76 76 0 1 1 56.77 146.51 L24 191.61Z M61.96 74.64 L76.49 119.36 L123.51 119.36 L138.04 74.64 L100 47Z"/></svg>
+diff --git a/design-mocks/social/assets/site.css b/design-mocks/social/assets/site.css
+new file mode 100644
+index 00000000..3739ee92
+--- /dev/null
++++ b/design-mocks/social/assets/site.css
+@@ -0,0 +1 @@
++@font-face{font-family:Inter;src:url(InterVariable.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}*,*:before,*:after{box-sizing:border-box}.fx{--page: #0d0f13;--surface: #161920;--sunk: #1c1f27;--line: #272b33;--div: #333844;--ink: #f1f3f7;--ink-2: #c1c6ce;--muted: #8b9099;--accent: #3bb072;--win: #1a854a;--draw: #6b7079;--loss: #b53b3b;--pill-ink: #fff;--track: #22262e;--sp: 8px;margin:0;background:var(--page);color:var(--ink);font:400 15px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased;container-type:inline-size}.fx[data-theme=light]{--page: #f3f3f0;--surface: #fbfbf9;--sunk: #edece7;--line: #e2e1da;--div: #cfcec5;--ink: #141410;--ink-2: #4c4c45;--muted: #77776e;--accent: #0a6e3a;--win: #157f43;--draw: #6f756d;--loss: #b23b3b;--pill-ink: #fff;--track: #e7e6e0}img{max-width:100%}.fx a{color:inherit;text-decoration:none}.fx a.lnk{color:inherit}.fx a.lnk:hover{text-decoration:underline;text-underline-offset:2px}.fx a:focus-visible,.fx button:focus-visible,.fx .seg-in:focus-visible~.seg,.fx .seg-in:focus-visible~.fbar>.seg:not(.sel){outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}.inner{max-width:960px;margin:0 auto;padding:0 16px 48px}.num{font-variant-numeric:tabular-nums}.eyebrow,.mast .status-word{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}section{margin-top:36px}.sechead{display:flex;align-items:baseline;gap:12px}.sechead:after{content:"";flex:1;height:1px;background:var(--line)}.fx section>*{margin-block:0}.fx section>:not(input)~*{margin-top:12px}:is(.sechead,.bsub)+.fxgroup>.dh:first-child,:is(.sechead,.bsub)+.fxgroup>.fxrow:first-child,:is(.sechead,.bsub)+.facts>.frow:first-child{padding-top:0}.sechead+.split .colhead:first-child{margin-top:0}.win-note{font-size:11px;font-weight:700;color:var(--muted)}.crumb{font-size:13px;color:var(--muted);padding:16px 0 0;display:flex;gap:8px;flex-wrap:wrap}.crumb .sep{opacity:.4}.crumb+h1{font-size:20px;font-weight:700;line-height:1.2;margin:16px 0}.mast{text-align:center;padding:12px 0 24px;border-bottom:1px solid var(--line)}.mast .status-word{margin-top:12px}.mast .kick{font-size:13px;color:var(--muted);margin-top:8px;--facts-justify: center}.mast .kick b{color:var(--muted);font-weight:700}.teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-top:24px}.team{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}.crest{width:52px;height:52px;display:grid;place-items:center;color:var(--ink);font-weight:700;font-size:15px;overflow:hidden}.crest img{width:100%;height:100%;object-fit:contain}.tname{font-size:20px;font-weight:700;line-height:1.05;text-wrap:balance}.vs{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}.stand{font-size:13px;color:var(--muted);--facts-justify: center}.stand b{color:var(--ink);font-weight:700}.mast .venue{font-size:13px;color:var(--muted);margin-top:16px}.lede{margin-top:24px}.lede p{font-size:15px;line-height:1.66;margin:0;color:var(--muted)}.lede b{color:var(--ink);font-weight:700}.seg-in{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.seg{display:flex;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:0;margin-top:0}.seg .seg-btn{flex:1;font:inherit;font-size:13px;font-weight:700;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;text-align:center;user-select:none}.win{display:none}#seg-w1:checked~.win-w1,#seg-w2:checked~.win-w2{display:block}#seg-w1:checked~.seg .seg-btn[for=seg-w1],#seg-w2:checked~.seg .seg-btn[for=seg-w2]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 3px #00000040}.formrow{display:grid;grid-template-columns:1fr 1fr;align-items:start;gap:16px;margin-top:16px}.formrow .side{display:flex;flex-direction:column;gap:8px;min-width:0}.formrow .home{align-items:flex-end}.formrow .away{align-items:flex-start}.wmeta{font-size:13px;color:var(--muted)}.wmeta b{color:var(--ink);font-weight:700}.pills{display:flex;gap:4px}.pill{width:24px;height:24px;border-radius:4px;display:grid;place-items:center;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--pill-ink);font-variant-numeric:tabular-nums}.pill.W{background:var(--win)}.pill.D{background:var(--draw)}.pill.L{background:var(--loss)}.cchips{display:flex;gap:12px}.cchip{display:inline-flex;align-items:center;gap:4px;font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}.formrow .scope{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:center;max-width:12ch}.caption{font-size:13px;color:var(--muted);text-align:center;margin:16px 0 4px}.cmp{margin-top:24px}.cmp-head,.cmp-row{display:grid;grid-template-columns:1fr 1.5fr 1fr;align-items:center;gap:12px}.cmp-head{padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:2px}.cmp-head .h{font-size:11px;font-weight:700;color:var(--muted);text-align:center;letter-spacing:.04em}.cmp-row{padding:12px 0}.cmp-mid{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}.cmp-label{line-height:1.25;text-align:center}.cmp-label>span{display:block}.cmp-val{font-size:var(--chart-text-value);font-weight:700;color:var(--chart-team);font-variant-numeric:tabular-nums;text-align:center}.cmp-val.chart-better{color:var(--chart-better)}.cmp-val .sub{display:block;font-size:13px;font-weight:400;color:var(--muted)}.split{display:grid;grid-template-columns:1fr;gap:12px 24px;margin-top:4px}@container (min-width: 560px){.split{grid-template-columns:1fr 1fr}}.colhead{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:12px 0 0}.colhead .formation{display:block;font-size:13px;font-weight:400;letter-spacing:0;text-transform:none}.res{width:24px;height:24px;border-radius:4px;display:grid;place-items:center;font-weight:700;font-size:11px;color:var(--pill-ink)}.res.W{background:var(--win)}.res.D{background:var(--draw)}.res.L{background:var(--loss)}.rscore{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}.ropp{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}.ropp .ha{color:var(--muted);font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-left:4px}.rmeta{color:var(--muted);white-space:nowrap;font-size:13px;text-align:right;--facts-justify: flex-end}.noclick .rscore,.noclick .ropp{opacity:.55}.pphoto{width:34px;height:34px;display:grid;place-items:center;font-weight:700;font-size:11px;color:var(--muted);overflow:hidden}.pphoto img{width:100%;height:100%;object-fit:cover}.pname{min-width:0}.pname .nm{font-size:15px;font-weight:400;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pname .ps{font-size:13px;color:var(--muted)}.pstat{font-size:11px;color:var(--muted);white-space:nowrap;text-align:right;--facts-justify: flex-end;font-variant-numeric:tabular-nums}.pstat b{color:var(--ink);font-weight:700}.facts-line{display:inline-flex;flex-wrap:wrap;column-gap:12px;row-gap:0;justify-content:var(--facts-justify, flex-start)}.facts-line>*{max-width:100%;min-width:0}.h2h-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}.h2h-rec{font-size:15px}.h2h-rec b{font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}.h2h-rec b.cw{color:var(--win)}.h2h-rec b.cl{color:var(--loss)}.h2h-rec .nm{color:var(--muted);font-size:13px}.h2h-meta{font-size:13px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}.h2h-bar{display:flex;height:10px;border-radius:4px;overflow:hidden;gap:2px;background:var(--track)}.h2h-bar span{display:block;height:100%;border-radius:4px}.h2h-bar .w{background:var(--win)}.h2h-bar .d{background:var(--draw)}.h2h-bar .l{background:var(--loss)}.h2h-last{margin-top:12px;font-size:13px;color:var(--muted)}.h2h-last b{color:var(--ink);font-weight:700}.h2h-list{margin-top:12px}.fx .lede a,.fx .bnote a,.fx p a,.fx .sub a{text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--div);color:var(--ink)}.fx .lede a:hover,.fx .bnote a:hover,.fx p a:hover,.fx .sub a:hover{text-decoration-color:var(--muted)}.err{padding:48px;color:#f26d6d;font-size:13px;white-space:pre-wrap}.crumb .here{color:var(--ink)}.thead{display:flex;align-items:center;gap:16px;padding:16px 0}.thead .crest{flex:none}.tid{min-width:0;flex:1}.tid h1{font-size:20px;font-weight:700;line-height:1.05;margin:0;text-wrap:balance}.tid .meta{font-size:13px;color:var(--muted);margin-top:4px}.tid .meta b{color:var(--muted);font-weight:700}.tab-in{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.tabs{display:flex;gap:0;border-bottom:1px solid var(--line)}.fx .tab{font-size:13px;font-weight:700;color:var(--muted);padding:12px 8px;cursor:pointer;white-space:nowrap;user-select:none}.fx .tab:hover{color:var(--ink)}#tab-overview:checked~.tabs .tab[for=tab-overview],#tab-matches:checked~.tabs .tab[for=tab-matches],#tab-performance:checked~.tabs .tab[for=tab-performance],#tab-club:checked~.tabs .tab[for=tab-club],#tab-national:checked~.tabs .tab[for=tab-national],.fx .comp-tabs .tab.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}.fx .tab-in:focus-visible~.tabs{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}.page:has(>.tab-intro:first-child){padding-top:12px}.page{display:none}#tab-overview:checked~.page[data-page=overview],#tab-matches:checked~.page[data-page=matches],#tab-performance:checked~.page[data-page=performance],#tab-club:checked~.page[data-page=club],#tab-national:checked~.page[data-page=national]{display:block}.site-header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--page) 88%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(8px);backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--line)}.header-in{max-width:960px;margin:0 auto;padding:0 16px;height:58px;display:flex;align-items:center;gap:12px}.brand{font-size:18px;font-weight:700;letter-spacing:-.01em;color:var(--ink);flex:none}.brand .iq{color:var(--muted);font-weight:700}.mainnav{display:none;align-items:center;gap:2px;margin-left:4px}.mainnav a,.mainnav span{font-size:13px;font-weight:700;color:var(--muted);padding:8px;border-radius:8px}.mainnav a:hover{color:var(--ink);background:var(--surface)}.header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}.searchbox{display:none;align-items:center;gap:8px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--muted);font-size:13px;min-width:180px}.searchbox .ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;flex:none}.iconbtn{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--muted);cursor:pointer}.iconbtn:hover{color:var(--ink);border-color:var(--muted)}.iconbtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}.iconbtn.search-m,.hamburger{display:grid}.drawer{display:none;border-top:1px solid var(--line);background:var(--surface)}.drawer.open{display:block}.drawer a,.drawer span{display:block;font-size:15px;font-weight:700;color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line)}.drawer a:last-child,.drawer span:last-child{border-bottom:0}.mainnav .on{color:var(--ink);font-weight:700;border-radius:0;box-shadow:inset 0 -2px 0 var(--ink)}.drawer .on{color:var(--ink);font-weight:700}.shell{max-width:960px;margin:0 auto;padding:0 16px 48px}.page-grid{display:grid;grid-template-columns:1fr;gap:8px 36px}.rail{min-width:0}.site-footer{border-top:1px solid var(--line);margin-top:48px}.footer-in{max-width:960px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline}.fx.legacy-width .inner{max-width:680px}.fx.legacy-width .header-in,.fx.legacy-width .footer-in{max-width:1100px}.site-footer .brand{font-size:15px}.flinks{display:flex;flex-wrap:wrap;gap:8px 16px}.flinks a,.flinks span{font-size:13px;color:var(--muted)}.flinks a:hover{color:var(--ink)}.fmeta{margin-left:auto;--facts-justify: flex-end;font-size:13px;color:var(--muted)}.header-in.fit-one .mainnav{display:flex}.header-in.fit-one .hamburger{display:none}.site-header:has(.header-in.fit-one) .drawer{display:none!important}@media(min-width:800px){.header-in:not(.fit-two) .mainnav{display:flex}.header-in:not(.fit-two) .hamburger{display:none}.site-header:has(.header-in:not(.fit-two)) .drawer{display:none!important}}@media(min-width:900px){.page-grid{grid-template-columns:minmax(0,1.9fr) minmax(0,1fr)}.rail{border-left:1px solid var(--line);padding-left:36px}}@media(min-width:1010px){.searchbox{display:flex}.iconbtn.search-m{display:none}}.fxgroup{margin-top:36px}.fxgroup:first-of-type{margin-top:12px}.fx section>.fxgroup~.fxgroup{margin-top:36px}.fxgroup>.gh,.mcomp>.gh{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--div)}.fxgroup>.gh .nm,.mcomp>.gh .nm{font-size:18px;font-weight:700;color:var(--ink);line-height:1.2}.fxgroup>.gh .cnm,.mcomp>.gh .cnm{display:flex;align-items:center;gap:12px;min-width:0}.fxgroup>.gh .cnm .chev,.mcomp>.gh .cnm .chev{margin-left:2px}.clogo{width:26px;height:26px;flex:0 0 auto;display:grid;place-items:center;color:var(--muted)}.clogo svg{width:26px;height:26px;display:block}.rkgroup>.gh{border-bottom:0;padding-bottom:0;margin-bottom:12px}.rkgroup>.gh+:is(.rs-row,.cmp-row),.tsw:not(:checked)~* .rkgroup>:is(.rs-row,.cmp-row):nth-child(2 of:not(.nonkey)){padding-top:0}.fxgroup .dh{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 0 0}a.cnm{display:inline-flex;align-items:center;gap:4px;min-width:0;padding-block:8px 4px;margin-block:-8px -4px}.chev{width:15px;height:15px;flex:0 0 auto;color:var(--muted);transition:transform .12s ease,color .12s ease}@media(hover:hover){a.cnm:hover .chev{color:var(--ink);transform:translate(2px)}a.cnm:hover .nm{color:var(--ink)}}a.cnm:active .chev{color:var(--ink)}a.cnm .nm{text-decoration:none}@media(prefers-reduced-motion:reduce){.chev{transition:none}}.fxrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.fxrow:last-child{border-bottom:0}.fxrow .sides{display:grid;gap:8px}.fxrow .side{display:flex;align-items:center;gap:8px}.fxrow .side .nm{font-size:15px;color:var(--ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:normal;word-break:normal;hyphens:none;line-height:1.25}.fxrow .when{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.fxrow .when .t{display:block;font-size:15px;font-weight:700;color:var(--ink)}.fxrow .when .d{font-size:13px;color:var(--muted)}.fxrow .when .rowtz{display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin-top:2px}.fxrow .side .g{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}.fxrow .side .g.winner{color:var(--ink);font-weight:700}.nexttag,.fxrow .topmatch,.stag{display:inline-block;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--pill-ink, #fff);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}.nexttag{margin-left:8px}.fxrow:has(.topmatch){grid-template-columns:minmax(0,1fr) auto;row-gap:8px}.fxrow .topmatch{grid-column:1 / -1;grid-row:1;justify-self:start}.fxrow:has(.topmatch)>.sides,.fxrow:has(.topmatch)>.when{grid-row:2}.fxrow.fit-one:has(.topmatch){grid-template-columns:minmax(0,1fr) max-content auto}.fxrow.fit-one .topmatch{grid-column:auto;grid-row:auto;align-self:center;margin-right:12px}.fxrow.fit-one:has(.topmatch)>.sides,.fxrow.fit-one:has(.topmatch)>.when{grid-row:auto}.fxrow:has(>.stag){grid-template-columns:minmax(0,1fr) auto;row-gap:8px}.fxrow>.stag{grid-column:1 / -1;grid-row:1;justify-self:start}.fxrow:has(>.stag)>.sides{grid-row:2}.fxrow.fit-one>.stag{grid-column:auto;grid-row:auto;align-self:center;justify-self:end}.fxrow.fit-one:has(>.stag)>.sides{grid-row:auto}.fold-in{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.fold-rest{display:contents}.fold-in:not(:checked)~.fold-rest{display:none}.fold-ctl{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;cursor:pointer;grid-column:1 / -1;font-size:13px;font-weight:700;color:var(--muted)}.fold-ctl .chev{transform:rotate(90deg)}.fold-in:checked~.fold-ctl .chev{transform:rotate(-90deg)}.fold-ctl .opened,.fold-in:checked~.fold-ctl .closed{display:none}.fold-in:checked~.fold-ctl .opened{display:inline}.fold-in:focus-visible~.fold-ctl{outline:2px solid var(--accent);outline-offset:-2px;border-radius:8px}.fx a.fold-ctl{color:var(--muted)}a.fold-ctl .chev{transform:none}.tblock>.sechead+div:not([class])>.comp-grid{margin-top:-8px}.fold-rest>.fxrow:last-child{border-bottom:1px solid var(--line)}.crest.xs{width:24px;height:24px;font-size:11px;flex:0 0 auto}.board{margin-top:0;container-type:inline-size}.fx .board+.board{margin-top:24px}.bhd{padding-bottom:8px;border-bottom:1px solid var(--div)}.bt{font-size:15px;font-weight:700;color:var(--ink)}.bgrid{--vw: 64px;--gap: 12px;--cols: 18px 24px minmax(0, 1fr) var(--vw)}@container (max-width: 430px){.bgrid{--vw: 56px;--gap: 8px}}.brow{display:grid;grid-template-columns:var(--cols);align-items:center;gap:var(--gap);padding:8px 0;border-bottom:1px solid var(--line)}.brow:last-child{border-bottom:0}.brow .rk{font-size:13px;font-weight:700;color:var(--muted);text-align:right}.brow .ent{min-width:0;display:flex;flex-wrap:nowrap;align-items:baseline;column-gap:8px}@container (max-width: 480px){.brow .ent,.board .nm,.board .sub{display:block}.board .sub{margin-top:2px}}.board .nm{min-width:0;font-size:15px;font-weight:400;color:var(--ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;line-height:1.25}.board .sub{min-width:0;font-size:13px;color:var(--muted);overflow-wrap:break-word}.brow .v{font-size:15px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}.brow .v b{color:var(--accent);font-weight:700;font-size:15px}a.brow .nm{text-decoration:none}@media(hover:hover){a.brow:hover,a.comp-row:hover,a.fxrow:hover,a.ctab-row:hover,a.frow:hover,a.lrow:hover{background:color-mix(in srgb,var(--ink) 11%,transparent)}}a.brow:active,a.comp-row:active,a.fxrow:active,a.ctab-row:active,a.frow:active,a.lrow:active{background:var(--sunk)}a.fxrow,a.ctab-row,a.frow,a.lrow{color:inherit;text-decoration:none}a.fxrow:focus-visible,a.ctab-row:focus-visible,a.frow:focus-visible,a.lrow:focus-visible{outline-offset:-2px}a.lrow{display:block}a.brow:focus-visible{outline-offset:-2px}.fbar>.seg:not(.sel) .seg-btn{min-width:44px}.fbar.fit-one>.seg:not(.sel) .seg-btn{flex:1 0 auto}.fbar:not(.fit-one)>.seg:not(.sel){flex-wrap:wrap}.fbar:not(.fit-one)>.seg:not(.sel) .seg-btn{flex:0 0 auto}.fbar .seg-btn[hidden]{display:none}.selbar{display:none;gap:8px;margin-top:0}.fbar.fit-two>.seg:not(.sel){display:none}.fbar.fit-two>.selbar{display:flex}.selbar .seg.sel{flex:1 1 0;min-width:0;margin-top:0}.selbar.fit-two{flex-direction:column}.selbar.fit-two .seg.sel{flex:0 0 auto}.seg.sel{position:relative;padding:0}.seg.sel .sel-in{appearance:none;-webkit-appearance:none;width:100%;border:0;background:transparent;font:inherit;font-size:13px;font-weight:700;color:var(--ink);padding:12px 36px 12px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}.seg.sel .sel-in:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.seg.sel .sel-in option{color:var(--ink);background:var(--surface)}.seg.sel .chev{position:absolute;right:12px;top:50%;width:15px;height:15px;color:var(--muted);transform:translateY(-50%) rotate(90deg);pointer-events:none}@supports (appearance: base-select){.seg.sel .sel-in,.seg.sel .sel-in::picker(select){appearance:base-select}.seg.sel .sel-in::picker-icon{display:none}.seg.sel .sel-in::picker(select){background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:4px;margin-top:8px;box-shadow:0 10px 28px #00000073}.seg.sel .sel-in option{background:transparent;color:var(--muted);font-size:13px;font-weight:700;padding:8px 12px;border-radius:8px;cursor:pointer}.seg.sel .sel-in option::checkmark{display:none}.seg.sel .sel-in option:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 11%,transparent)}.seg.sel .sel-in option:checked{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 3px #00000040}}.comp-category{margin-bottom:4px}.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:8px;margin-top:8px}.comp-row{display:flex;align-items:center;gap:8px;padding:8px 4px;min-width:0}.comp-meta{display:block;min-width:0}.comp-name{display:block;font-size:15px;font-weight:400;color:var(--ink)}.comp-region{display:block;font-size:13px;color:var(--muted);margin-top:2px}a.comp-row:focus-visible{outline-offset:-2px}.teamindex .comp-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,max(280px,calc((100% - 8px)/2))),1fr))}.comp-grid .colhead{grid-column:1 / -1;margin:8px 0 0}.comp-grid .colhead,.comp-category>.colhead{text-transform:none;letter-spacing:0}.fxgroup>.gh .cnt{font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}.tblock>:is(.tview-all,.tview-region)>.comp-grid{margin-top:-8px}.tview-region{display:none}.seg-in[name=region-filter]:not([value=""]):checked~.categories .tview-region{display:block}.seg-in[name=region-filter]:not([value=""]):checked~.categories :is(.tview-all,.tgroups-region){display:none}#filter-entity-club:checked~.categories [data-entity-type=national]{display:none}#filter-entity-national:checked~.categories [data-entity-type=club]{display:none}#filter-region-uefa:checked~.categories [data-confederation]:not([data-confederation=UEFA]){display:none}#filter-region-conmebol:checked~.categories [data-confederation]:not([data-confederation=CONMEBOL]){display:none}#filter-region-concacaf:checked~.categories [data-confederation]:not([data-confederation=CONCACAF]){display:none}#filter-region-caf:checked~.categories [data-confederation]:not([data-confederation=CAF]){display:none}#filter-region-afc:checked~.categories [data-confederation]:not([data-confederation=AFC]){display:none}#filter-region-ofc:checked~.categories [data-confederation]:not([data-confederation=OFC]){display:none}#filter-region-fifa:checked~.categories [data-confederation]:not([data-confederation=FIFA]){display:none}#filter-competition-1:checked~.categories [data-competition-slot]:not([data-competition-slot="1"]),#filter-competition-2:checked~.categories [data-competition-slot]:not([data-competition-slot="2"]),#filter-competition-3:checked~.categories [data-competition-slot]:not([data-competition-slot="3"]),#filter-competition-4:checked~.categories [data-competition-slot]:not([data-competition-slot="4"]),#filter-competition-5:checked~.categories [data-competition-slot]:not([data-competition-slot="5"]),#filter-competition-6:checked~.categories [data-competition-slot]:not([data-competition-slot="6"]),#filter-competition-7:checked~.categories [data-competition-slot]:not([data-competition-slot="7"]),#filter-competition-8:checked~.categories [data-competition-slot]:not([data-competition-slot="8"]),#filter-competition-1:checked~.categories section[data-slots]:not([data-slots~="1"]),#filter-competition-2:checked~.categories section[data-slots]:not([data-slots~="2"]),#filter-competition-3:checked~.categories section[data-slots]:not([data-slots~="3"]),#filter-competition-4:checked~.categories section[data-slots]:not([data-slots~="4"]),#filter-competition-5:checked~.categories section[data-slots]:not([data-slots~="5"]),#filter-competition-6:checked~.categories section[data-slots]:not([data-slots~="6"]),#filter-competition-7:checked~.categories section[data-slots]:not([data-slots~="7"]),#filter-competition-8:checked~.categories section[data-slots]:not([data-slots~="8"]){display:none}#filter-competition-all:checked~.categories [data-hub=pos],.seg-in[name=competition-filter]:not([value=""]):checked~.categories [data-hub=all]{display:none}#filter-competition-all:checked~.fbar .seg-btn[for=filter-competition-all],#filter-competition-1:checked~.fbar .seg-btn[for=filter-competition-1],#filter-competition-2:checked~.fbar .seg-btn[for=filter-competition-2],#filter-competition-3:checked~.fbar .seg-btn[for=filter-competition-3],#filter-competition-4:checked~.fbar .seg-btn[for=filter-competition-4],#filter-competition-5:checked~.fbar .seg-btn[for=filter-competition-5],#filter-competition-6:checked~.fbar .seg-btn[for=filter-competition-6],#filter-competition-7:checked~.fbar .seg-btn[for=filter-competition-7],#filter-competition-8:checked~.fbar .seg-btn[for=filter-competition-8],#filter-entity-all:checked~.fbar .seg-btn[for=filter-entity-all],#filter-entity-club:checked~.fbar .seg-btn[for=filter-entity-club],#filter-entity-national:checked~.fbar .seg-btn[for=filter-entity-national],#filter-region-all:checked~.fbar .seg-btn[for=filter-region-all],#filter-region-uefa:checked~.fbar .seg-btn[for=filter-region-uefa],#filter-region-conmebol:checked~.fbar .seg-btn[for=filter-region-conmebol],#filter-region-concacaf:checked~.fbar .seg-btn[for=filter-region-concacaf],#filter-region-caf:checked~.fbar .seg-btn[for=filter-region-caf],#filter-region-afc:checked~.fbar .seg-btn[for=filter-region-afc],#filter-region-ofc:checked~.fbar .seg-btn[for=filter-region-ofc],#filter-region-fifa:checked~.fbar .seg-btn[for=filter-region-fifa]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 3px #00000040}.comp-tabs .tab[aria-disabled=true]{cursor:default}.fx .comp-tabs .tab[aria-disabled=true]:hover{color:var(--muted)}.comp-tabs .tab{flex:1 1 0;text-align:center;padding-inline:4px}.md-in{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.md>.mdnav,.md>section{display:none}.md:has(>.md-in:checked)>.mdnav,.md:has(>.md-in:checked)>section{display:block}.fx .md-in:focus-visible+.mdnav{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}.mdnav{margin-top:24px}.mdstep{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:8px;border-bottom:2px solid var(--div)}.mdstep .mdtitle{flex:1;display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-width:0}.mdstep .mdtitle .num{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);text-align:center}.mdstep [data-long]{display:none}.mdstep.fit-one [data-long]{display:inline}.mdstep.fit-one [data-short]{display:none}.mdstep .step{width:34px;height:34px;flex:0 0 auto;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line);color:var(--muted);cursor:pointer}.mdstep .step svg{width:16px;height:16px}.mdstep .step:hover{background:var(--surface)}.mdstep .step.off{visibility:hidden}.ctab-section{margin-top:0}.fx .ctab-section+.ctab-section{margin-top:36px}.ctab-section>.gh{margin-bottom:12px}.ctab-section>.gh .nm{font-size:18px;font-weight:700;color:var(--ink);line-height:1.2}.ctab{margin-top:0;--cols: 2rem minmax(0, 1fr) 2.3rem 0 0 0 0 2.8rem 3rem}.ctab-head,.ctab-row{display:grid;grid-template-columns:var(--cols);align-items:center;column-gap:0}.ctab .n,.ctab .h{padding-left:8px}.ctab-head{padding-bottom:8px;border-bottom:1px solid var(--div)}.ctab-row{padding:8px 0;border-bottom:1px solid var(--line)}.ctab-row:last-child{border-bottom:0}.ctab-head>:nth-child(1),.ctab-row>:nth-child(1){grid-column:1}.ctab-head>:nth-child(2),.ctab-row>:nth-child(2){grid-column:2}.ctab-head>:nth-child(3),.ctab-row>:nth-child(3){grid-column:3}.ctab-head>:nth-child(4),.ctab-row>:nth-child(4){grid-column:4}.ctab-head>:nth-child(5),.ctab-row>:nth-child(5){grid-column:5}.ctab-head>:nth-child(6),.ctab-row>:nth-child(6){grid-column:6}.ctab-head>:nth-child(7),.ctab-row>:nth-child(7){grid-column:7}.ctab-head>:nth-child(8),.ctab-row>:nth-child(8){grid-column:8}.ctab-head>:nth-child(9),.ctab-row>:nth-child(9){grid-column:9}.ctab .wdl{display:none}@container (min-width: 470px){.ctab{--cols: 2rem minmax(0, 1fr) 2.3rem 2.3rem 2.3rem 2.3rem 3.9rem 2.8rem 3rem}.ctab .wdl{display:block}}.ctab .h{font-size:11px;font-weight:700;letter-spacing:0;line-height:1.25;color:var(--muted);text-align:right}.ctab .rk{font-size:13px;font-weight:700;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;padding-right:8px}.ctab .h.rk{text-align:right}.ctab .n{font-size:13px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}.ctab .n.pts{font-size:15px;font-weight:700;color:var(--accent)}.ctab .tm{display:flex;align-items:center;gap:8px;min-width:0}.ctab .tm .nm{min-width:0;font-size:15px;font-weight:400;color:var(--ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:normal;line-height:1.25}.ctab.fit-two .ctab-row>.rk{grid-row:1}.ctab.fit-two .ctab-row>.tm{grid-column:2 / -1;grid-row:1}.ctab.fit-two .ctab-row>.tm:first-child{grid-column:1 / -1}.ctab.fit-two .ctab-row>.n{grid-row:2;padding-top:4px}@container (max-width: 599.98px){.ctab:not(.fit-one) .ctab-row>.rk{grid-row:1}.ctab:not(.fit-one) .ctab-row>.tm{grid-column:2 / -1;grid-row:1}.ctab:not(.fit-one) .ctab-row>.tm:first-child{grid-column:1 / -1}.ctab:not(.fit-one) .ctab-row>.n{grid-row:2;padding-top:4px}}.bsub{margin:0;font-size:13px;line-height:1.45;color:var(--muted);text-wrap:pretty}.ctab.dpt,.ctab.dpt.ctab{--cols: 2rem minmax(0, 1fr) repeat(4, minmax(3.6rem, 4.6rem))}.ctab.dpt .ctab-head{align-items:end}.ctab.dpt .h .hs{display:block}.ctab.dpt .h [data-full]{display:none}.ctab.dpt.heads-full .h [data-full]{display:inline}.ctab.dpt.heads-full .h [data-narrow]{display:none}.ctab.dpt:not(.heads-full) .h{padding-left:4px}.ctab.rkt,.ctab.rkt.ctab{--cols: 2rem minmax(0, 1fr) 3.6rem;margin-top:0}.ctab .tm .ent{display:flex;flex-direction:column;min-width:0}.ctab .tm .ent .sub{font-size:13px;color:var(--muted);line-height:1.2}.ctab.rkt .ctab-head .nmh{text-align:left;padding-left:0;grid-column:1 / 3}.ctab.rkt .ctab-head .rk{display:none}.ctab.rkt .ctab-head .nmh .bt{display:inline-flex;align-items:center;gap:4px}.ctab.rkt .ctab-head .nmh .bt .nm{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:0;text-transform:none}.bnote{font-size:13px;color:var(--muted);margin-left:8px}.facts{margin-top:0;container-type:inline-size}.frow{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line);color:inherit}.frow:last-child{border-bottom:0}.frow .fl{font-size:15px;color:var(--ink);line-height:20px}.frow .fv{min-width:0;display:flex;flex-direction:column;gap:2px;text-align:right}.frow .fvv{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:20px}.frow .fvv b{font-weight:700;font-size:15px;color:var(--accent)}.frow .sub{font-size:13px;color:var(--muted)}.nb{white-space:nowrap}.fit-two>.frow{grid-template-columns:minmax(0,1fr);gap:2px}@container (max-width: 599.98px){:not(.fit-one)>.frow{grid-template-columns:minmax(0,1fr);gap:2px}}.vh{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}.trail{align-items:center;padding-top:8px;row-gap:0}.trail .lvl{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}.trail .lnk{padding:12px 4px;margin-inline:-4px}@media(max-width:699.98px){.trail .far{display:none}.trail{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}.trail::-webkit-scrollbar{display:none}.trail.cut{-webkit-mask-image:linear-gradient(to right,transparent 0,#000 28px);mask-image:linear-gradient(to right,transparent 0,#000 28px)}}.mp .mast .mcomp{text-align:start}.mp .mast a.team{color:inherit}.mp .mast .team .chev{vertical-align:-1px;margin-left:4px}@media(hover:hover){.mp .mast a.team:hover .chev{color:var(--ink);transform:translate(2px)}}.mp .mast a.team:active .chev{color:var(--ink)}@media(max-width:699.98px){.mp .mast .teams{grid-template-columns:1fr;gap:0;margin-top:16px}.mp .mast .vs{display:none}.mp .mast .team{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:4px;align-items:center;text-align:left;padding:12px 4px}.mp .mast .team .crest{grid-row:span 2}.mp .mast .team .tname{font-size:15px;text-wrap:pretty}.mp .mast .teams.fit-two .tname{font-size:18px}.mp .mast .teams.fit-one .tname{font-size:20px}.mp .mast .team .stand{grid-column:2;--facts-justify: flex-start}}@media(max-width:699.98px)and (hover:hover){.mp .mast a.team:hover{background:color-mix(in srgb,var(--ink) 11%,transparent)}}.mp .mast .vs.score{font-size:30px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink)}@media(min-width:700px){.mp .mast .vs.score{display:flex;align-items:center;gap:8px}.crumb+h1,.tid h1,.tname{font-size:30px}}.mp .mast .vs.score .dash{color:var(--muted)}.mp .mast .vs.score .winner,.mp .mast .team .sg.winner{font-weight:700}.mp .mast .team .sg{display:none}@media(max-width:699.98px){.mp .mast .teams.played .team{grid-template-columns:auto 1fr auto}.mp .mast .team .sg{display:block;grid-column:3;grid-row:1 / span 2;align-self:center;font-weight:400;color:var(--ink)}}.mp .mast .resline{font-size:13px;color:var(--muted);margin-top:12px}.mp .mast .resline b{color:var(--muted);font-weight:700}.cmp .formhead{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin:2px 0 8px}.cmp .formhead .cmp-team{display:flex;flex-direction:column;gap:8px;min-width:0}.cmp .formhead .cmp-team.cmp-home{align-items:flex-start;text-align:left}.cmp .formhead .cmp-team.cmp-away{align-items:flex-end;text-align:right}.cmp .formhead .h{font-size:var(--chart-text);font-weight:400;color:var(--chart-line)}.cmp .formhead .pills{width:100%;max-width:140px}.cmp .formhead .cmp-away .pills{justify-content:flex-end}.cmp .cmp-row{grid-template-columns:4.6ch 1fr 4.6ch;grid-template-areas:"lab lab lab" "home bar away";column-gap:12px;row-gap:8px}.cmp .cmp-row .cmp-label{text-align:start}.cmp .cmp-label>.chart-tick{line-height:1.5;white-space:nowrap}.cmp .cmp-row .cmp-mid{display:contents}.cmp .cmp-row .cmp-label{grid-area:lab}.cmp .cmp-row .chart-bar{grid-area:bar}.cmp .cmp-row .cmp-val.cmp-home{grid-area:home;text-align:left}.cmp .cmp-row .cmp-val.cmp-away{grid-area:away;text-align:right}.tsw:not(:checked)~* .nonkey{display:none}.tsw{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}.tsw-lbl{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}.tsw-track{position:relative;width:36px;height:20px;border-radius:8px;background:var(--sunk);border:1px solid var(--line);flex:0 0 auto}.tsw-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:transform .15s}.tsw:checked~.tsw-lbl .tsw-track{background:var(--muted);border-color:var(--muted)}.tsw:checked~.tsw-lbl .tsw-knob{transform:translate(16px);background:var(--page)}.tsw:focus-visible~.tsw-lbl .tsw-track{outline:2px solid var(--accent);outline-offset:2px}.mp .rsplit{display:grid;grid-template-columns:1fr;column-gap:24px}@container (min-width: 560px){.mp .rsplit{grid-template-columns:1fr 1fr}.mp .rsplit .colhead{margin-top:0}}.mp .rcol{display:grid;grid-template-rows:subgrid;grid-row:span 6;align-content:start}.mp .rsplit.sheets .rcol{grid-row:span 30}.mp .sechead+.rsplit .rcol:first-child .colhead,.mp .bsub+.rsplit .rcol:first-child .colhead,.mp .board>.bt+.rsplit .rcol:first-child .colhead{margin-top:0}.mp .board>.bt+.rsplit{margin-top:8px}.mp .rsplit.sheets .rcol .lrow+.colhead{margin-top:12px}.lrow{container-type:inline-size}.lrow:not(:last-child){border-bottom:1px solid var(--line)}.resrow{display:grid;grid-template-columns:24px 42px 1fr;grid-template-areas:"res score opp" ". . meta";column-gap:8px;row-gap:2px;align-items:center;align-content:start;padding:8px 0;font-size:13px}.resrow .pill{grid-area:res;align-self:start}.resrow .rscore{grid-area:score;font-size:15px}.resrow:not(.meet):not(.scorer) .rscore{align-self:start;line-height:24px}.resrow .ropp{grid-area:opp;font-size:15px;white-space:normal;overflow:visible;text-overflow:clip}.resrow .rmeta{grid-area:meta;text-align:left;--facts-justify: flex-start;white-space:normal}.resrow .ropp>.ha{display:none}@container (min-width: 420px){.resrow{grid-template-columns:24px 42px 1fr fit-content(45%);grid-template-areas:"res score opp meta";column-gap:12px}.resrow .rmeta{text-align:right;--facts-justify: flex-end}.resrow .rha{display:none}.resrow .ropp>.ha{display:inline}}.fit-one .resrow{grid-template-columns:24px 42px 1fr fit-content(45%);grid-template-areas:"res score opp meta";column-gap:12px}.fit-one .resrow .rmeta{text-align:right;--facts-justify: flex-end}.fit-two .resrow{grid-template-columns:24px 42px 1fr;grid-template-areas:"res score opp" ". . meta"}.fit-two .resrow .rmeta{text-align:left;--facts-justify: flex-start}.fit-one .resrow .rha,.fit-two .resrow .ropp>.ha,.rlist.pm:not(.fit-one) .resrow .ropp>.ha{display:none}.fit-one .resrow .ropp>.ha{display:inline}.fit-two .resrow .rha,.rlist.pm:not(.fit-one) .resrow .rha{display:inline}.resrow.meet{grid-template-columns:42px 1fr fit-content(45%);grid-template-areas:"score opp opp" ". meta meta"}.resrow.meet:not(.goal) .ropp>.club,.fit-two .resrow.meet .ropp>.club{display:flex}.resrow.meet:not(.goal) .meet-dash,.fit-two .resrow.meet .meet-dash{display:none}@container (min-width: 420px){.resrow.meet{grid-template-areas:"score opp meta"}.rlist:not(.fit-two) .resrow.meet .ropp>.club{display:inline-flex}.rlist:not(.fit-two) .resrow.meet .meet-dash{display:inline}}.fit-one .resrow.meet{grid-template-areas:"score opp meta"}.fit-two .resrow.meet{grid-template-areas:"score opp opp" ". meta meta"}.fit-one .resrow.meet .ropp>.club{display:inline-flex}.fit-one .resrow.meet .meet-dash{display:inline}.resrow.scorer{grid-template-columns:1fr;grid-template-areas:"opp" "meta"}@container (min-width: 420px){.resrow.scorer{grid-template-columns:1fr auto;grid-template-areas:"opp meta"}}.club{display:inline-flex;align-items:center;gap:8px;vertical-align:middle;max-width:100%}.ropp>.club:only-child{vertical-align:top}.club .cn .nb{display:inline-block;white-space:normal}.plrow{display:grid;grid-template-columns:34px 1fr auto;grid-template-areas:"photo name stat" "photo pos stat";column-gap:8px;row-gap:2px;align-items:center;align-content:start;padding:8px 0}.plrow .pphoto{grid-area:photo}.plrow .pname{display:contents}.plrow .pname .nm{grid-area:name;font-size:15px;font-weight:400;color:var(--ink);white-space:normal;overflow:visible;text-overflow:clip}.plrow .pname .ps{grid-area:pos;font-size:13px;color:var(--muted)}.plrow .pstat{grid-area:stat;align-self:center;text-align:right;--facts-justify: flex-end;font-size:11px;white-space:normal}.plrow .pstat b{font-size:15px}@container (max-width: 279.98px){.plrow{grid-template-areas:"photo name name" "photo pos stat"}}a.lrow.tc,div.lrow.tc{padding-block:12px}:is(.sechead,.bsub)+.tcomps>.tc:first-child{padding-top:0}:is(.sechead,.bsub)+.rlist>.lrow:first-child .resrow{padding-top:0}.tc .tcin{display:grid;grid-template-columns:24px minmax(0,1fr) auto;grid-template-areas:"crest name right" ". extra extra";column-gap:12px;row-gap:8px;align-items:center}.tc .tc-crest{grid-area:crest}.tc .tc-name{grid-area:name;font-size:15px;font-weight:400;color:var(--ink);min-width:0}.tc .tc-ctx{display:block;font-size:13px;font-weight:400;color:var(--muted)}.tc .tc-right{grid-area:right;font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}.tc .tc-extra{grid-area:extra;display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}.tc .tc-rank2{display:none;font-size:15px;font-weight:700;color:var(--ink)}.tc .tc-nums{margin-left:auto;--facts-justify: flex-end;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.tc .tc-nums b{font-size:15px;font-weight:700;color:var(--ink)}@container (max-width: 340px){.tc .tcin{grid-template-areas:"crest name name" ". extra extra"}.tc .tc-right{display:none}.tc .tc-extra{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"rank nums" "pills pills";justify-items:start;align-items:baseline;gap:8px 0}.tc .tc-rank2{display:inline;grid-area:rank}.tc .tc-rank2{margin-right:12px}.tc .tc-nums{grid-area:nums;margin-left:0;--facts-justify: flex-start}.tc .tc-extra .cchips{grid-area:pills}}.sqgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,max(280px,calc(50% - 12px))),1fr));column-gap:24px}.sqgrid>.lrow{border-bottom:1px solid var(--line);min-width:0}.sqgrid>a.lrow{margin-inline:0;padding-inline:0}.ctab.dpm,.ctab.dpm.ctab{--cols: minmax(0, 1fr) 4.2rem}.ctab.dpm .ctab-head .nmh{text-align:left;padding-left:0}.ctab.dpm .n.dpm-v{font-size:15px;font-weight:700;color:var(--ink)}.fx{--chart-axis: var(--muted);--chart-line: var(--muted);--chart-team: var(--ink);--chart-other: color-mix(in srgb, var(--ink) 24%, transparent);--chart-better: var(--accent);--chart-dot-team: 10px;--chart-dot-other: 6px;--chart-halo: 2px;--chart-bar: 5px;--chart-text-tick: 11px;--chart-text: 13px;--chart-text-name: 15px;--chart-text-value: 15px}.chart{container-type:inline-size}.chart .chart-narrow{display:none}@container (max-width: 479.98px){.chart .chart-wide{display:none}.chart .chart-narrow{display:block}.chart .rs-row{grid-template-columns:minmax(0,1fr) 4.2rem;row-gap:8px}.chart .rs-row .rs-band{grid-column:1 / -1;grid-row:2}}.chart-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:var(--chart-text);color:var(--chart-line);margin:2px 0 8px}.chart-key{display:inline-flex;align-items:center;gap:4px}.chart-line{display:inline-block}.chart-line.chart-ref{width:22px;border-top:1.5px solid var(--chart-line)}.chart-line.chart-gap{width:1px;height:12px;background:repeating-linear-gradient(var(--chart-line) 0 2px,transparent 2px 4px)}.dp-chart{width:100%;height:auto;display:block;font-family:inherit}.chart svg text{font-family:inherit}.chart svg line{vector-effect:non-scaling-stroke}.chart-axis{stroke:var(--chart-axis);stroke-width:1px}.chart-ref{stroke:var(--chart-line);stroke-width:1.5px}.chart-gap{stroke:var(--chart-line);stroke-width:1px;stroke-dasharray:2 2}.chart-tick{fill:var(--chart-axis);color:var(--chart-axis);font-size:var(--chart-text-tick)}.chart-note{fill:var(--chart-line);font-size:var(--chart-text)}.chart-label{fill:var(--chart-team);font-size:var(--chart-text)}.chart-name{font-size:var(--chart-text-name);font-weight:700;color:var(--chart-team);line-height:1.3;text-align:start;text-wrap:pretty}.chart-dot{display:inline-block;border-radius:50%;r:calc(var(--chart-dot-other) / 2);width:var(--chart-dot-other);height:var(--chart-dot-other);fill:var(--chart-other);background:var(--chart-other)}.chart-dot.chart-me{r:calc(var(--chart-dot-team) / 2);width:var(--chart-dot-team);height:var(--chart-dot-team);fill:var(--chart-team);background:var(--chart-team);stroke:var(--page);stroke-width:calc(var(--chart-halo) * 2);paint-order:stroke;box-shadow:0 0 0 var(--chart-halo) var(--page)}.chart-bar{display:flex;align-items:center;gap:2px;height:var(--chart-bar);width:100%}.chart-bar>span{flex:1;height:100%;display:flex;background:var(--track);border-radius:4px}.chart-bar>span:first-child{justify-content:flex-end}.chart-bar>span:last-child{justify-content:flex-start}.chart-bar>span>span{height:100%;background:var(--chart-team)}.chart-bar>span:first-child>span{border-radius:4px 0 0 4px}.chart-bar>span:last-child>span{border-radius:0 4px 4px 0}.chart-bar>.chart-better>span{background:var(--chart-better)}.rs-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) 4.6rem;column-gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.rs-band{position:relative;height:14px;margin:8px 0 16px}.rs-val{align-self:start;text-align:right;font-size:var(--chart-text-value);font-weight:700;color:var(--chart-team);font-variant-numeric:tabular-nums;line-height:1.25}.rs-val small{display:block;font-size:var(--chart-text);font-weight:400;color:var(--muted)}.ctab.yoyt,.ctab.yoyt.ctab{--cols: minmax(0, 1fr) 4.2rem 4.2rem 3.2rem;margin-top:0}@container (min-width: 420px){.ctab.yoyt,.ctab.yoyt.ctab{--cols: minmax(0, 1fr) 4.6rem 4.6rem 3rem}}.ctab.yoyt .ctab-head{align-items:start}.ctab.yoyt .ctab-head .h{white-space:normal}.ctab.yoyt .h.tr{text-align:center}.ctab.yoyt .n.now{font-size:15px;font-weight:700;color:var(--ink)}.ctab.yoyt .n.prev{font-size:15px;color:var(--muted)}.ctab.yoyt .n.tr{font-size:13px;text-align:center;padding-left:0}.ctab.yoyt .tr.up{color:var(--accent)}.ctab.yoyt .tr.down{color:var(--loss)}.ctab.yoyt .tr.flat{color:var(--muted)}.kpis{container:kpis / inline-size}.kpi-row{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,240px));gap:12px}.kpi-row[data-n="6"]{--cols: 2}.kpis.fit-two .kpi-row[data-n="6"]{--cols: 3}.kpis.fit-one .kpi-row[data-n="6"]{--cols: 6}.kpi{container:kpi / inline-size;background:var(--surface);border:1px solid var(--line);border-radius:8px}.kpi-in{display:grid;justify-items:center;text-align:center;padding:12px;row-gap:8px}.kpi-v{font-size:30px;font-weight:700;line-height:1;color:var(--ink)}.kpi-t{display:flex;flex-direction:column;align-items:center;gap:2px}.kpi-l{font-size:15px;font-weight:700;line-height:1.25;color:var(--ink)}.kpis.fit-two .kpi-in{padding-inline:8px}.kpis.narrow .kpi-row{gap:8px}.kpis.tight .kpi-in{padding:8px 4px}.kpis.tight .kpi-l{font-size:13px}.mp .mast .team .sg,.kpis.tight .kpi-v{font-size:20px}.cmp-p{display:none}.seg-in[data-cmp="1"]:checked~.cmp-panels .cmp-p[data-cmp="1"],.seg-in[data-cmp="2"]:checked~.cmp-panels .cmp-p[data-cmp="2"],.seg-in[data-cmp="3"]:checked~.cmp-panels .cmp-p[data-cmp="3"],.seg-in[data-cmp="4"]:checked~.cmp-panels .cmp-p[data-cmp="4"],.seg-in[data-cmp="5"]:checked~.cmp-panels .cmp-p[data-cmp="5"],.seg-in[data-cmp="6"]:checked~.cmp-panels .cmp-p[data-cmp="6"],.seg-in[data-cmp="7"]:checked~.cmp-panels .cmp-p[data-cmp="7"],.seg-in[data-cmp="8"]:checked~.cmp-panels .cmp-p[data-cmp="8"]{display:block}.seg-in[data-cmp="1"]:checked~.fbar .seg-btn[data-cmp="1"],.seg-in[data-cmp="2"]:checked~.fbar .seg-btn[data-cmp="2"],.seg-in[data-cmp="3"]:checked~.fbar .seg-btn[data-cmp="3"],.seg-in[data-cmp="4"]:checked~.fbar .seg-btn[data-cmp="4"],.seg-in[data-cmp="5"]:checked~.fbar .seg-btn[data-cmp="5"],.seg-in[data-cmp="6"]:checked~.fbar .seg-btn[data-cmp="6"],.seg-in[data-cmp="7"]:checked~.fbar .seg-btn[data-cmp="7"],.seg-in[data-cmp="8"]:checked~.fbar .seg-btn[data-cmp="8"]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 3px #00000040}.rs-plot{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.rs-peers circle{cy:50%;r:calc(var(--chart-dot-other) / 2);fill:var(--chart-other)}.rs-tick{stroke:var(--chart-line);stroke-width:1px}.rs-tick-value{fill:var(--chart-axis);font-size:var(--chart-text-tick);font-variant-numeric:tabular-nums}.rs-tick-key{display:inline-block;width:0;height:10px;border-left:1px solid var(--chart-line)}.rlist.pm .resrow{grid-template-columns:24px auto 1fr;grid-template-areas:"res score opp" ". meta meta"}.rlist.pm .resrow .rmeta{text-align:left;--facts-justify: flex-start}.rlist.pm .resrow .rm-c,.rlist.pm .resrow .rm-p{display:flex}.rlist.pm .resrow .rm-p b{color:var(--ink);font-weight:700}.rlist.pm.fit-one .resrow{grid-template-columns:24px 42px 1fr auto;grid-template-areas:"res score opp meta"}.rlist.pm.fit-one .resrow .rmeta{text-align:right;--facts-justify: flex-end}.rlist.pm.fit-one .resrow .rm-c,.rlist.pm.fit-one .resrow .rm-p{display:inline-flex}.rlist.pm.fit-one .resrow .rm-p{margin-left:12px}a.fxrow,a.ctab-row,a.frow,a.lrow,a.brow{min-height:44px}a.comp-row{position:relative}a.comp-row:after{content:"";position:absolute;inset:-2px 0}a.cnm{position:relative}a.cnm:after{content:"";position:absolute;inset:-14px 0}.fold-ctl,.tsw-lbl{min-height:44px;padding-block:0}.seg .seg-btn{display:flex;align-items:center;justify-content:center;min-height:44px;padding-block:0}.mainnav a{padding-block:12px}.flinks{align-items:center;row-gap:0}.flinks a{padding:12px 8px;margin-inline:-8px}.brand,.site-footer .brand,.footer-in .brand{padding-block:12px}b.nb>a.lnk,.tid a.lnk,.colhead a.lnk{padding-block:16px}.colhead a.lnk{padding-inline:4px;margin-inline:-4px}.iconbtn{width:44px;height:44px;flex:0 1 auto;min-width:34px}.header-actions{flex:0 1 auto;min-width:0}.mdstep .step{width:44px;height:44px}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+diff --git a/design-mocks/social/assets/wordmark.svg b/design-mocks/social/assets/wordmark.svg
+new file mode 100644
+index 00000000..9e755563
+--- /dev/null
++++ b/design-mocks/social/assets/wordmark.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -102.4 565.9 150" fill="currentColor"><path d="M6.5 0V-52.7H19.8L21 -44.6H21.8Q24 -47.8 27 -49.85Q30 -51.9 33.5 -52.9Q37 -53.9 40.7 -53.9Q47 -53.9 51.35 -51.65Q55.7 -49.4 57.8 -44.6H58.6Q60.9 -47.8 63.9 -49.85Q66.9 -51.9 70.45 -52.9Q74 -53.9 77.8 -53.9Q84 -53.9 88.3 -51.75Q92.6 -49.6 94.85 -45.1Q97.1 -40.6 97.1 -33.7V0H80.8V-31.2Q80.8 -33.8 80.15 -35.7Q79.5 -37.6 78.3 -38.75Q77.1 -39.9 75.4 -40.5Q73.7 -41.1 71.6 -41.1Q68.3 -41.1 65.65 -39.6Q63 -38.1 61.45 -35.4Q59.9 -32.7 59.9 -29.3V0H43.6V-31.2Q43.6 -33.8 43 -35.7Q42.4 -37.6 41.2 -38.75Q40 -39.9 38.3 -40.5Q36.6 -41.1 34.4 -41.1Q31.2 -41.1 28.55 -39.6Q25.9 -38.1 24.35 -35.4Q22.8 -32.7 22.8 -29.3V0Z M123.5 1.2Q119.6 1.2 116 0.5Q112.4 -0.2 109.55 -1.85Q106.7 -3.5 105.05 -6.45Q103.4 -9.4 103.4 -14Q103.4 -20 106.3 -23.6Q109.2 -27.2 114.6 -29.05Q120 -30.9 127.4 -31.55Q134.8 -32.2 143.7 -32.2V-34.9Q143.7 -37.5 142.55 -39.25Q141.4 -41 138.95 -41.85Q136.5 -42.7 132.7 -42.7Q129.5 -42.7 127 -42.1Q124.5 -41.5 123.1 -40.35Q121.7 -39.2 121.7 -37.5V-36.6H105.5Q105.4 -37 105.35 -37.4Q105.3 -37.8 105.3 -38.3Q105.3 -43 108.55 -46.5Q111.8 -50 118.05 -51.95Q124.3 -53.9 133.2 -53.9Q141.7 -53.9 147.7 -52.15Q153.7 -50.4 156.9 -46.6Q160.1 -42.8 160.1 -36.6V-14.3Q160.1 -12.6 160.95 -11.6Q161.8 -10.6 163.4 -10.6H167.7V-0.6Q166.5 -0.1 163.9 0.55Q161.3 1.2 158 1.2Q154 1.2 151.35 0.25Q148.7 -0.7 147.25 -2.35Q145.8 -4 145.2 -6.1H144.5Q142.1 -3.9 139 -2.25Q135.9 -0.6 132.05 0.3Q128.2 1.2 123.5 1.2ZM128.7 -10Q131.2 -10 133.85 -10.65Q136.5 -11.3 138.75 -12.55Q141 -13.8 142.35 -15.7Q143.7 -17.6 143.7 -20V-23.1Q135.9 -23.1 130.55 -22.3Q125.2 -21.5 122.5 -19.8Q119.8 -18.1 119.8 -15.3Q119.8 -13.3 121 -12.15Q122.2 -11 124.25 -10.5Q126.3 -10 128.7 -10Z M192 1.2Q186.3 1.2 182.5 -0.4Q178.7 -2 176.85 -5.35Q175 -8.7 175 -14V-40.9H166.6V-52.7H175.6L178.8 -68.1H191.3V-52.7H203.5V-40.9H191.3V-17.1Q191.3 -13.9 192.6 -12.25Q193.9 -10.6 197.7 -10.6H203.5V-0.5Q202.2 -0.1 200.1 0.3Q198 0.7 195.85 0.95Q193.7 1.2 192 1.2Z M237.9 1.2Q228.5 1.2 221.7 -1.8Q214.9 -4.8 211.3 -10.95Q207.7 -17.1 207.7 -26.4Q207.7 -35.7 211.3 -41.8Q214.9 -47.9 221.7 -50.9Q228.5 -53.9 237.9 -53.9Q244.1 -53.9 249.3 -52.6Q254.5 -51.3 258.45 -48.55Q262.4 -45.8 264.55 -41.7Q266.7 -37.6 266.7 -32.1H250.3Q250.3 -35.4 248.75 -37.65Q247.2 -39.9 244.4 -41.05Q241.6 -42.2 237.9 -42.2Q233.3 -42.2 230.3 -40.5Q227.3 -38.8 225.85 -35.55Q224.4 -32.3 224.4 -27.6V-25.1Q224.4 -20.5 225.9 -17.25Q227.4 -14 230.5 -12.25Q233.6 -10.5 238.4 -10.5Q242.2 -10.5 245 -11.75Q247.8 -13 249.4 -15.3Q251 -17.6 251 -20.7H266.7Q266.7 -15.2 264.55 -11.05Q262.4 -6.9 258.5 -4.2Q254.6 -1.5 249.35 -0.15Q244.1 1.2 237.9 1.2Z M274 0V-72.4H290.3V-46.4H291Q293.2 -49 296.1 -50.65Q299 -52.3 302.3 -53.1Q305.6 -53.9 309.1 -53.9Q315.6 -53.9 320.1 -51.7Q324.6 -49.5 326.95 -45Q329.3 -40.5 329.3 -33.6V0H312.9V-31.2Q312.9 -33.7 312.2 -35.6Q311.5 -37.5 310.25 -38.7Q309 -39.9 307.1 -40.5Q305.2 -41.1 302.8 -41.1Q299.3 -41.1 296.5 -39.6Q293.7 -38.1 292 -35.4Q290.3 -32.7 290.3 -29.3V0Z"/><path class="pv" d="M341.6 0V-68.6H382.5Q389.3 -68.6 394 -65.9Q398.7 -63.2 401.15 -58.5Q403.6 -53.8 403.6 -47.6Q403.6 -41.4 401 -36.55Q398.4 -31.7 393.65 -29Q388.9 -26.3 382.4 -26.3H351.4V0ZM351.4 -34.7H380.9Q386.9 -34.7 390.3 -38.15Q393.7 -41.6 393.7 -47.5Q393.7 -51.4 392.2 -54.25Q390.7 -57.1 387.9 -58.65Q385.1 -60.2 380.9 -60.2H351.4Z M410.6 -62.9V-72.3H419.5V-62.9ZM410.6 0V-52.6H419.5V0Z M446.4 0 424.4 -52.6H433.9L445.2 -25.4Q445.9 -23.6 446.9 -20.9Q447.9 -18.2 448.95 -15.35Q450 -12.5 450.8 -10.3H451.4Q452.1 -12.4 453.05 -15.15Q454 -17.9 455.05 -20.65Q456.1 -23.4 456.9 -25.4L468.1 -52.6H477.3L455.3 0Z M506.5 1.2Q497.7 1.2 491.65 -1.85Q485.6 -4.9 482.5 -11Q479.4 -17.1 479.4 -26.3Q479.4 -35.6 482.5 -41.7Q485.6 -47.8 491.65 -50.8Q497.7 -53.8 506.5 -53.8Q515.3 -53.8 521.3 -50.8Q527.3 -47.8 530.45 -41.7Q533.6 -35.6 533.6 -26.3Q533.6 -17.1 530.45 -11Q527.3 -4.9 521.3 -1.85Q515.3 1.2 506.5 1.2ZM506.5 -6.2Q512.1 -6.2 516.05 -8.2Q520 -10.2 522.1 -14.4Q524.2 -18.6 524.2 -25.3V-27.4Q524.2 -34.1 522.1 -38.3Q520 -42.5 516.05 -44.45Q512.1 -46.4 506.5 -46.4Q501 -46.4 497 -44.45Q493 -42.5 490.85 -38.3Q488.7 -34.1 488.7 -27.4V-25.3Q488.7 -18.6 490.85 -14.4Q493 -10.2 497 -8.2Q501 -6.2 506.5 -6.2Z M556.8 1.2Q552.6 1.2 550.05 -0.2Q547.5 -1.6 546.35 -4.35Q545.2 -7.1 545.2 -11V-45.2H536.8V-52.6H545.3L547.1 -67.4H554.1V-52.6H565.9V-45.2H554.1V-12.5Q554.1 -9.3 555.1 -7.75Q556.1 -6.2 559.5 -6.2H565.9V-0.4Q564.8 0.1 563.15 0.45Q561.5 0.8 559.85 1Q558.2 1.2 556.8 1.2Z"/></svg>
+diff --git a/design-mocks/social/prematch.py b/design-mocks/social/prematch.py
+new file mode 100644
+index 00000000..c14ab002
+--- /dev/null
++++ b/design-mocks/social/prematch.py
+@@ -0,0 +1,401 @@
++"""The German pre-match image of one match, 1080x1350, from the marts and the frozen `assets/`.
++
++    python design-mocks/social/prematch.py <fixture_slug>
++    -> design-mocks/social/out/<fixture_slug>/<fixture_slug>_linkedin.png
++"""
++import argparse
++import datetime as dt
++import html
++import json
++import math
++import re
++import shutil
++import struct
++import subprocess
++import sys
++import tempfile
++import time
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++HERE = Path(__file__).resolve().parent
++ASSETS = HERE / "assets"
++OUT = HERE / "out"
++
++PROJECT = "football-data-pipeline-gcp"
++MARTS = f"{PROJECT}.marts"
++CREST_BUCKET = "football-data-pipeline-gcp-crests"
++MAX_BYTES = 1_000_000_000
++
++WINDOW = 5
++# (mart column, label, format, which side is better)
++METRICS = (
++    ("goals_per_match", "Tore", "avg", "high"),
++    ("goals_against_per_match", "Gegentore", "avg", "low"),
++    ("shots_on_goal_per_match", "Schüsse aufs Tor", "avg", "high"),
++    ("shots_on_goal_against_per_match", "Schüsse aufs Tor gegen", "avg", "low"),
++    ("shots_inside_box_pct", "Schüsse aus dem Strafraum", "pct", "high"),
++    ("finishing_efficiency_pct", "Abschlussquote", "pct", "high"),
++    ("passes_share_pct", "Ballbesitz", "pct", "high"),
++)
++# The German short forms of Intl's de-DE, which the site prints.
++WEEKDAYS = ("Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa.", "So.")
++MONTHS = ("Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez.")
++
++QUERIES = {
++    "fixture": f"""
++        select fixture_sk, fixture_slug, league_code, status_short, round_label_i18n_key,
++               round_number, kickoff_local, kickoff_zone_label, venue_name,
++               home_team_sk, home_team_name, away_team_sk, away_team_name,
++               is_home_team_next_match, is_away_team_next_match
++        from `{MARTS}.mart_competition_fixtures`
++        where fixture_slug = @slug""",
++    "window": f"""
++        select team_sk, window_type, games_in_window, games_with_team_stats,
++               contributing_competitions, {", ".join(m[0] for m in METRICS)}
++        from `{MARTS}.mart_team_window_metrics`
++        where fixture_sk = @fixture_sk""",
++    "standing": f"""
++        select team_sk, is_knockout, league_rank, standing_points, standing_goals_diff
++        from `{MARTS}.mart_fixture_standing_context`
++        where fixture_sk = @fixture_sk""",
++    "competitions": f"""
++        select league_code, competition_name
++        from `{MARTS}.mart_competition_index`""",
++}
++
++
++class Refused(Exception):
++    """The match cannot be drawn: a value the image states is missing or does not hold."""
++
++
++def need(row, key, where):
++    value = row.get(key)
++    if value is None or value == "" or (isinstance(value, float) and not math.isfinite(value)):
++        raise Refused(f"{where}: `{key}` has no value")
++    return value
++
++
++def one(rows, where):
++    if len(rows) != 1:
++        raise Refused(f"{where}: expected exactly one row, found {len(rows)}")
++    return rows[0]
++
++
++def fetch(slug):
++    from google.cloud import bigquery
++
++    client = bigquery.Client(project=PROJECT)
++
++    def config(params, **kwargs):
++        return bigquery.QueryJobConfig(
++            query_parameters=[bigquery.ScalarQueryParameter(*p) for p in params], **kwargs
++        )
++
++    placeholder = {"fixture": [("slug", "STRING", slug)], "competitions": []}
++    estimate = 0
++    for name, sql in QUERIES.items():
++        params = placeholder.get(name, [("fixture_sk", "INT64", 0)])
++        job = client.query(sql, job_config=config(params, dry_run=True, use_query_cache=False))
++        estimate += job.total_bytes_processed
++    print(f"BigQuery dry run: {estimate / 1e6:.1f} MB")
++    if estimate >= MAX_BYTES:
++        raise Refused(f"the read would be {estimate / 1e6:.0f} MB; the limit is {MAX_BYTES / 1e6:.0f} MB")
++
++    billed = 0
++
++    def run(name, params):
++        nonlocal billed
++        job = client.query(QUERIES[name], job_config=config(params, maximum_bytes_billed=MAX_BYTES))
++        rows = [dict(r) for r in job.result()]
++        billed += job.total_bytes_billed or 0
++        return rows
++
++    fixtures = run("fixture", [("slug", "STRING", slug)])
++    fixture = one(fixtures, f"fixture `{slug}`")
++    sk = [("fixture_sk", "INT64", int(need(fixture, "fixture_sk", "fixture")))]
++    data = {
++        "fixture": fixture,
++        "window": run("window", sk),
++        "standing": run("standing", sk),
++        "competitions": run("competitions", []),
++    }
++    print(f"BigQuery billed: {billed / 1e6:.1f} MB")
++    return json.loads(json.dumps(data, default=str, ensure_ascii=False))
++
++
++def model(data):
++    """Every value the image states, checked. Raises `Refused` instead of leaving a gap."""
++    fx = data["fixture"]
++    if need(fx, "status_short", "fixture") != "NS":
++        raise Refused(f"fixture: status is `{fx['status_short']}`, not a scheduled kickoff (`NS`)")
++    if need(fx, "round_label_i18n_key", "fixture") != "compFactMatchday":
++        raise Refused(f"fixture: the round is `{fx['round_label_i18n_key']}`, not a numbered matchday")
++    # With an earlier match still open, the window is not yet the last five before this one.
++    for side in ("home", "away"):
++        if fx.get(f"is_{side}_team_next_match") is not True:
++            raise Refused(f"fixture: this is not the {side} team's next match, so its last {WINDOW} can still change")
++
++    names = {r["league_code"]: r.get("competition_name") for r in data["competitions"]}
++
++    def competition(code):
++        return need(names, code, "mart_competition_index name of competition")
++
++    league = need(fx, "league_code", "fixture")
++    teams, contributing = [], []
++    for side in ("home", "away"):
++        sk = need(fx, f"{side}_team_sk", "fixture")
++        name = need(fx, f"{side}_team_name", "fixture")
++
++        stand = one([r for r in data["standing"] if r["team_sk"] == sk], f"standing of {name}")
++        if stand.get("is_knockout") is not False:
++            raise Refused(f"standing of {name}: a knockout round has no table position")
++
++        window = one(
++            [r for r in data["window"] if r["team_sk"] == sk and r.get("window_type") == "last_5"],
++            f"last_5 window of {name}",
++        )
++        for key in ("games_in_window", "games_with_team_stats"):
++            if need(window, key, f"window of {name}") != WINDOW:
++                raise Refused(f"window of {name}: `{key}` is {window[key]}, the image says {WINDOW}")
++        codes = window.get("contributing_competitions")
++        if not codes:
++            raise Refused(f"window of {name}: `contributing_competitions` has no value")
++        contributing += codes
++
++        teams.append({
++            "sk": sk,
++            "name": name,
++            "rank": need(stand, "league_rank", f"standing of {name}"),
++            "points": need(stand, "standing_points", f"standing of {name}"),
++            "goal_diff": need(stand, "standing_goals_diff", f"standing of {name}"),
++            "metrics": {m[0]: need(window, m[0], f"window of {name}") for m in METRICS},
++        })
++
++    # The match's own competition leads; the others follow in the order of their names.
++    codes = sorted(set(contributing), key=lambda c: (c != league, competition(c)))
++    kickoff = dt.datetime.fromisoformat(str(need(fx, "kickoff_local", "fixture")))
++    return {
++        "league": competition(league),
++        "matchday": need(fx, "round_number", "fixture"),
++        "date": f"{WEEKDAYS[kickoff.weekday()]}, {kickoff.day}. {MONTHS[kickoff.month - 1]} {kickoff.year}",
++        "clock": f"{kickoff:%H:%M} {need(fx, 'kickoff_zone_label', 'fixture')}",
++        "venue": need(fx, "venue_name", "fixture"),
++        "window_competitions": [competition(c) for c in codes],
++        "home": teams[0],
++        "away": teams[1],
++    }
++
++
++def esc(value):
++    return html.escape(str(value), quote=False)
++
++
++def joined(items):
++    if len(items) == 1:
++        return items[0]
++    return ", ".join(items[:-1]) + " und " + items[-1]
++
++
++def rounded(value, step):
++    # The Match page's Intl formats round an exact half up; Python's own formats round it to even.
++    return str(Decimal(str(value)).quantize(Decimal(step), rounding=ROUND_HALF_UP))
++
++
++def fmt(value, kind):
++    if kind == "pct":
++        # A float product, as the Match page multiplies before it formats.
++        return rounded(value * 100, "1") + "%"
++    return rounded(value, "0.1").replace(".", ",")
++
++
++def logo():
++    mark = (ASSETS / "mark.svg").read_text(encoding="utf-8").strip()
++    word = (ASSETS / "wordmark.svg").read_text(encoding="utf-8").strip()
++    word_w = float(re.search(r'viewBox="\S+ \S+ (\S+) \S+"', word).group(1))
++    total = 150 + 9 + word_w
++    return (
++        f'<svg class="li-logo" viewBox="0 0 {total} 150" style="width:{total / 150 * 1.5:.3f}em">'
++        + mark.replace("<svg ", '<svg x="0" y="0" width="150" height="150" ')
++        + word.replace("<svg ", f'<svg x="159" y="0" width="{word_w}" height="150" ')
++        + "</svg>"
++    )
++
++
++def team_block(team):
++    lead, _, last = team["name"].rpartition(" ")
++    name = (f"{esc(lead)} " if lead else "") + f'<span class="nb">{esc(last)}</span>'
++    diff = f'{team["goal_diff"]:+d}'.replace("-", "\u2212") if team["goal_diff"] else "0"
++    points = "Punkt" if team["points"] == 1 else "Punkte"
++    return (
++        f'<div class="team"><div class="crest"><img src="crests/{team["sk"]}-104.webp" alt="" width="52" height="52">'
++        f'</div><span class="tname">{name}</span>'
++        f'<div class="stand num facts-line"><span class="nb">#<b>{team["rank"]}</b></span>'
++        f'<span class="nb"><b>{team["points"]}</b> {points}</span>'
++        f'<span class="nb">Diff. <b>{diff}</b></span></div></div>'
++    )
++
++
++def metric_row(home, away, column, label, kind, better):
++    h, a = home["metrics"][column], away["metrics"][column]
++    hd, ad = fmt(h, kind), fmt(a, kind)
++    side = None
++    if hd != ad:
++        side = "home" if (h > a) == (better == "high") else "away"
++    top = max(h, a) or 1
++    hc = " chart-better" if side == "home" else ""
++    ac = " chart-better" if side == "away" else ""
++    sub = '<span class="chart-tick">pro Spiel</span>' if kind == "avg" else ""
++    return (
++        f'<div class="cmp-row"><div class="cmp-val cmp-home{hc}">{hd}</div><div class="cmp-mid">'
++        f'<div class="cmp-label"><span class="chart-name">{label}</span>{sub}</div>'
++        f'<div class="chart-bar"><span class="{hc.strip()}"><span style="width:{round(h / top * 100)}%"></span></span>'
++        f'<span class="{ac.strip()}"><span style="width:{round(a / top * 100)}%"></span></span></div></div>'
++        f'<div class="cmp-val cmp-away{ac}">{ad}</div></div>'
++    )
++
++
++def page(m):
++    rows = "".join(metric_row(m["home"], m["away"], *metric) for metric in METRICS)
++    return f"""<!doctype html>
++<html lang="de"><head><meta charset="utf-8"><title>{esc(m["home"]["name"])} – {esc(m["away"]["name"])}</title>
++<link rel="stylesheet" href="site.css">
++<link rel="stylesheet" href="layout.css">
++</head>
++<body class="fx" data-theme="dark"><main class="li">
++<div class="li-brand">{logo()}</div>
++<header class="mast">
++<div class="status-word">Spielvorschau · {esc(m["league"])}</div>
++<div class="kick facts-line"><span>{m["matchday"]}. Spieltag</span><span>{m["date"]}</span><span>{esc(m["clock"])}</span><span>{esc(m["venue"])}</span></div>
++<div class="teams">{team_block(m["home"])}<div class="vs">gegen</div>{team_block(m["away"])}</div>
++</header>
++<section>
++<div class="sechead"><span class="eyebrow">Formvergleich</span></div>
++<p class="li-note">Letzte {WINDOW} Pflichtspiele · {esc(joined(m["window_competitions"]))}</p>
++<div class="cmp">{rows}</div>
++</section>
++</main>
++</body></html>"""
++
++
++def fetch_crests(team_sks, folder):
++    from google.cloud import storage
++
++    bucket = storage.Client(project=PROJECT).bucket(CREST_BUCKET)
++    folder.mkdir(parents=True, exist_ok=True)
++    for sk in team_sks:
++        name = f"{sk}-104.webp"
++        content = bucket.blob(f"teams/{name}").download_as_bytes()
++        if not content:
++            raise Refused(f"crest teams/{name} is empty")
++        (folder / name).write_bytes(content)
++
++
++def find_edge():
++    for candidate in (
++        shutil.which("msedge"),
++        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
++        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
++    ):
++        if candidate and Path(candidate).is_file():
++            return candidate
++    raise Refused("Microsoft Edge is not installed in a known place")
++
++
++def png_size(path):
++    header = path.read_bytes()[:24]
++    if header[:8] != b"\x89PNG\r\n\x1a\n":
++        raise Refused(f"{path.name} is not a PNG")
++    return struct.unpack(">II", header[16:24])
++
++
++def png_complete(path):
++    return path.is_file() and path.read_bytes().endswith(b"IEND\xaeB`\x82")
++
++
++def stop(process):
++    if process.poll() is None:
++        if sys.platform == "win32":
++            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False)
++        else:
++            process.kill()
++        process.wait(timeout=30)
++
++
++def run_until_written(command, target, timeout=120):
++    # Headless Edge sometimes stays alive after writing the screenshot, so the file ends the wait.
++    process = subprocess.Popen(
++        command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
++    )
++    deadline = time.monotonic() + timeout
++    try:
++        while not png_complete(target):
++            if process.poll() not in (None, 0):
++                raise Refused(f"Edge failed with exit code {process.returncode}")
++            if time.monotonic() > deadline:
++                raise Refused(f"Edge wrote no screenshot within {timeout} seconds")
++            time.sleep(0.2)
++        try:
++            process.wait(timeout=5)
++        except subprocess.TimeoutExpired:
++            pass
++    finally:
++        stop(process)
++
++
++def screenshot(source, target):
++    target.unlink(missing_ok=True)
++    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:
++        run_until_written(
++            [find_edge(), "--headless", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}",
++             "--window-size=540,675", "--force-device-scale-factor=2", "--disable-lcd-antialiasing",
++             "--allow-file-access-from-files", f"--screenshot={target}", source.as_uri()],
++            target,
++        )
++    if png_size(target) != (1080, 1350):
++        raise Refused(f"the screenshot is {png_size(target)}, not 1080x1350")
++
++
++def build(data, slug, folder):
++    m = model(data)
++    markup = page(m)
++    folder.mkdir(parents=True, exist_ok=True)
++    target = folder / f"{slug}_linkedin.png"
++    target.unlink(missing_ok=True)
++    for name in ("site.css", "layout.css", "InterVariable.woff2"):
++        shutil.copyfile(ASSETS / name, folder / name)
++    fetch_crests((m["home"]["sk"], m["away"]["sk"]), folder / "crests")
++    source = folder / "index.html"
++    source.write_text(markup, encoding="utf-8")
++    screenshot(source, target)
++    return target
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
++    parser.add_argument("slug", help="fixture_slug, e.g. 2026-11-28-home-vs-away")
++    parser.add_argument("--data", type=Path, help="draw from a saved data.json instead of reading BigQuery")
++    args = parser.parse_args(argv)
++    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.slug):
++        parser.error("a fixture slug is lowercase words and digits joined by '-'")
++    folder = OUT / args.slug
++    try:
++        if args.data:
++            data = json.loads(args.data.read_text(encoding="utf-8"))
++            if data["fixture"].get("fixture_slug") != args.slug:
++                raise Refused(f"{args.data} holds another match")
++        else:
++            (folder / f"{args.slug}_linkedin.png").unlink(missing_ok=True)
++            data = fetch(args.slug)
++            folder.mkdir(parents=True, exist_ok=True)
++            (folder / "data.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
++        target = build(data, args.slug, folder)
++    except Refused as why:
++        print(f"REFUSED: {why}", file=sys.stderr)
++        return 1
++    print(target)
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_social_prematch.py b/tests/test_social_prematch.py
+new file mode 100644
+index 00000000..b5fcee5c
+--- /dev/null
++++ b/tests/test_social_prematch.py
+@@ -0,0 +1,168 @@
++"""The pre-match social image (`design-mocks/social/prematch.py`): what it draws and what it refuses."""
++
++from __future__ import annotations
++
++import copy
++import importlib.util
++import pathlib
++import sys
++
++import pytest
++
++SOCIAL = pathlib.Path(__file__).resolve().parents[1] / "design-mocks" / "social"
++_spec = importlib.util.spec_from_file_location("social_prematch", SOCIAL / "prematch.py")
++prematch = importlib.util.module_from_spec(_spec)
++_spec.loader.exec_module(prematch)
++
++PNG_END = b"IEND\xaeB`\x82"
++
++
++def sample():
++    metrics = {m[0]: (0.5 if m[2] == "pct" else 1.5) for m in prematch.METRICS}
++    window = {"window_type": "last_5", "games_in_window": 5, "games_with_team_stats": 5, **metrics}
++    standing = {"is_knockout": False, "league_rank": 3, "standing_points": 20, "standing_goals_diff": -4}
++    return {
++        "fixture": {
++            "fixture_sk": 1, "fixture_slug": "2031-03-02-a-vs-b", "league_code": "LG", "status_short": "NS",
++            "round_label_i18n_key": "compFactMatchday", "round_number": 7,
++            "kickoff_local": "2031-03-02 18:30:00", "kickoff_zone_label": "CET", "venue_name": "Ground & Park",
++            "home_team_sk": 10, "home_team_name": "Home Town FC",
++            "away_team_sk": 20, "away_team_name": "Awayside",
++            "is_home_team_next_match": True, "is_away_team_next_match": True,
++        },
++        "window": [
++            {"team_sk": 10, "contributing_competitions": ["CUP", "LG"], **window},
++            {"team_sk": 20, "contributing_competitions": ["LG", "EUR"], **window},
++        ],
++        "standing": [{"team_sk": 10, **standing}, {"team_sk": 20, **standing}],
++        "competitions": [
++            {"league_code": "LG", "competition_name": "Zeta League"},
++            {"league_code": "CUP", "competition_name": "Beta Cup"},
++            {"league_code": "EUR", "competition_name": "Alpha Trophy"},
++        ],
++    }
++
++
++def test_every_stated_value_comes_from_the_data():
++    markup = prematch.page(prematch.model(sample()))
++    for text in (
++        "Spielvorschau · Zeta League", "<span>7. Spieltag</span>", "<span>So., 2. März 2031</span>",
++        "<span>18:30 CET</span>", "<span>Ground &amp; Park</span>",
++        "Letzte 5 Pflichtspiele · Zeta League, Alpha Trophy und Beta Cup",
++        'Home Town <span class="nb">FC</span>', '<span class="nb">Awayside</span>',
++        "#<b>3</b>", "<b>20</b> Punkte", "Diff. <b>−4</b>", 'src="crests/10-104.webp"',
++    ):
++        assert text in markup
++
++
++def test_labels_and_order_are_the_approved_ones():
++    markup = prematch.page(prematch.model(sample()))
++    labels = ["Tore", "Gegentore", "Schüsse aufs Tor", "Schüsse aufs Tor gegen",
++              "Schüsse aus dem Strafraum", "Abschlussquote", "Ballbesitz"]
++    assert [chunk.split("<")[0] for chunk in markup.split('class="chart-name">')[1:]] == labels
++    assert markup.count("pro Spiel") == 4
++
++
++@pytest.mark.parametrize("home, away, better, winner", [
++    (2.0, 1.0, "high", "home"), (2.0, 1.0, "low", "away"), (1.04, 0.96, "high", None),
++])
++def test_green_marks_the_better_shown_value(home, away, better, winner):
++    row = prematch.metric_row({"metrics": {"x": home}}, {"metrics": {"x": away}}, "x", "X", "avg", better)
++    assert ("cmp-home chart-better" in row) == (winner == "home")
++    assert ("cmp-away chart-better" in row) == (winner == "away")
++
++
++@pytest.mark.parametrize("value, kind, shown", [
++    (0.125, "pct", "13%"), (0.625, "pct", "63%"), (23 / 40, "pct", "57%"),
++    (0.25, "avg", "0,3"), (2.25, "avg", "2,3"), (1.0, "avg", "1,0"),
++])
++def test_an_exact_half_rounds_up_as_on_the_match_page(value, kind, shown):
++    assert prematch.fmt(value, kind) == shown
++
++
++@pytest.mark.parametrize("points, goal_diff, shown", [
++    (1, 0, ("<b>1</b> Punkt</span>", "Diff. <b>0</b>")),
++    (0, 3, ("<b>0</b> Punkte</span>", "Diff. <b>+3</b>")),
++    (2, -1, ("<b>2</b> Punkte</span>", "Diff. <b>−1</b>")),
++])
++def test_the_standing_reads_as_on_the_match_page(points, goal_diff, shown):
++    markup = prematch.team_block({"sk": 1, "name": "A B", "rank": 18, "points": points, "goal_diff": goal_diff})
++    for text in shown:
++        assert text in markup
++
++
++def test_a_zero_value_is_drawn():
++    data = sample()
++    data["window"][0]["goals_against_per_match"] = 0.0
++    assert "0,0" in prematch.page(prematch.model(data))
++
++
++def _set(path, value):
++    def change(data):
++        target = data
++        for key in path[:-1]:
++            target = target[key]
++        target[path[-1]] = value
++    return change
++
++
++REFUSALS = [
++    *[_set(("fixture", key), None) for key in (
++        "status_short", "league_code", "round_label_i18n_key", "round_number", "kickoff_local",
++        "kickoff_zone_label", "venue_name", "home_team_name", "away_team_name",
++        "is_home_team_next_match", "is_away_team_next_match",
++    )],
++    *[_set(("window", 1, m[0]), None) for m in prematch.METRICS],
++    _set(("window", 1, "goals_per_match"), float("nan")),
++    *[_set(("standing", 0, key), None) for key in (
++        "league_rank", "standing_points", "standing_goals_diff", "is_knockout",
++    )],
++    _set(("standing", 0, "is_knockout"), True),
++    _set(("standing",), []),
++    _set(("window",), []),
++    _set(("window", 0, "window_type"), "qualifiers"),
++    _set(("window", 0, "games_in_window"), 4),
++    _set(("window", 0, "games_with_team_stats"), 4),
++    _set(("window", 0, "contributing_competitions"), []),
++    _set(("competitions", 1, "competition_name"), None),
++    _set(("fixture", "status_short"), "TBD"),
++    _set(("fixture", "round_label_i18n_key"), "roundOf16"),
++    _set(("fixture", "is_away_team_next_match"), False),
++]
++
++
++@pytest.mark.parametrize("change", REFUSALS)
++def test_a_missing_or_untrue_value_stops_the_run(change):
++    data = copy.deepcopy(sample())
++    change(data)
++    with pytest.raises(prematch.Refused):
++        prematch.model(data)
++
++
++def test_two_rows_for_one_team_stop_the_run():
++    data = sample()
++    data["standing"].append(dict(data["standing"][0]))
++    with pytest.raises(prematch.Refused):
++        prematch.model(data)
++
++
++def test_the_template_reads_only_its_own_assets():
++    markup = prematch.page(prematch.model(sample()))
++    assert markup.count('rel="stylesheet"') == 2
++    css = (prematch.ASSETS / "site.css").read_text(encoding="utf-8")
++    assert "url(InterVariable.woff2)" in css and "url(/" not in css and "@import" not in css
++    for name in ("layout.css", "InterVariable.woff2", "OFL.txt", "mark.svg", "wordmark.svg"):
++        assert (prematch.ASSETS / name).is_file(), name
++
++
++def test_the_wait_ends_on_the_finished_file_when_the_process_stays_alive(tmp_path):
++    target = tmp_path / "shot.png"
++    code = f"import sys,time; open(sys.argv[1],'wb').write({PNG_END!r}); time.sleep(60)"
++    prematch.run_until_written([sys.executable, "-c", code, str(target)], target, timeout=30)
++    assert target.read_bytes() == PNG_END
++
++
++@pytest.mark.parametrize("code, timeout", [("raise SystemExit(3)", 30), ("import time; time.sleep(60)", 1)])
++def test_a_run_that_writes_no_file_stops(tmp_path, code, timeout):
++    with pytest.raises(prematch.Refused):
++        prematch.run_until_written([sys.executable, "-c", code], tmp_path / "shot.png", timeout=timeout)
